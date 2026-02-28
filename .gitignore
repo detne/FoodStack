@@ -35,6 +35,9 @@ Thumbs.db
 
 # IDE
 .vscode/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/launch.json
 .idea/
 *.sublime-project
 *.sublime-workspace
