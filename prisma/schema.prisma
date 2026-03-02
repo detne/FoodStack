@@ -5,7 +5,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-  // directUrl = env("DIRECT_URL") // Commented out - use pooler for everything
+  directUrl = env("DIRECT_URL")
 }
 
 model activity_logs {

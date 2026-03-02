@@ -8,12 +8,15 @@ const { PrismaClient } = require('@prisma/client');
 
 // Import services
 const { TokenService } = require('./service/token');
+const { EmailService } = require('./service/email');
 
 // Import repositories
 const { UserRepository } = require('./repository/user');
+const { RestaurantRepository } = require('./repository/restaurant');
 
 // Import use cases
 const { LoginUseCase } = require('./use-cases/auth/login');
+const { RegisterRestaurantUseCase } = require('./use-cases/auth/register-restaurant');
 
 // Import controllers
 const { AuthController } = require('./controller/auth');
@@ -47,22 +50,37 @@ function createApp() {
   });
 
   // Initialize dependencies
-  const prisma = new PrismaClient();
+  const prisma = new PrismaClient({
+    log: ['error', 'warn'],
+  });
+  
+  // Handle Prisma disconnect on app shutdown
+  process.on('beforeExit', async () => {
+    await prisma.$disconnect();
+  });
+  
   const tokenService = new TokenService();
+  const emailService = new EmailService();
   
   // Initialize repositories
   const userRepository = new UserRepository(prisma);
+  const restaurantRepository = new RestaurantRepository(prisma);
   
   // Initialize use cases
   const loginUseCase = new LoginUseCase(userRepository, tokenService);
-
-    const refreshTokenUseCase = new RefreshTokenUseCase(userRepository, tokenService);
+  const registerRestaurantUseCase = new RegisterRestaurantUseCase(
+    userRepository,
+    restaurantRepository,
+    emailService,
+    prisma
+  );
+  const refreshTokenUseCase = new RefreshTokenUseCase(userRepository, tokenService);
   
   // Initialize controllers
   const authController = new AuthController(
     loginUseCase,
-    null, // registerRestaurantUseCase - TODO
-    refreshTokenUseCase, // refreshTokenUseCase - TODO
+    registerRestaurantUseCase,
+    refreshTokenUseCase,
     null  // logoutUseCase - TODO
   );
   
