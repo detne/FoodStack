@@ -21,6 +21,8 @@ const { AuthController } = require('./controller/auth');
 // Import routes
 const { createAuthRoutes } = require('./routes/v1/auth');
 
+const { RefreshTokenUseCase } = require('./use-cases/auth/refresh-token');
+
 /**
  * Create Express application
  */
@@ -53,12 +55,14 @@ function createApp() {
   
   // Initialize use cases
   const loginUseCase = new LoginUseCase(userRepository, tokenService);
+
+    const refreshTokenUseCase = new RefreshTokenUseCase(userRepository, tokenService);
   
   // Initialize controllers
   const authController = new AuthController(
     loginUseCase,
     null, // registerRestaurantUseCase - TODO
-    null, // refreshTokenUseCase - TODO
+    refreshTokenUseCase, // refreshTokenUseCase - TODO
     null  // logoutUseCase - TODO
   );
   
