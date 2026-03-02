@@ -6,10 +6,10 @@ const RegisterRestaurantSchema = z.object({
   ownerEmail: z.string().email(),
   ownerPassword: z.string().min(8).max(100),
   ownerPhone: z.string().regex(/^[0-9]{10,11}$/),
-  restaurantName: z.string().min(2).max(200),
-  businessType: z.enum(['RESTAURANT', 'CAFE', 'BAR', 'FAST_FOOD']),
+  restaurantName: z.string().min(2).max(200).optional().default('My Restaurant'),
+  businessType: z.enum(['RESTAURANT', 'CAFE', 'BAR', 'FAST_FOOD']).optional().default('RESTAURANT'),
   taxCode: z.string().optional(),
-  address: z.string().min(10).max(500),
+  address: z.string().min(10).max(500).optional().default('Default Address'),
 });
 
 module.exports = {

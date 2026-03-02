@@ -51,6 +51,9 @@ class AuthController {
    */
   async registerRestaurant(req, res, next) {
     try {
+      console.log('Request body:', req.body);
+      console.log('Request headers:', req.headers);
+      
       const { RegisterRestaurantSchema } = require('../dto/auth/register');
       const dto = RegisterRestaurantSchema.parse(req.body);
       const result = await this.registerRestaurantUseCase.execute(dto);
@@ -60,6 +63,7 @@ class AuthController {
         data: result,
       });
     } catch (error) {
+      console.error('Register error:', error);
       next(error);
     }
   }

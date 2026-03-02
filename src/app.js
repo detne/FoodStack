@@ -48,7 +48,15 @@ function createApp() {
   });
 
   // Initialize dependencies
-  const prisma = new PrismaClient();
+  const prisma = new PrismaClient({
+    log: ['error', 'warn'],
+  });
+  
+  // Handle Prisma disconnect on app shutdown
+  process.on('beforeExit', async () => {
+    await prisma.$disconnect();
+  });
+  
   const tokenService = new TokenService();
   const emailService = new EmailService();
   

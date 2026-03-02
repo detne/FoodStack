@@ -23,10 +23,9 @@ class RegisterRestaurantUseCase {
       // 3. Create restaurant
       const restaurant = await this.restaurantRepository.create({
         name: dto.restaurantName,
-        businessType: dto.businessType,
-        taxCode: dto.taxCode,
+        email: dto.ownerEmail,
+        phone: dto.ownerPhone,
         address: dto.address,
-        status: 'PENDING_VERIFICATION',
       }, tx);
 
       // 4. Hash password
@@ -35,12 +34,12 @@ class RegisterRestaurantUseCase {
       // 5. Create owner user
       const user = await this.userRepository.create({
         email: dto.ownerEmail,
-        password: hashedPassword,
+        passwordHash: hashedPassword,
         fullName: dto.ownerName,
         phone: dto.ownerPhone,
         role: 'OWNER',
         restaurantId: restaurant.id,
-        emailVerified: false,
+        status: 'ACTIVE',
       }, tx);
 
       // 6. Generate verification token
