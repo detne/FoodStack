@@ -67,12 +67,14 @@
 
 Before you begin, ensure you have:
 
-- **Node.js** 18+ ([Download](https://nodejs.org/))
+- **Node.js** 20+ ([Download](https://nodejs.org/))
 - **npm** or **yarn**
 - **Git** ([Download](https://git-scm.com/))
 - **PostgreSQL** 15+ (or Supabase account)
 - **MongoDB** 6+ (or MongoDB Atlas account)
 - **Redis** 7+ (or Redis Cloud account)
+
+**🪟 Windows Users:** See [WINDOWS-SETUP.md](./WINDOWS-SETUP.md) for detailed instructions
 
 ---
 
