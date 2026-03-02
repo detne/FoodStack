@@ -5,6 +5,7 @@
 
 const express = require('express');
 const { LoginSchema } = require('../../dto/auth/login');
+const { RefreshTokenSchema } = require('../../dto/auth/refresh-token');
 
 /**
  * Validation middleware
@@ -62,6 +63,7 @@ function createAuthRoutes(authController) {
    */
   router.post(
     '/refresh-token',
+    validateRequest(RefreshTokenSchema),
     (req, res, next) => authController.refreshToken(req, res, next)
   );
 

@@ -80,6 +80,28 @@ class TokenService {
   }
 
   /**
+ * Blacklist refresh token (token rotation)
+ * @param {string} token - Refresh token
+ * @param {number} expiresIn - Expiration time in seconds
+ */
+  async blacklistRefreshToken(token, expiresIn) {
+    const ttl = Math.max(1, Number(expiresIn) || 1);
+    const key = `refresh_blacklist:${token}`;
+    await this.redis.setex(key, ttl, '1');
+  }
+
+  /**
+   * Check if refresh token is blacklisted
+   * @param {string} token - Refresh token
+   * @returns {Promise<boolean>} True if blacklisted
+   */
+  async isRefreshTokenBlacklisted(token) {
+    const key = `refresh_blacklist:${token}`;
+    const result = await this.redis.get(key);
+    return result !== null;
+  }
+
+  /**
    * Close Redis connection
    */
   async close() {
