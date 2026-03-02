@@ -8,20 +8,25 @@ const { PrismaClient } = require('@prisma/client');
 
 // Import services
 const { TokenService } = require('./service/token');
+const { EmailService } = require('./service/email');
 
 // Import repositories
 const { UserRepository } = require('./repository/user');
+const { RestaurantRepository } = require('./repository/restaurant');
 
 // Import use cases
 const { LoginUseCase } = require('./use-cases/auth/login');
 const { ForgotPasswordUseCase } = require('./use-cases/auth/forgot-password');
 const { ResetPasswordUseCase } = require('./use-cases/auth/reset-password');
+const { RegisterRestaurantUseCase } = require('./use-cases/auth/register-restaurant');
 
 // Import controllers
 const { AuthController } = require('./controller/auth');
 
 // Import routes
 const { createAuthRoutes } = require('./routes/v1/auth');
+
+const { RefreshTokenUseCase } = require('./use-cases/auth/refresh-token');
 
 /**
  * Create Express application
@@ -54,15 +59,32 @@ function createApp() {
       },
     },
   });
+    log: ['error', 'warn'],
+  });
+  
+  // Handle Prisma disconnect on app shutdown
+  process.on('beforeExit', async () => {
+    await prisma.$disconnect();
+  });
+  
   const tokenService = new TokenService();
+  const emailService = new EmailService();
   
   // Initialize repositories
   const userRepository = new UserRepository(prisma);
+  const restaurantRepository = new RestaurantRepository(prisma);
   
   // Initialize use cases
   const loginUseCase = new LoginUseCase(userRepository, tokenService);
   const forgotPasswordUseCase = new ForgotPasswordUseCase(userRepository);
   const resetPasswordUseCase = new ResetPasswordUseCase(userRepository);
+  const registerRestaurantUseCase = new RegisterRestaurantUseCase(
+    userRepository,
+    restaurantRepository,
+    emailService,
+    prisma
+  );
+  const refreshTokenUseCase = new RefreshTokenUseCase(userRepository, tokenService);
   
   // Initialize controllers
   const authController = new AuthController(
@@ -72,6 +94,9 @@ function createApp() {
     null, // logoutUseCase - TODO
     forgotPasswordUseCase,
     resetPasswordUseCase
+    registerRestaurantUseCase,
+    refreshTokenUseCase,
+    null  // logoutUseCase - TODO
   );
   
   // Routes
