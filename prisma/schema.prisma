@@ -348,17 +348,19 @@ model user_permissions {
 }
 
 model users {
-  id            String      @id
-  restaurant_id String
-  email         String      @unique
-  password_hash String
-  full_name     String
-  phone         String?
-  role          String      @default("STAFF")
-  status        String      @default("ACTIVE")
-  last_login_at DateTime?
-  created_at    DateTime    @default(now())
-  updated_at    DateTime
-  deleted_at    DateTime?
-  restaurants   restaurants @relation(fields: [restaurant_id], references: [id])
+  id                      String      @id
+  restaurant_id           String
+  email                   String      @unique
+  password_hash           String
+  full_name               String
+  phone                   String?
+  role                    String      @default("STAFF")
+  status                  String      @default("ACTIVE")
+  reset_token             String?
+  reset_token_expires_at  DateTime?
+  last_login_at           DateTime?
+  created_at              DateTime    @default(now())
+  updated_at              DateTime
+  deleted_at              DateTime?
+  restaurants             restaurants @relation(fields: [restaurant_id], references: [id])
 }

@@ -14,6 +14,8 @@ const { UserRepository } = require('./repository/user');
 
 // Import use cases
 const { LoginUseCase } = require('./use-cases/auth/login');
+const { ForgotPasswordUseCase } = require('./use-cases/auth/forgot-password');
+const { ResetPasswordUseCase } = require('./use-cases/auth/reset-password');
 
 // Import controllers
 const { AuthController } = require('./controller/auth');
@@ -45,7 +47,13 @@ function createApp() {
   });
 
   // Initialize dependencies
-  const prisma = new PrismaClient();
+  const prisma = new PrismaClient({
+    datasources: {
+      db: {
+        url: process.env.DATABASE_URL,
+      },
+    },
+  });
   const tokenService = new TokenService();
   
   // Initialize repositories
@@ -53,13 +61,17 @@ function createApp() {
   
   // Initialize use cases
   const loginUseCase = new LoginUseCase(userRepository, tokenService);
+  const forgotPasswordUseCase = new ForgotPasswordUseCase(userRepository);
+  const resetPasswordUseCase = new ResetPasswordUseCase(userRepository);
   
   // Initialize controllers
   const authController = new AuthController(
     loginUseCase,
     null, // registerRestaurantUseCase - TODO
     null, // refreshTokenUseCase - TODO
-    null  // logoutUseCase - TODO
+    null, // logoutUseCase - TODO
+    forgotPasswordUseCase,
+    resetPasswordUseCase
   );
   
   // Routes
