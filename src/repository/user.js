@@ -108,6 +108,59 @@ class UserRepository {
       },
     });
   }
+
+  /**
+   * Update reset token
+   * @param {string} userId - User ID
+   * @param {Object} data - Reset token data
+   * @param {string} data.resetToken - Hashed reset token
+   * @param {Date} data.resetTokenExpiresAt - Token expiry date
+   */
+  async updateResetToken(userId, data) {
+    return await this.prisma.users.update({
+      where: { id: userId },
+      data: {
+        reset_token: data.resetToken,
+        reset_token_expires_at: data.resetTokenExpiresAt,
+      },
+    });
+  }
+
+  /**
+   * Find user by reset token
+   * @param {string} hashedToken - Hashed reset token
+   * @returns {Promise<Object|null>} User object or null
+   */
+  async findByResetToken(hashedToken) {
+    return await this.prisma.users.findFirst({
+      where: {
+        reset_token: hashedToken,
+        reset_token_expires_at: {
+          gte: new Date(), // Token not expired
+        },
+      },
+    });
+  }
+
+  /**
+   * Update password
+   * @param {string} userId - User ID
+   * @param {Object} data - Password update data
+   * @param {string} data.password - New hashed password
+   * @param {null} data.resetToken - Clear reset token
+   * @param {null} data.resetTokenExpiresAt - Clear token expiry
+   */
+  async updatePassword(userId, data) {
+    return await this.prisma.users.update({
+      where: { id: userId },
+      data: {
+        password_hash: data.password,
+        reset_token: data.resetToken,
+        reset_token_expires_at: data.resetTokenExpiresAt,
+        updated_at: new Date(),
+      },
+    });
+  }
 }
 
 module.exports = { UserRepository };
