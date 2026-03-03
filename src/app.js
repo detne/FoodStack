@@ -26,6 +26,13 @@ const { RefreshTokenUseCase } = require('./use-cases/auth/refresh-token');
 const { ChangePasswordUseCase } = require('./use-cases/auth/change-password');
 const { createAuthMiddleware } = require('./middleware/auth');
 
+// REST-101: Restaurant details
+const { RestaurantRepository } = require('./repository/restaurant');
+const { BranchRepository } = require('./repository/branch');
+const { GetRestaurantDetailsUseCase } = require('./use-cases/restaurant/get-details');
+const { RestaurantController } = require('./controller/restaurant');
+const { createRestaurantRoutes } = require('./routes/v1/restaurants');
+
 /**
  * Create Express application
  */
@@ -55,6 +62,8 @@ function createApp() {
 
   // Initialize repositories
   const userRepository = new UserRepository(prisma);
+  const restaurantRepository = new RestaurantRepository(prisma);
+  const branchRepository = new BranchRepository(prisma);
 
   // Initialize use cases
   const loginUseCase = new LoginUseCase(userRepository, tokenService);
@@ -62,6 +71,8 @@ function createApp() {
   const authMiddleware = createAuthMiddleware(tokenService);
 
   const refreshTokenUseCase = new RefreshTokenUseCase(userRepository, tokenService);
+  const getRestaurantDetailsUseCase = new GetRestaurantDetailsUseCase(restaurantRepository, branchRepository);
+  const restaurantController = new RestaurantController(getRestaurantDetailsUseCase);
 
   // Initialize controllers
   const authController = new AuthController(
@@ -95,6 +106,7 @@ function createApp() {
 
   // API Routes
   app.use('/api/v1/auth', createAuthRoutes(authController, authMiddleware));
+  app.use('/api/v1/restaurants', createRestaurantRoutes(restaurantController));
 
   // 404 Handler
   app.use((req, res) => {
