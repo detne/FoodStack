@@ -8,12 +8,17 @@ const { PrismaClient } = require('@prisma/client');
 
 // Import services
 const { TokenService } = require('./service/token');
+const { EmailService } = require('./service/email');
 
 // Import repositories
 const { UserRepository } = require('./repository/user');
+const { RestaurantRepository } = require('./repository/restaurant');
 
 // Import use cases
 const { LoginUseCase } = require('./use-cases/auth/login');
+const { ForgotPasswordUseCase } = require('./use-cases/auth/forgot-password');
+const { ResetPasswordUseCase } = require('./use-cases/auth/reset-password');
+const { RegisterRestaurantUseCase } = require('./use-cases/auth/register-restaurant');
 
 // Import controllers
 const { AuthController } = require('./controller/auth');
@@ -50,26 +55,48 @@ function createApp() {
   });
 
   // Initialize dependencies
-  const prisma = new PrismaClient();
+  const prisma = new PrismaClient({
+    datasources: {
+      db: { url: process.env.DATABASE_URL },
+    },
+    log: ['error', 'warn'],
+  });
+
+  // Handle Prisma disconnect on app shutdown
+  process.on('beforeExit', async () => {
+    await prisma.$disconnect();
+  });
+
   const tokenService = new TokenService();
+  const emailService = new EmailService();
 
   // Initialize repositories
   const userRepository = new UserRepository(prisma);
+  const restaurantRepository = new RestaurantRepository(prisma);
 
   // Initialize use cases
   const loginUseCase = new LoginUseCase(userRepository, tokenService);
   const changePasswordUseCase = new ChangePasswordUseCase(userRepository, tokenService);
   const authMiddleware = createAuthMiddleware(tokenService);
-
+  const forgotPasswordUseCase = new ForgotPasswordUseCase(userRepository);
+  const resetPasswordUseCase = new ResetPasswordUseCase(userRepository);
+  const registerRestaurantUseCase = new RegisterRestaurantUseCase(
+    userRepository,
+    restaurantRepository,
+    emailService,
+    prisma
+  );
   const refreshTokenUseCase = new RefreshTokenUseCase(userRepository, tokenService);
 
   // Initialize controllers
   const authController = new AuthController(
     loginUseCase,
-    null, // registerRestaurantUseCase - TODO
-    refreshTokenUseCase, // refreshTokenUseCase - TODO
-    null,  // logoutUseCase - TODO
-    changePasswordUseCase
+    forgotPasswordUseCase,
+    resetPasswordUseCase,
+    registerRestaurantUseCase,
+    refreshTokenUseCase,
+    changePasswordUseCase,
+    null  // logoutUseCase - TODO
   );
 
   // Routes

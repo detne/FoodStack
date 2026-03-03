@@ -68,7 +68,6 @@ function createAuthRoutes(authController, authMiddleware) {
    */
   router.post(
     '/refresh-token',
-    validateRequest(RefreshTokenSchema),
     (req, res, next) => authController.refreshToken(req, res, next)
   );
 
@@ -88,24 +87,20 @@ function createAuthRoutes(authController, authMiddleware) {
    * @desc    Request password reset
    * @access  Public
    */
-  router.post('/forgot-password', (req, res) => {
-    res.status(501).json({
-      success: false,
-      message: 'Not implemented yet',
-    });
-  });
+  router.post(
+    '/forgot-password',
+    (req, res, next) => authController.forgotPassword(req, res, next)
+  );
 
   /**
    * @route   POST /api/v1/auth/reset-password
    * @desc    Reset password with token
    * @access  Public
    */
-  router.post('/reset-password', (req, res) => {
-    res.status(501).json({
-      success: false,
-      message: 'Not implemented yet',
-    });
-  });
+  router.post(
+    '/reset-password',
+    (req, res, next) => authController.resetPassword(req, res, next)
+  );
 
   /**
    * @route   POST /api/v1/auth/change-password
