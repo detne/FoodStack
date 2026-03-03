@@ -58,8 +58,20 @@ class UserRepository {
    */
   async create(data, tx) {
     const client = tx || this.prisma;
-    return await client.users.create({
-      data,
+    const { v4: uuidv4 } = require('uuid');
+    
+    return client.users.create({ 
+      data: {
+        id: uuidv4(),
+        email: data.email,
+        password_hash: data.passwordHash,
+        full_name: data.fullName,
+        phone: data.phone,
+        role: data.role,
+        restaurant_id: data.restaurantId,
+        status: data.status,
+        updated_at: new Date(),
+      }
     });
   }
 
@@ -107,6 +119,19 @@ class UserRepository {
         last_login_at: new Date(),
       },
     });
+  }
+
+  /**
+   * Save verification token
+   * @param {string} userId - User ID
+   * @param {string} token - Verification token
+   * @param {Object} tx - Prisma transaction client (optional)
+   */
+  async saveVerificationToken(userId, token, tx) {
+    // TODO: Implement verification token storage
+    // For now, just return success
+    console.log(`Verification token generated for user ${userId}: ${token}`);
+    return { userId, token };
   }
 
   /**

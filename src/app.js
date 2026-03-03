@@ -9,6 +9,7 @@ const { PrismaClient } = require('@prisma/client');
 // Import services
 const { TokenService } = require('./service/token');
 const { EmailService } = require('./service/email');
+const { UploadService } = require('./service/upload');
 
 // Import repositories
 const { UserRepository } = require('./repository/user');
@@ -16,17 +17,16 @@ const { RestaurantRepository } = require('./repository/restaurant');
 
 // Import use cases
 const { LoginUseCase } = require('./use-cases/auth/login');
-const { ForgotPasswordUseCase } = require('./use-cases/auth/forgot-password');
-const { ResetPasswordUseCase } = require('./use-cases/auth/reset-password');
 const { RegisterRestaurantUseCase } = require('./use-cases/auth/register-restaurant');
+const { UploadRestaurantLogoUseCase } = require('./use-cases/restaurant/upload-logo');
 
 // Import controllers
 const { AuthController } = require('./controller/auth');
+const { RestaurantController } = require('./controller/restaurant');
 
 // Import routes
 const { createAuthRoutes } = require('./routes/v1/auth');
-
-const { RefreshTokenUseCase } = require('./use-cases/auth/refresh-token');
+const { createRestaurantRoutes } = require('./routes/v1/restaurant');
 
 /**
  * Create Express application
@@ -53,12 +53,6 @@ function createApp() {
 
   // Initialize dependencies
   const prisma = new PrismaClient({
-    datasources: {
-      db: {
-        url: process.env.DATABASE_URL,
-      },
-    },
-  });
     log: ['error', 'warn'],
   });
   
@@ -69,6 +63,7 @@ function createApp() {
   
   const tokenService = new TokenService();
   const emailService = new EmailService();
+  const uploadService = new UploadService();
   
   // Initialize repositories
   const userRepository = new UserRepository(prisma);
@@ -76,28 +71,27 @@ function createApp() {
   
   // Initialize use cases
   const loginUseCase = new LoginUseCase(userRepository, tokenService);
-  const forgotPasswordUseCase = new ForgotPasswordUseCase(userRepository);
-  const resetPasswordUseCase = new ResetPasswordUseCase(userRepository);
   const registerRestaurantUseCase = new RegisterRestaurantUseCase(
     userRepository,
     restaurantRepository,
     emailService,
     prisma
   );
-  const refreshTokenUseCase = new RefreshTokenUseCase(userRepository, tokenService);
+  const uploadRestaurantLogoUseCase = new UploadRestaurantLogoUseCase(
+    restaurantRepository,
+    uploadService
+  );
   
   // Initialize controllers
   const authController = new AuthController(
     loginUseCase,
-    null, // registerRestaurantUseCase - TODO
+    registerRestaurantUseCase,
     null, // refreshTokenUseCase - TODO
     null, // logoutUseCase - TODO
-    forgotPasswordUseCase,
-    resetPasswordUseCase
-    registerRestaurantUseCase,
-    refreshTokenUseCase,
-    null  // logoutUseCase - TODO
+    null, // forgotPasswordUseCase - TODO
+    null  // resetPasswordUseCase - TODO
   );
+  const restaurantController = new RestaurantController(uploadRestaurantLogoUseCase);
   
   // Routes
   app.get('/', (req, res) => {
@@ -122,6 +116,7 @@ function createApp() {
 
   // API Routes
   app.use('/api/v1/auth', createAuthRoutes(authController));
+  app.use('/api/v1/restaurants', createRestaurantRoutes(restaurantController));
 
   // 404 Handler
   app.use((req, res) => {

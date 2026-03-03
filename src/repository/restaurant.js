@@ -5,7 +5,7 @@ class RestaurantRepository {
   }
 
   async findById(id) {
-    return this.prisma.restaurant.findUnique({
+    return this.prisma.restaurants.findUnique({
       where: { id },
     });
   }
@@ -28,9 +28,12 @@ class RestaurantRepository {
   }
 
   async update(id, data) {
-    return this.prisma.restaurant.update({
+    return this.prisma.restaurants.update({
       where: { id },
-      data,
+      data: {
+        ...data,
+        updated_at: new Date(),
+      },
     });
   }
 }
