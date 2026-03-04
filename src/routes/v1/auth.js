@@ -5,8 +5,10 @@
 
 const express = require('express');
 const { LoginSchema } = require('../../dto/auth/login');
+const { RegisterRestaurantSchema } = require('../../dto/auth/register');
 const { RefreshTokenSchema } = require('../../dto/auth/refresh-token');
 const { ChangePasswordSchema } = require('../../dto/auth/change-password');
+const { VerifyEmailOtpSchema } = require('../../dto/auth/verify-email-otp');
 
 /**
  * Validation middleware
@@ -34,7 +36,7 @@ function validateRequest(schema) {
  */
 function createAuthRoutes(authController, authMiddleware) {
   const router = express.Router();
-  
+
   if (!authMiddleware) {
     throw new Error('authMiddleware is required for private routes');
   }
@@ -46,7 +48,7 @@ function createAuthRoutes(authController, authMiddleware) {
    */
   router.post(
     '/register',
-    // validateRequest(RegisterRestaurantSchema),
+    validateRequest(RegisterRestaurantSchema),
     (req, res, next) => authController.registerRestaurant(req, res, next)
   );
 
@@ -68,6 +70,7 @@ function createAuthRoutes(authController, authMiddleware) {
    */
   router.post(
     '/refresh-token',
+    validateRequest(RefreshTokenSchema),
     (req, res, next) => authController.refreshToken(req, res, next)
   );
 
@@ -125,6 +128,12 @@ function createAuthRoutes(authController, authMiddleware) {
       message: 'Not implemented yet',
     });
   });
+
+  router.post(
+    '/verify-email-otp',
+    validateRequest(VerifyEmailOtpSchema),
+    (req, res, next) => authController.verifyEmailOtp(req, res, next)
+  );
 
   return router;
 }
