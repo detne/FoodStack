@@ -1,6 +1,7 @@
 // src/use-cases/auth/register-restaurant.js
+
+const { v4: uuidv4 } = require('uuid');
 const { hashPassword } = require('../../utils/bcrypt');
-const { generateToken } = require('../../utils/token');
 const { ValidationError } = require('../../exception/validation-error');
 
 class RegisterRestaurantUseCase {
@@ -12,62 +13,93 @@ class RegisterRestaurantUseCase {
   }
 
   async execute(dto) {
-    // 1. Validate unique email
+    // 1) Validate unique email
     const existingUser = await this.userRepository.findByEmail(dto.ownerEmail);
     if (existingUser) {
       throw new ValidationError('Email already registered');
     }
 
-    // 2. Start transaction
+    // 2) Transaction
     return await this.prisma.$transaction(async (tx) => {
-      // 3. Create restaurant
-      const restaurant = await this.restaurantRepository.create({
-        name: dto.restaurantName,
-        email: dto.ownerEmail,
-        phone: dto.ownerPhone,
-        address: dto.address,
-      }, tx);
+      const now = new Date();
+      const restaurantId = uuidv4();
+      const userId = uuidv4();
+      const branchId = uuidv4();
 
-      // 4. Hash password
+      // 3) Create restaurant
+      const restaurant = await tx.restaurants.create({
+        data: {
+          id: restaurantId,
+          name: dto.restaurantName ?? 'My Restaurant',
+          email: dto.ownerEmail,
+          phone: dto.ownerPhone,
+          address: dto.address ?? 'Default Address',
+          email_verified: false,
+          email_verified_at: null,
+          subscription_id: null,
+          updated_at: now,
+        },
+      });
+
+      // 4) Hash password
       const hashedPassword = await hashPassword(dto.ownerPassword);
 
-      // 5. Create owner user
-      const user = await this.userRepository.create({
-        email: dto.ownerEmail,
-        passwordHash: hashedPassword,
-        fullName: dto.ownerName,
-        phone: dto.ownerPhone,
-        role: 'OWNER',
-        restaurantId: restaurant.id,
-        status: 'ACTIVE',
-      }, tx);
-
-      // 6. Generate verification token
-      const verificationToken = generateToken({ 
-        userId: user.id, 
-        type: 'EMAIL_VERIFICATION' 
+      // 5) Create owner user
+      const user = await tx.users.create({
+        data: {
+          id: userId,
+          restaurant_id: restaurant.id,
+          email: dto.ownerEmail,
+          password_hash: hashedPassword,
+          full_name: dto.ownerName,
+          phone: dto.ownerPhone,
+          role: 'OWNER',
+          status: 'ACTIVE',
+          updated_at: now,
+          // KHÔNG cần set reset_token/reset_token_expires_at/last_login_at
+        },
       });
-      
-      // 7. Store token
-      await this.userRepository.saveVerificationToken(
-        user.id, 
-        verificationToken, 
-        tx
-      );
 
-      // 8. Send verification email
-      this.emailService.sendVerificationEmail(
-        dto.ownerEmail,
-        dto.ownerName,
-        verificationToken
-      ).catch(err => console.error('Email error:', err));
+      // 6) Create default branch
+      await tx.branches.create({
+        data: {
+          id: branchId,
+          restaurant_id: restaurant.id,
+          name: 'Main Branch',
+          address: dto.address ?? 'Default Address',
+          phone: dto.ownerPhone,
+          status: 'ACTIVE',
+          updated_at: now,
+        },
+      });
+
+      // 7) Generate OTP (6 digits) + expiry (10 minutes)
+      const otp = String(Math.floor(100000 + Math.random() * 900000));
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+      // 8) Store OTP in users table
+      await tx.users.update({
+        where: { id: user.id },
+        data: {
+          email_verify_otp: otp,
+          email_verify_otp_expires_at: expiresAt,
+          updated_at: new Date(),
+        },
+      });
+
+      // 9) Send OTP email (async)
+      // NOTE: bạn cần implement emailService.sendOtpEmail(toEmail, toName, otp)
+      this.emailService
+        .sendOtpEmail(dto.ownerEmail, dto.ownerName, otp)
+        .catch((err) => console.error('Email error:', err));
 
       return {
         userId: user.id,
         restaurantId: restaurant.id,
         email: user.email,
-        message: 'Registration successful. Please verify your email.',
-        verificationEmailSent: true,
+        message: 'Registration successful. OTP has been sent to your email.',
+        otpSent: true,
+        // otpExpiresAt: expiresAt, // nếu muốn debug thì bật, production nên tắt
       };
     });
   }

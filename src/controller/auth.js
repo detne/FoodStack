@@ -4,6 +4,7 @@
  */
 
 const { LoginSchema } = require('../dto/auth/login');
+const { RegisterRestaurantSchema } = require('../dto/auth/register');
 const { ForgotPasswordSchema } = require('../dto/auth/forgot-password');
 const { ResetPasswordSchema } = require('../dto/auth/reset-password');
 
@@ -24,15 +25,19 @@ class AuthController {
     logoutUseCase,
     forgotPasswordUseCase,
     resetPasswordUseCase,
-    changePasswordUseCase
+    changePasswordUseCase,
+    verifyEmailOtpUseCase
   ) {
     this.loginUseCase = loginUseCase;
     this.registerRestaurantUseCase = registerRestaurantUseCase;
     this.refreshTokenUseCase = refreshTokenUseCase;
     this.logoutUseCase = logoutUseCase;
-    this.changePasswordUseCase = changePasswordUseCase;
+
     this.forgotPasswordUseCase = forgotPasswordUseCase;
     this.resetPasswordUseCase = resetPasswordUseCase;
+
+    this.changePasswordUseCase = changePasswordUseCase;
+    this.verifyEmailOtpUseCase = verifyEmailOtpUseCase;
   }
 
   async login(req, res, next) {
@@ -57,8 +62,18 @@ class AuthController {
   }
 
   async registerRestaurant(req, res, next) {
+    console.log('[DEBUG] registerRestaurantUseCase =', this.registerRestaurantUseCase?.constructor?.name);
+    console.log('[DEBUG] body keys =', Object.keys(req.body || {}));
     try {
-      res.status(501).json({ success: false, message: 'Not implemented yet' });
+      const dto = RegisterRestaurantSchema.parse(req.body);
+
+      const result = await this.registerRestaurantUseCase.execute(dto);
+
+      res.status(201).json({
+        success: true,
+        message: 'Registration successful. Please verify your email.',
+        data: result,
+      });
     } catch (error) {
       next(error);
     }
@@ -158,6 +173,22 @@ class AuthController {
       });
     } catch (error) {
       next(error);
+    }
+  }
+
+  async verifyEmailOtp(req, res, next) {
+    try {
+      const { VerifyEmailOtpSchema } = require('../dto/auth/verify-email-otp');
+      const dto = VerifyEmailOtpSchema.parse(req.body);
+
+      const result = await this.verifyEmailOtpUseCase.execute(dto);
+
+      res.status(200).json({
+        success: true,
+        message: result.message,
+      });
+    } catch (err) {
+      next(err);
     }
   }
 }

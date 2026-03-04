@@ -19,15 +19,14 @@ const { LoginUseCase } = require('./use-cases/auth/login');
 const { ForgotPasswordUseCase } = require('./use-cases/auth/forgot-password');
 const { ResetPasswordUseCase } = require('./use-cases/auth/reset-password');
 const { RegisterRestaurantUseCase } = require('./use-cases/auth/register-restaurant');
+const { RefreshTokenUseCase } = require('./use-cases/auth/refresh-token');
+const { VerifyEmailOtpUseCase } = require('./use-cases/auth/verify-email-otp');
 
 // Import controllers
 const { AuthController } = require('./controller/auth');
 
 // Import routes
 const { createAuthRoutes } = require('./routes/v1/auth');
-
-const { RefreshTokenUseCase } = require('./use-cases/auth/refresh-token');
-
 const { ChangePasswordUseCase } = require('./use-cases/auth/change-password');
 const { createAuthMiddleware } = require('./middleware/auth');
 
@@ -77,8 +76,9 @@ function createApp() {
   // Initialize use cases
   const loginUseCase = new LoginUseCase(userRepository, tokenService);
   const changePasswordUseCase = new ChangePasswordUseCase(userRepository, tokenService);
+  const verifyEmailOtpUseCase = new VerifyEmailOtpUseCase(userRepository, prisma);
   const authMiddleware = createAuthMiddleware(tokenService);
-  const forgotPasswordUseCase = new ForgotPasswordUseCase(userRepository);
+  const forgotPasswordUseCase = new ForgotPasswordUseCase(userRepository, emailService);
   const resetPasswordUseCase = new ResetPasswordUseCase(userRepository);
   const registerRestaurantUseCase = new RegisterRestaurantUseCase(
     userRepository,
@@ -91,12 +91,13 @@ function createApp() {
   // Initialize controllers
   const authController = new AuthController(
     loginUseCase,
-    forgotPasswordUseCase,
-    resetPasswordUseCase,
     registerRestaurantUseCase,
     refreshTokenUseCase,
+    null, // logoutUseCase - TODO
+    forgotPasswordUseCase,
+    resetPasswordUseCase,
     changePasswordUseCase,
-    null  // logoutUseCase - TODO
+    verifyEmailOtpUseCase
   );
 
   // Routes
