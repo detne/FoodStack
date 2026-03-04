@@ -59,13 +59,14 @@ class TokenService {
   }
 
   /**
-   * Blacklist access token (for logout)
+   * Blacklist access token (for logout / immediate invalidation)
    * @param {string} token - Access token
    * @param {number} expiresIn - Expiration time in seconds
    */
   async blacklistAccessToken(token, expiresIn) {
+    const ttl = Math.max(1, Number(expiresIn) || 1);
     const key = `blacklist:${token}`;
-    await this.redis.setex(key, expiresIn, '1');
+    await this.redis.setex(key, ttl, '1');
   }
 
   /**
@@ -80,10 +81,10 @@ class TokenService {
   }
 
   /**
- * Blacklist refresh token (token rotation)
- * @param {string} token - Refresh token
- * @param {number} expiresIn - Expiration time in seconds
- */
+   * Blacklist refresh token (token rotation)
+   * @param {string} token - Refresh token
+   * @param {number} expiresIn - Expiration time in seconds
+   */
   async blacklistRefreshToken(token, expiresIn) {
     const ttl = Math.max(1, Number(expiresIn) || 1);
     const key = `refresh_blacklist:${token}`;
@@ -99,6 +100,44 @@ class TokenService {
     const key = `refresh_blacklist:${token}`;
     const result = await this.redis.get(key);
     return result !== null;
+  }
+
+  // =====================================================
+  // ✅ NEW: Token Versioning (invalidate all tokens)
+  // Key: token_version:<userId>
+  // =====================================================
+
+  /**
+   * Get token version for a user (default 0)
+   * @param {string} userId
+   * @returns {Promise<number>}
+   */
+  async getTokenVersion(userId) {
+    const key = `token_version:${userId}`;
+    const v = await this.redis.get(key);
+    return v ? Number(v) : 0;
+  }
+
+  /**
+   * Set token version explicitly (optional utility)
+   * @param {string} userId
+   * @param {number} version
+   */
+  async setTokenVersion(userId, version) {
+    const key = `token_version:${userId}`;
+    await this.redis.set(key, String(Number(version) || 0));
+  }
+
+  /**
+   * Bump token version to invalidate all existing tokens
+   * Returns new version
+   * @param {string} userId
+   * @returns {Promise<number>}
+   */
+  async bumpTokenVersion(userId) {
+    const key = `token_version:${userId}`;
+    const newV = await this.redis.incr(key);
+    return Number(newV);
   }
 
   /**

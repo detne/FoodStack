@@ -49,6 +49,12 @@ class RefreshTokenUseCase {
 
     const userId = payload.userId;
 
+    // 2.5) Validate token version (invalidate-all-tokens support)
+    const currentVersion = await this.tokenService.getTokenVersion(userId);
+    if ((payload.tv ?? 0) !== currentVersion) {
+      throw new Error('Refresh token has been revoked');
+    }
+
     // 3) Validate refresh token against Redis (must match current active token)
     const storedToken = await this.tokenService.getRefreshToken(userId);
     if (!storedToken || storedToken !== refreshToken) {
@@ -71,6 +77,7 @@ class RefreshTokenUseCase {
         email: user.email,
         role: user.role,
         restaurantId: user.restaurantId,
+        tv: currentVersion,
       },
       '15m'
     );
@@ -80,6 +87,7 @@ class RefreshTokenUseCase {
       {
         userId: user.id,
         type: 'REFRESH',
+        tv: currentVersion,
       },
       '30d'
     );

@@ -28,6 +28,9 @@ const { createAuthRoutes } = require('./routes/v1/auth');
 
 const { RefreshTokenUseCase } = require('./use-cases/auth/refresh-token');
 
+const { ChangePasswordUseCase } = require('./use-cases/auth/change-password');
+const { createAuthMiddleware } = require('./middleware/auth');
+
 /**
  * Create Express application
  */
@@ -43,39 +46,38 @@ function createApp() {
     res.header('Access-Control-Allow-Origin', '*');
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    
+
     if (req.method === 'OPTIONS') {
       return res.sendStatus(200);
     }
-    
+
     next();
   });
 
   // Initialize dependencies
   const prisma = new PrismaClient({
     datasources: {
-      db: {
-        url: process.env.DATABASE_URL,
-      },
+      db: { url: process.env.DATABASE_URL },
     },
-  });
     log: ['error', 'warn'],
   });
-  
+
   // Handle Prisma disconnect on app shutdown
   process.on('beforeExit', async () => {
     await prisma.$disconnect();
   });
-  
+
   const tokenService = new TokenService();
   const emailService = new EmailService();
-  
+
   // Initialize repositories
   const userRepository = new UserRepository(prisma);
   const restaurantRepository = new RestaurantRepository(prisma);
-  
+
   // Initialize use cases
   const loginUseCase = new LoginUseCase(userRepository, tokenService);
+  const changePasswordUseCase = new ChangePasswordUseCase(userRepository, tokenService);
+  const authMiddleware = createAuthMiddleware(tokenService);
   const forgotPasswordUseCase = new ForgotPasswordUseCase(userRepository);
   const resetPasswordUseCase = new ResetPasswordUseCase(userRepository);
   const registerRestaurantUseCase = new RegisterRestaurantUseCase(
@@ -85,20 +87,18 @@ function createApp() {
     prisma
   );
   const refreshTokenUseCase = new RefreshTokenUseCase(userRepository, tokenService);
-  
+
   // Initialize controllers
   const authController = new AuthController(
     loginUseCase,
-    null, // registerRestaurantUseCase - TODO
-    null, // refreshTokenUseCase - TODO
-    null, // logoutUseCase - TODO
     forgotPasswordUseCase,
-    resetPasswordUseCase
+    resetPasswordUseCase,
     registerRestaurantUseCase,
     refreshTokenUseCase,
+    changePasswordUseCase,
     null  // logoutUseCase - TODO
   );
-  
+
   // Routes
   app.get('/', (req, res) => {
     res.json({
@@ -121,7 +121,7 @@ function createApp() {
   });
 
   // API Routes
-  app.use('/api/v1/auth', createAuthRoutes(authController));
+  app.use('/api/v1/auth', createAuthRoutes(authController, authMiddleware));
 
   // 404 Handler
   app.use((req, res) => {
@@ -135,7 +135,7 @@ function createApp() {
   // Error Handler
   app.use((err, req, res, next) => {
     console.error('Error:', err);
-    
+
     res.status(err.status || 500).json({
       success: false,
       message: err.message || 'Internal server error',
