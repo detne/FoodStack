@@ -26,7 +26,7 @@ class RestaurantController {
     try {
       const { restaurantId } = req.params;
       const file = req.file;
-      const userId = req.user?.id; // From auth middleware
+      const userId = req.user?.userId; // From auth middleware
 
       if (!file) {
         return res.status(400).json({

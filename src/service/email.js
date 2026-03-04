@@ -52,6 +52,24 @@ class EmailService {
       throw error;
     }
   }
+  /// ✅ Send password reset email (console log only)
+  async sendPasswordResetEmail(email, resetLink) {
+    try {
+      console.log(`
+      ========================================
+      📧 PASSWORD RESET EMAIL
+      ========================================
+      To: ${email}
+      Reset Link: ${resetLink}
+      ========================================
+    `);
+
+      return true;
+    } catch (error) {
+      console.error('Password reset email sending failed:', error);
+      throw error;
+    }
+  }
 }
 
 module.exports = { EmailService };
