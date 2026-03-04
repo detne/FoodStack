@@ -39,14 +39,14 @@ class LoginUseCase {
   async execute(dto, ipAddress = null) {
     // 1. Find user by email
     const user = await this.userRepository.findByEmail(dto.email);
-    
+
     if (!user) {
       throw new Error('Invalid email or password');
     }
 
     // 2. Verify password
     const isPasswordValid = await comparePassword(dto.password, user.password_hash);
-    
+
     if (!isPasswordValid) {
       throw new Error('Invalid email or password');
     }
@@ -67,18 +67,23 @@ class LoginUseCase {
       throw new Error('Restaurant email not verified. Please verify your restaurant email.');
     }
 
+    // 6.0 Get current token version (for global invalidation)
+    const tokenVersion = await this.tokenService.getTokenVersion(user.id);
+
     // 6. Generate access token (15 minutes)
     const accessToken = generateAccessToken({
       userId: user.id,
       email: user.email,
       role: user.role,
       restaurantId: user.restaurantId,
+      tv: tokenVersion,
     }, '15m');
 
     // 7. Generate refresh token (30 days)
     const refreshToken = generateRefreshToken({
       userId: user.id,
       type: 'REFRESH',
+      tv: tokenVersion,
     }, '30d');
 
     // 8. Store refresh token in Redis (30 days = 2592000 seconds)

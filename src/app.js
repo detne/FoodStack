@@ -6,31 +6,38 @@
 const express = require('express');
 const { PrismaClient } = require('@prisma/client');
 
-// Import services
+// Services
 const { TokenService } = require('./service/token');
 const { EmailService } = require('./service/email');
 const { UploadService } = require('./service/upload');
 
-// Import repositories
+// Repositories
 const { UserRepository } = require('./repository/user');
 const { RestaurantRepository } = require('./repository/restaurant');
+const { BranchRepository } = require('./repository/branch');
 
-// Import use cases
+// Use cases
 const { LoginUseCase } = require('./use-cases/auth/login');
+const { ForgotPasswordUseCase } = require('./use-cases/auth/forgot-password');
+const { ResetPasswordUseCase } = require('./use-cases/auth/reset-password');
+const { RefreshTokenUseCase } = require('./use-cases/auth/refresh-token');
+const { ChangePasswordUseCase } = require('./use-cases/auth/change-password');
 const { RegisterRestaurantUseCase } = require('./use-cases/auth/register-restaurant');
+const { VerifyEmailOtpUseCase } = require('./use-cases/auth/verify-email-otp');
+const { GetRestaurantDetailsUseCase } = require('./use-cases/restaurant/get-details');
 const { UploadRestaurantLogoUseCase } = require('./use-cases/restaurant/upload-logo');
 
-// Import controllers
+// Controllers
 const { AuthController } = require('./controller/auth');
 const { RestaurantController } = require('./controller/restaurant');
 
-// Import routes
+// Routes
 const { createAuthRoutes } = require('./routes/v1/auth');
-const { createRestaurantRoutes } = require('./routes/v1/restaurant');
+const { createRestaurantRoutes } = require('./routes/v1/restaurants');
 
-/**
- * Create Express application
- */
+// Middleware
+const { createAuthMiddleware } = require('./middleware/auth');
+
 function createApp() {
   const app = express();
 
@@ -43,24 +50,24 @@ function createApp() {
     res.header('Access-Control-Allow-Origin', '*');
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    
-    if (req.method === 'OPTIONS') {
-      return res.sendStatus(200);
-    }
-    
+
+    if (req.method === 'OPTIONS') return res.sendStatus(200);
     next();
   });
 
-  // Initialize dependencies
+  // Prisma
   const prisma = new PrismaClient({
+    datasources: {
+      db: { url: process.env.DATABASE_URL },
+    },
     log: ['error', 'warn'],
   });
-  
+
   // Handle Prisma disconnect on app shutdown
   process.on('beforeExit', async () => {
     await prisma.$disconnect();
   });
-  
+
   const tokenService = new TokenService();
   const emailService = new EmailService();
   const uploadService = new UploadService();
@@ -68,31 +75,41 @@ function createApp() {
   // Initialize repositories
   const userRepository = new UserRepository(prisma);
   const restaurantRepository = new RestaurantRepository(prisma);
-  
+  const branchRepository = new BranchRepository(prisma);
+
   // Initialize use cases
   const loginUseCase = new LoginUseCase(userRepository, tokenService);
+  const refreshTokenUseCase = new RefreshTokenUseCase(userRepository, tokenService);
+  const changePasswordUseCase = new ChangePasswordUseCase(userRepository, tokenService);
+  const verifyEmailOtpUseCase = new VerifyEmailOtpUseCase(userRepository, prisma);
+  const forgotPasswordUseCase = new ForgotPasswordUseCase(userRepository, emailService);
+  const resetPasswordUseCase = new ResetPasswordUseCase(userRepository);
   const registerRestaurantUseCase = new RegisterRestaurantUseCase(
     userRepository,
     restaurantRepository,
     emailService,
     prisma
   );
-  const uploadRestaurantLogoUseCase = new UploadRestaurantLogoUseCase(
-    restaurantRepository,
-    uploadService
-  );
-  
+
+  // Auth middleware
+  const authMiddleware = createAuthMiddleware(tokenService);
+
   // Initialize controllers
   const authController = new AuthController(
     loginUseCase,
     registerRestaurantUseCase,
-    null, // refreshTokenUseCase - TODO
+    refreshTokenUseCase,
     null, // logoutUseCase - TODO
-    null, // forgotPasswordUseCase - TODO
-    null  // resetPasswordUseCase - TODO
+    forgotPasswordUseCase,
+    resetPasswordUseCase,
+    changePasswordUseCase,
+    verifyEmailOtpUseCase
   );
-  const restaurantController = new RestaurantController(uploadRestaurantLogoUseCase);
-  
+
+  // Use case + controller (restaurants)
+  const getRestaurantDetailsUseCase = new GetRestaurantDetailsUseCase(restaurantRepository, branchRepository);
+  const restaurantController = new RestaurantController(getRestaurantDetailsUseCase);
+
   // Routes
   app.get('/', (req, res) => {
     res.json({
@@ -101,36 +118,27 @@ function createApp() {
       version: '1.0.0',
       endpoints: {
         auth: '/api/v1/auth',
+        restaurants: '/api/v1/restaurants',
         health: '/health',
       },
     });
   });
 
   app.get('/health', (req, res) => {
-    res.json({
-      success: true,
-      status: 'healthy',
-      timestamp: new Date().toISOString(),
-    });
+    res.json({ success: true, status: 'healthy', timestamp: new Date().toISOString() });
   });
 
-  // API Routes
-  app.use('/api/v1/auth', createAuthRoutes(authController));
+  app.use('/api/v1/auth', createAuthRoutes(authController, authMiddleware));
   app.use('/api/v1/restaurants', createRestaurantRoutes(restaurantController));
 
-  // 404 Handler
+  // 404
   app.use((req, res) => {
-    res.status(404).json({
-      success: false,
-      message: 'Route not found',
-      path: req.path,
-    });
+    res.status(404).json({ success: false, message: 'Route not found', path: req.path });
   });
 
-  // Error Handler
+  // Error handler
   app.use((err, req, res, next) => {
     console.error('Error:', err);
-    
     res.status(err.status || 500).json({
       success: false,
       message: err.message || 'Internal server error',

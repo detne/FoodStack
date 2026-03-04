@@ -1,11 +1,12 @@
-// src/repository/restaurant.js
+const { PrismaClient } = require('@prisma/client');
+
 class RestaurantRepository {
   constructor(prisma) {
-    this.prisma = prisma;
+    this.prisma = prisma || new PrismaClient();
   }
 
   async findById(id) {
-    return this.prisma.restaurants.findUnique({
+    return await this.prisma.restaurants.findUnique({
       where: { id },
     });
   }
@@ -13,8 +14,8 @@ class RestaurantRepository {
   async create(data, tx) {
     const client = tx || this.prisma;
     const { v4: uuidv4 } = require('uuid');
-    
-    return client.restaurants.create({ 
+
+    return client.restaurants.create({
       data: {
         id: uuidv4(),
         name: data.name,

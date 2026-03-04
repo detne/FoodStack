@@ -5,6 +5,10 @@
 
 const express = require('express');
 const { LoginSchema } = require('../../dto/auth/login');
+const { RegisterRestaurantSchema } = require('../../dto/auth/register');
+const { RefreshTokenSchema } = require('../../dto/auth/refresh-token');
+const { ChangePasswordSchema } = require('../../dto/auth/change-password');
+const { VerifyEmailOtpSchema } = require('../../dto/auth/verify-email-otp');
 
 /**
  * Validation middleware
@@ -30,8 +34,12 @@ function validateRequest(schema) {
  * @param {Object} authController - Auth controller instance
  * @returns {express.Router} Express router
  */
-function createAuthRoutes(authController) {
+function createAuthRoutes(authController, authMiddleware) {
   const router = express.Router();
+
+  if (!authMiddleware) {
+    throw new Error('authMiddleware is required for private routes');
+  }
 
   /**
    * @route   POST /api/v1/auth/register
@@ -40,7 +48,7 @@ function createAuthRoutes(authController) {
    */
   router.post(
     '/register',
-    // validateRequest(RegisterRestaurantSchema),
+    validateRequest(RegisterRestaurantSchema),
     (req, res, next) => authController.registerRestaurant(req, res, next)
   );
 
@@ -62,6 +70,7 @@ function createAuthRoutes(authController) {
    */
   router.post(
     '/refresh-token',
+    validateRequest(RefreshTokenSchema),
     (req, res, next) => authController.refreshToken(req, res, next)
   );
 
@@ -101,12 +110,12 @@ function createAuthRoutes(authController) {
    * @desc    Change password (authenticated)
    * @access  Private
    */
-  router.post('/change-password', (req, res) => {
-    res.status(501).json({
-      success: false,
-      message: 'Not implemented yet',
-    });
-  });
+  router.post(
+    '/change-password',
+    authMiddleware,
+    validateRequest(ChangePasswordSchema),
+    (req, res, next) => authController.changePassword(req, res, next)
+  );
 
   /**
    * @route   GET /api/v1/auth/verify-email/:token
@@ -119,6 +128,12 @@ function createAuthRoutes(authController) {
       message: 'Not implemented yet',
     });
   });
+
+  router.post(
+    '/verify-email-otp',
+    validateRequest(VerifyEmailOtpSchema),
+    (req, res, next) => authController.verifyEmailOtp(req, res, next)
+  );
 
   return router;
 }

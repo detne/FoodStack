@@ -4,6 +4,7 @@
  */
 
 const { LoginSchema } = require('../dto/auth/login');
+const { RegisterRestaurantSchema } = require('../dto/auth/register');
 const { ForgotPasswordSchema } = require('../dto/auth/forgot-password');
 const { ResetPasswordSchema } = require('../dto/auth/reset-password');
 
@@ -15,6 +16,7 @@ class AuthController {
    * @param {Object} logoutUseCase - Logout use case
    * @param {Object} forgotPasswordUseCase - Forgot password use case
    * @param {Object} resetPasswordUseCase - Reset password use case
+   * @param {Object} changePasswordUseCase - Change password use case
    */
   constructor(
     loginUseCase,
@@ -22,31 +24,32 @@ class AuthController {
     refreshTokenUseCase,
     logoutUseCase,
     forgotPasswordUseCase,
-    resetPasswordUseCase
+    resetPasswordUseCase,
+    changePasswordUseCase,
+    verifyEmailOtpUseCase
   ) {
     this.loginUseCase = loginUseCase;
     this.registerRestaurantUseCase = registerRestaurantUseCase;
     this.refreshTokenUseCase = refreshTokenUseCase;
     this.logoutUseCase = logoutUseCase;
+
     this.forgotPasswordUseCase = forgotPasswordUseCase;
     this.resetPasswordUseCase = resetPasswordUseCase;
+
+    this.changePasswordUseCase = changePasswordUseCase;
+    this.verifyEmailOtpUseCase = verifyEmailOtpUseCase;
   }
 
-  /**
-   * Login endpoint
-   * POST /api/v1/auth/login
-   */
   async login(req, res, next) {
     try {
-      // Validate input
       const dto = LoginSchema.parse(req.body);
-      
+
       // Get client IP
       const ipAddress = req.ip || req.connection.remoteAddress;
-      
+
       // Execute use case
       const result = await this.loginUseCase.execute(dto, ipAddress);
-      
+
       // Return response
       res.status(200).json({
         success: true,
@@ -58,21 +61,23 @@ class AuthController {
     }
   }
 
-  /**
-   * Register restaurant endpoint
-   * POST /api/v1/auth/register
-   */
   async registerRestaurant(req, res, next) {
+    console.log(
+      '[DEBUG] registerRestaurantUseCase =',
+      this.registerRestaurantUseCase?.constructor?.name
+    );
+    console.log('[DEBUG] body keys =', Object.keys(req.body || {}));
+
     try {
       console.log('Request body:', req.body);
       console.log('Request headers:', req.headers);
-      
-      const { RegisterRestaurantSchema } = require('../dto/auth/register');
+
       const dto = RegisterRestaurantSchema.parse(req.body);
       const result = await this.registerRestaurantUseCase.execute(dto);
-      
+
       res.status(201).json({
         success: true,
+        message: 'Registration successful. Please verify your email.',
         data: result,
       });
     } catch (error) {
@@ -81,35 +86,51 @@ class AuthController {
     }
   }
 
-  /**
-   * Refresh token endpoint
-   * POST /api/v1/auth/refresh-token
-   */
   async refreshToken(req, res, next) {
     try {
-      // TODO: Implement refresh token
-      res.status(501).json({
-        success: false,
-        message: 'Not implemented yet',
+      const dto = require('../dto/auth/refresh-token').RefreshTokenSchema.parse(req.body);
+      const ipAddress = req.ip || req.connection.remoteAddress;
+
+      const result = await this.refreshTokenUseCase.execute(dto, ipAddress);
+
+      res.status(200).json({
+        success: true,
+        message: 'Token refreshed',
+        data: result,
       });
     } catch (error) {
       next(error);
     }
   }
 
-  /**
-   * Logout endpoint
-   * POST /api/v1/auth/logout
-   */
   async logout(req, res, next) {
     try {
-      // TODO: Implement logout
-      res.status(501).json({
-        success: false,
-        message: 'Not implemented yet',
-      });
+      res.status(501).json({ success: false, message: 'Not implemented yet' });
     } catch (error) {
       next(error);
+    }
+  }
+
+  async changePassword(req, res, next) {
+    try {
+      const { ChangePasswordSchema } = require('../dto/auth/change-password');
+      const dto = ChangePasswordSchema.parse(req.body);
+
+      const ipAddress = req.ip || req.connection.remoteAddress;
+
+      const result = await this.changePasswordUseCase.execute(dto, {
+        userId: req.user.userId,
+        accessToken: req.accessToken,
+        ipAddress,
+      });
+
+      res.status(200).json({
+        success: true,
+        message: 'Password changed successfully',
+        data: result,
+      });
+    } catch (err) {
+      next(err);
     }
   }
 
@@ -121,10 +142,10 @@ class AuthController {
     try {
       // Validate input
       const dto = ForgotPasswordSchema.parse(req.body);
-      
+
       // Execute use case
       const result = await this.forgotPasswordUseCase.execute(dto);
-      
+
       // Return response
       res.status(200).json({
         success: true,
@@ -149,10 +170,10 @@ class AuthController {
     try {
       // Validate input
       const dto = ResetPasswordSchema.parse(req.body);
-      
+
       // Execute use case
       const result = await this.resetPasswordUseCase.execute(dto);
-      
+
       // Return response
       res.status(200).json({
         success: true,
@@ -160,6 +181,22 @@ class AuthController {
       });
     } catch (error) {
       next(error);
+    }
+  }
+
+  async verifyEmailOtp(req, res, next) {
+    try {
+      const { VerifyEmailOtpSchema } = require('../dto/auth/verify-email-otp');
+      const dto = VerifyEmailOtpSchema.parse(req.body);
+
+      const result = await this.verifyEmailOtpUseCase.execute(dto);
+
+      res.status(200).json({
+        success: true,
+        message: result.message,
+      });
+    } catch (err) {
+      next(err);
     }
   }
 }
