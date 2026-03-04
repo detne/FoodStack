@@ -43,7 +43,7 @@ class AuthController {
   async login(req, res, next) {
     try {
       const dto = LoginSchema.parse(req.body);
-
+      
       // Get client IP
       const ipAddress = req.ip || req.connection.remoteAddress;
 
