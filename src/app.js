@@ -17,9 +17,12 @@ const { BranchRepository } = require('./repository/branch');
 
 // Use cases
 const { LoginUseCase } = require('./use-cases/auth/login');
+const { ForgotPasswordUseCase } = require('./use-cases/auth/forgot-password');
+const { ResetPasswordUseCase } = require('./use-cases/auth/reset-password');
 const { RefreshTokenUseCase } = require('./use-cases/auth/refresh-token');
 const { ChangePasswordUseCase } = require('./use-cases/auth/change-password');
 const { RegisterRestaurantUseCase } = require('./use-cases/auth/register-restaurant');
+const { VerifyEmailOtpUseCase } = require('./use-cases/auth/verify-email-otp');
 
 const { GetRestaurantDetailsUseCase } = require('./use-cases/restaurant/get-details');
 
@@ -59,23 +62,26 @@ function createApp() {
     log: ['error', 'warn'],
   });
 
+  // Handle Prisma disconnect on app shutdown
   process.on('beforeExit', async () => {
     await prisma.$disconnect();
   });
 
-  // Services
   const tokenService = new TokenService();
   const emailService = new EmailService();
 
-  // Repos
+  // Initialize repositories
   const userRepository = new UserRepository(prisma);
   const restaurantRepository = new RestaurantRepository(prisma);
   const branchRepository = new BranchRepository(prisma);
 
-  // Use cases (auth)
+  // Initialize use cases
   const loginUseCase = new LoginUseCase(userRepository, tokenService);
   const refreshTokenUseCase = new RefreshTokenUseCase(userRepository, tokenService);
   const changePasswordUseCase = new ChangePasswordUseCase(userRepository, tokenService);
+  const verifyEmailOtpUseCase = new VerifyEmailOtpUseCase(userRepository, prisma);
+  const forgotPasswordUseCase = new ForgotPasswordUseCase(userRepository, emailService);
+  const resetPasswordUseCase = new ResetPasswordUseCase(userRepository);
   const registerRestaurantUseCase = new RegisterRestaurantUseCase(
     userRepository,
     restaurantRepository,
@@ -86,13 +92,16 @@ function createApp() {
   // Auth middleware
   const authMiddleware = createAuthMiddleware(tokenService);
 
-  // Controller (auth) — signature đúng với controller hiện tại của bạn
+  // Initialize controllers
   const authController = new AuthController(
     loginUseCase,
     registerRestaurantUseCase,
     refreshTokenUseCase,
     null, // logoutUseCase - TODO
-    changePasswordUseCase
+    forgotPasswordUseCase,
+    resetPasswordUseCase,
+    changePasswordUseCase,
+    verifyEmailOtpUseCase
   );
 
   // Use case + controller (restaurants)

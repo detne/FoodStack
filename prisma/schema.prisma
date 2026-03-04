@@ -363,4 +363,6 @@ model users {
   updated_at              DateTime
   deleted_at              DateTime?
   restaurants             restaurants @relation(fields: [restaurant_id], references: [id])
+  email_verify_otp            String?
+  email_verify_otp_expires_at DateTime?
 }
