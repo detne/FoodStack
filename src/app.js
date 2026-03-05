@@ -27,6 +27,7 @@ const { VerifyEmailOtpUseCase } = require('./use-cases/auth/verify-email-otp');
 
 const { GetRestaurantDetailsUseCase } = require('./use-cases/restaurant/get-details');
 const { UploadRestaurantLogoUseCase } = require('./use-cases/restaurant/upload-logo');
+const { CreateRestaurantUseCase } = require('./use-cases/restaurant/create-restaurant');
 
 // Controllers
 const { AuthController } = require('./controller/auth');
@@ -118,10 +119,18 @@ function createApp() {
     uploadService
   );
 
-  // ✅ Restaurant controller inject đủ 2 use cases (object)
+  const createRestaurantUseCase = new CreateRestaurantUseCase(
+    restaurantRepository,
+    userRepository,
+    branchRepository,
+    prisma
+  );
+
+  // ✅ Restaurant controller inject đủ 3 use cases (object)
   const restaurantController = new RestaurantController({
     getRestaurantDetailsUseCase,
     uploadRestaurantLogoUseCase,
+    createRestaurantUseCase,
   });
 
   // Routes
