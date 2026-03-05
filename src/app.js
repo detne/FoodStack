@@ -16,6 +16,7 @@ const { UserRepository } = require('./repository/user');
 const { RestaurantRepository } = require('./repository/restaurant');
 const { BranchRepository } = require('./repository/branch');
 const { CategoryRepository } = require('./repository/category');
+const { MenuItemRepository } = require('./repository/menu-item');
 
 // Use cases
 const { LoginUseCase } = require('./use-cases/auth/login');
@@ -34,15 +35,22 @@ const { CreateCategoryUseCase } = require('./use-cases/category/create-category'
 const { UpdateCategoryUseCase } = require('./use-cases/category/update-category');
 const { DeleteCategoryUseCase } = require('./use-cases/category/delete-category');
 
+const { CreateMenuItemUseCase } = require('./use-cases/menu-item/create-menu-item');
+const { UpdateMenuItemUseCase } = require('./use-cases/menu-item/update-menu-item');
+const { DeleteMenuItemUseCase } = require('./use-cases/menu-item/delete-menu-item');
+const { UploadMenuItemImageUseCase } = require('./use-cases/menu-item/upload-menu-item-image');
+
 // Controllers
 const { AuthController } = require('./controller/auth');
 const { RestaurantController } = require('./controller/restaurant');
 const { CategoryController } = require('./controller/category');
+const { MenuItemController } = require('./controller/menu-item');
 
 // Routes
 const { createAuthRoutes } = require('./routes/v1/auth');
 const { createRestaurantRoutes } = require('./routes/v1/restaurant');
 const { createCategoryRoutes } = require('./routes/v1/category');
+const { createMenuItemRoutes } = require('./routes/v1/menu-item');
 
 // Middleware
 const { createAuthMiddleware } = require('./middleware/auth');
@@ -86,6 +94,7 @@ function createApp() {
   const restaurantRepository = new RestaurantRepository(prisma);
   const branchRepository = new BranchRepository(prisma);
   const categoryRepository = new CategoryRepository(prisma);
+  const menuItemRepository = new MenuItemRepository(prisma);
 
   // Initialize auth use cases
   const loginUseCase = new LoginUseCase(userRepository, tokenService);
@@ -165,6 +174,38 @@ function createApp() {
     deleteCategoryUseCase,
   });
 
+  // ✅ Initialize menu item use cases
+  const createMenuItemUseCase = new CreateMenuItemUseCase(
+    menuItemRepository,
+    categoryRepository,
+    userRepository
+  );
+
+  const updateMenuItemUseCase = new UpdateMenuItemUseCase(
+    menuItemRepository,
+    categoryRepository,
+    userRepository
+  );
+
+  const deleteMenuItemUseCase = new DeleteMenuItemUseCase(
+    menuItemRepository,
+    userRepository
+  );
+
+  const uploadMenuItemImageUseCase = new UploadMenuItemImageUseCase(
+    menuItemRepository,
+    uploadService,
+    userRepository
+  );
+
+  // ✅ Menu item controller
+  const menuItemController = new MenuItemController({
+    createMenuItemUseCase,
+    updateMenuItemUseCase,
+    deleteMenuItemUseCase,
+    uploadMenuItemImageUseCase,
+  });
+
   // Routes
   app.get('/', (req, res) => {
     res.json({
@@ -190,6 +231,9 @@ function createApp() {
 
   // ✅ Category routes
   app.use('/api/v1/categories', createCategoryRoutes(categoryController, authMiddleware));
+
+  // ✅ Menu item routes
+  app.use('/api/v1/menu-items', createMenuItemRoutes(menuItemController, authMiddleware));
 
   // 404
   app.use((req, res) => {
