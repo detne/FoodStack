@@ -28,6 +28,13 @@ function createRestaurantRoutes(restaurantController, authMiddleware = null) {
     (req, res, next) => restaurantController.uploadLogo(req, res, next)
   );
 
+  router.put(
+    '/:restaurantId',
+    ...(authMiddleware ? [authMiddleware] : []),
+    ...(authMiddleware ? [requireRestaurantOwner] : []),
+    (req, res, next) => restaurantController.updateRestaurant(req, res, next)
+  );
+
   return router;
 }
 
