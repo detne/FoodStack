@@ -28,6 +28,11 @@ function createRestaurantRoutes(restaurantController, authMiddleware = null) {
     (req, res, next) => restaurantController.uploadLogo(req, res, next)
   );
 
+  router.delete(
+    '/:id',
+    (req, res, next) => restaurantController.deleteRestaurant(req, res, next)
+  );
+
   return router;
 }
 

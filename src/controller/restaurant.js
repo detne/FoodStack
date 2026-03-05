@@ -52,3 +52,20 @@ class RestaurantController {
 }
 
 module.exports = { RestaurantController };
+
+  // DELETE /api/v1/restaurants/:id
+  async deleteRestaurant(req, res, next) {
+    try {
+      const { id } = req.params;
+      const userId = req.user?.userId;
+
+      const result = await this.deleteRestaurantUseCase.execute(id, userId);
+
+      res.status(200).json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
