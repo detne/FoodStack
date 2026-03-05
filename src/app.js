@@ -16,6 +16,7 @@ const { UserRepository } = require('./repository/user');
 const { RestaurantRepository } = require('./repository/restaurant');
 const { BranchRepository } = require('./repository/branch');
 const { CategoryRepository } = require('./repository/category');
+const { MenuItemRepository } = require('./repository/menu-item');
 
 // Use cases
 const { LoginUseCase } = require('./use-cases/auth/login');
@@ -31,6 +32,8 @@ const { UploadRestaurantLogoUseCase } = require('./use-cases/restaurant/upload-l
 const { CreateRestaurantUseCase } = require('./use-cases/restaurant/create-restaurant');
 const { UpdateRestaurantUseCase } = require('./dto/restaurant/update-restaurant');
 
+const { GetFullMenuByBranchUseCase } = require('./use-cases/branch/get-full-menu');
+
 const { CreateCategoryUseCase } = require('./use-cases/category/create-category');
 const { UpdateCategoryUseCase } = require('./use-cases/category/update-category');
 const { DeleteCategoryUseCase } = require('./use-cases/category/delete-category');
@@ -39,11 +42,13 @@ const { DeleteCategoryUseCase } = require('./use-cases/category/delete-category'
 const { AuthController } = require('./controller/auth');
 const { RestaurantController } = require('./controller/restaurant');
 const { CategoryController } = require('./controller/category');
+const { BranchController } = require('./controller/branch');
 
 // Routes
 const { createAuthRoutes } = require('./routes/v1/auth');
 const { createRestaurantRoutes } = require('./routes/v1/restaurant');
 const { createCategoryRoutes } = require('./routes/v1/category');
+const { createBranchRoutes } = require('./routes/v1/branch');
 
 // Middleware
 const { createAuthMiddleware } = require('./middleware/auth');
@@ -87,6 +92,7 @@ function createApp() {
   const restaurantRepository = new RestaurantRepository(prisma);
   const branchRepository = new BranchRepository(prisma);
   const categoryRepository = new CategoryRepository(prisma);
+  const menuItemRepository = new MenuItemRepository(prisma);
 
   // Initialize auth use cases
   const loginUseCase = new LoginUseCase(userRepository, tokenService);
@@ -137,6 +143,13 @@ function createApp() {
 
   const updateRestaurantUseCase = new UpdateRestaurantUseCase(prisma);
 
+  // branch menu use case
+  const getFullMenuByBranchUseCase = new GetFullMenuByBranchUseCase(
+    branchRepository,
+    categoryRepository,
+    menuItemRepository
+  );
+
   // ✅ Restaurant controller inject đủ 4 use cases (object)
   const restaurantController = new RestaurantController({
     getRestaurantDetailsUseCase,
@@ -169,6 +182,11 @@ function createApp() {
     deleteCategoryUseCase,
   });
 
+  // ✅ Branch controller (menu retrieval)
+  const branchController = new BranchController({
+    getFullMenuByBranchUseCase,
+  });
+
   // Routes
   app.get('/', (req, res) => {
     res.json({
@@ -194,6 +212,9 @@ function createApp() {
 
   // ✅ Category routes
   app.use('/api/v1/categories', createCategoryRoutes(categoryController, authMiddleware));
+
+  // branch menu endpoint (public)
+  app.use('/api/v1/branches', createBranchRoutes(branchController));
 
   // 404
   app.use((req, res) => {
