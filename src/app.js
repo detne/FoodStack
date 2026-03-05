@@ -15,6 +15,7 @@ const { UploadService } = require('./service/upload');
 const { UserRepository } = require('./repository/user');
 const { RestaurantRepository } = require('./repository/restaurant');
 const { BranchRepository } = require('./repository/branch');
+const { CategoryRepository } = require('./repository/category');
 
 // Use cases
 const { LoginUseCase } = require('./use-cases/auth/login');
@@ -27,6 +28,11 @@ const { VerifyEmailOtpUseCase } = require('./use-cases/auth/verify-email-otp');
 
 const { GetRestaurantDetailsUseCase } = require('./use-cases/restaurant/get-details');
 const { UploadRestaurantLogoUseCase } = require('./use-cases/restaurant/upload-logo');
+const { CreateRestaurantUseCase } = require('./use-cases/restaurant/create-restaurant');
+
+const { CreateCategoryUseCase } = require('./use-cases/category/create-category');
+const { UpdateCategoryUseCase } = require('./use-cases/category/update-category');
+const { DeleteCategoryUseCase } = require('./use-cases/category/delete-category');
 
 const { CreateBranchUseCase } = require('./use-cases/branch/create');
 const { UpdateBranchUseCase } = require('./use-cases/branch/update');
@@ -37,11 +43,13 @@ const { DeleteBranchUseCase } = require('./use-cases/branch/delete');
 const { AuthController } = require('./controller/auth');
 const { RestaurantController } = require('./controller/restaurant');
 const { BranchController } = require('./controller/branch');
+const { CategoryController } = require('./controller/category');
 
 // Routes
 const { createAuthRoutes } = require('./routes/v1/auth');
 const { createRestaurantRoutes } = require('./routes/v1/restaurant');
 const { createBranchRoutes } = require('./routes/v1/branches');
+const { createCategoryRoutes } = require('./routes/v1/category');
 
 // Middleware
 const { createAuthMiddleware } = require('./middleware/auth');
@@ -84,6 +92,7 @@ function createApp() {
   const userRepository = new UserRepository(prisma);
   const restaurantRepository = new RestaurantRepository(prisma);
   const branchRepository = new BranchRepository(prisma);
+  const categoryRepository = new CategoryRepository(prisma);
 
   // Initialize auth use cases
   const loginUseCase = new LoginUseCase(userRepository, tokenService);
@@ -129,10 +138,42 @@ function createApp() {
     uploadService
   );
 
-  // ✅ Restaurant controller inject đủ 2 use cases (object)
+  const createRestaurantUseCase = new CreateRestaurantUseCase(
+    restaurantRepository,
+    userRepository,
+    branchRepository,
+    prisma
+  );
+
+  // ✅ Restaurant controller inject đủ 3 use cases (object)
   const restaurantController = new RestaurantController({
     getRestaurantDetailsUseCase,
     uploadRestaurantLogoUseCase,
+    createRestaurantUseCase,
+  });
+
+  // ✅ Initialize category use cases
+  const createCategoryUseCase = new CreateCategoryUseCase(
+    categoryRepository,
+    branchRepository,
+    userRepository
+  );
+
+  const updateCategoryUseCase = new UpdateCategoryUseCase(
+    categoryRepository,
+    userRepository
+  );
+
+  const deleteCategoryUseCase = new DeleteCategoryUseCase(
+    categoryRepository,
+    userRepository
+  );
+
+  // ✅ Category controller
+  const categoryController = new CategoryController({
+    createCategoryUseCase,
+    updateCategoryUseCase,
+    deleteCategoryUseCase,
   });
 
   const branchController = new BranchController(
@@ -166,6 +207,8 @@ function createApp() {
   app.use('/api/v1/restaurants', createRestaurantRoutes(restaurantController, authMiddleware));
 
   app.use('/api/v1/branches', createBranchRoutes(branchController, authMiddleware));
+  // ✅ Category routes
+  app.use('/api/v1/categories', createCategoryRoutes(categoryController, authMiddleware));
 
   // 404
   app.use((req, res) => {

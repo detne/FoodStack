@@ -5,6 +5,12 @@ class BranchRepository {
     this.prisma = prisma || new PrismaClient();
   }
 
+  async findById(id) {
+    return await this.prisma.branches.findUnique({
+      where: { id },
+    });
+  }
+
   async findByRestaurantId(restaurantId) {
     return await this.prisma.branches.findMany({
       where: {
