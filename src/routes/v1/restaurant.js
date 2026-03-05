@@ -16,6 +16,13 @@ const upload = multer({
 function createRestaurantRoutes(restaurantController, authMiddleware = null) {
   const router = express.Router();
 
+  // POST /api/v1/restaurants - Create new restaurant (requires auth)
+  router.post(
+    '/',
+    ...(authMiddleware ? [authMiddleware] : []),
+    (req, res, next) => restaurantController.create(req, res, next)
+  );
+
   router.get('/:id', (req, res, next) =>
     restaurantController.getDetails(req, res, next)
   );

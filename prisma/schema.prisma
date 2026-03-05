@@ -349,7 +349,7 @@ model user_permissions {
 
 model users {
   id                      String      @id
-  restaurant_id           String
+  restaurant_id           String?
   email                   String      @unique
   password_hash           String
   full_name               String
@@ -362,7 +362,7 @@ model users {
   created_at              DateTime    @default(now())
   updated_at              DateTime
   deleted_at              DateTime?
-  restaurants             restaurants @relation(fields: [restaurant_id], references: [id])
+  restaurants             restaurants? @relation(fields: [restaurant_id], references: [id])
   email_verify_otp            String?
   email_verify_otp_expires_at DateTime?
 }

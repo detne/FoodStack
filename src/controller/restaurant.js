@@ -4,9 +4,15 @@ const {
 } = require('../dto/restaurant/update-restaurant');
 
 class RestaurantController {
-  constructor({ getRestaurantDetailsUseCase, uploadRestaurantLogoUseCase, updateRestaurantUseCase }) {
+  constructor({
+    getRestaurantDetailsUseCase,
+    uploadRestaurantLogoUseCase,
+    createRestaurantUseCase,
+    updateRestaurantUseCase,
+  }) {
     this.getRestaurantDetailsUseCase = getRestaurantDetailsUseCase;
     this.uploadRestaurantLogoUseCase = uploadRestaurantLogoUseCase;
+    this.createRestaurantUseCase = createRestaurantUseCase;
     this.updateRestaurantUseCase = updateRestaurantUseCase;
   }
 
@@ -48,6 +54,32 @@ class RestaurantController {
 
       res.status(200).json({
         success: true,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // POST /api/v1/restaurants
+  async create(req, res, next) {
+    try {
+      const { CreateRestaurantDto } = require('../dto/restaurant/create-restaurant');
+
+      const dto = new CreateRestaurantDto({
+        name: req.body.name,
+        email: req.body.email,
+        phone: req.body.phone,
+        address: req.body.address,
+        logoUrl: req.body.logoUrl,
+        ownerId: req.user?.userId, // From auth middleware
+      });
+
+      const result = await this.createRestaurantUseCase.execute(dto);
+
+      res.status(201).json({
+        success: true,
+        message: 'Restaurant created successfully',
         data: result,
       });
     } catch (error) {
