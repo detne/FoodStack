@@ -1,9 +1,19 @@
 // src/controller/restaurant.js
+const {
+  UpdateRestaurantSchema,
+} = require('../dto/restaurant/update-restaurant');
+
 class RestaurantController {
-  constructor({ getRestaurantDetailsUseCase, uploadRestaurantLogoUseCase, createRestaurantUseCase }) {
+  constructor({
+    getRestaurantDetailsUseCase,
+    uploadRestaurantLogoUseCase,
+    createRestaurantUseCase,
+    updateRestaurantUseCase,
+  }) {
     this.getRestaurantDetailsUseCase = getRestaurantDetailsUseCase;
     this.uploadRestaurantLogoUseCase = uploadRestaurantLogoUseCase;
     this.createRestaurantUseCase = createRestaurantUseCase;
+    this.updateRestaurantUseCase = updateRestaurantUseCase;
   }
 
   // GET /api/v1/restaurants/:id
@@ -55,7 +65,7 @@ class RestaurantController {
   async create(req, res, next) {
     try {
       const { CreateRestaurantDto } = require('../dto/restaurant/create-restaurant');
-      
+
       const dto = new CreateRestaurantDto({
         name: req.body.name,
         email: req.body.email,
@@ -65,7 +75,6 @@ class RestaurantController {
         ownerId: req.user?.userId, // From auth middleware
       });
 
-      console.log('DTO:', dto);
       const result = await this.createRestaurantUseCase.execute(dto);
 
       res.status(201).json({
@@ -74,8 +83,29 @@ class RestaurantController {
         data: result,
       });
     } catch (error) {
-      console.error('Create restaurant error:', error);
       next(error);
+    }
+  }
+
+  // PUT /api/v1/restaurants/:restaurantId
+  async updateRestaurant(req, res, next) {
+    try {
+      const { restaurantId } = req.params;
+      const dto = UpdateRestaurantSchema.parse(req.body);
+
+      const result = await this.updateRestaurantUseCase.execute(dto, restaurantId, {
+        userId: req.user.userId,
+        role: req.user.role,
+        restaurantId: req.user.restaurantId,
+      });
+
+      res.status(200).json({
+        success: true,
+        message: result.message,
+        data: result.restaurant,
+      });
+    } catch (err) {
+      next(err);
     }
   }
 }
