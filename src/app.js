@@ -118,10 +118,14 @@ function createApp() {
     uploadService
   );
 
-  // ✅ Restaurant controller inject đủ 2 use cases (object)
+  const { DeleteRestaurantUseCase } = require('./use-cases/restaurant/delete');
+  const deleteRestaurantUseCase = new DeleteRestaurantUseCase(restaurantRepository);
+
+  // ✅ Restaurant controller inject đủ 3 use cases (object)
   const restaurantController = new RestaurantController({
     getRestaurantDetailsUseCase,
     uploadRestaurantLogoUseCase,
+    deleteRestaurantUseCase,
   });
 
   // Routes
