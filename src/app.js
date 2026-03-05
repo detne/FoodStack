@@ -28,13 +28,20 @@ const { VerifyEmailOtpUseCase } = require('./use-cases/auth/verify-email-otp');
 const { GetRestaurantDetailsUseCase } = require('./use-cases/restaurant/get-details');
 const { UploadRestaurantLogoUseCase } = require('./use-cases/restaurant/upload-logo');
 
+const { CreateBranchUseCase } = require('./use-cases/branch/create');
+const { UpdateBranchUseCase } = require('./use-cases/branch/update');
+const { ListBranchesUseCase } = require('./use-cases/branch/list');
+const { DeleteBranchUseCase } = require('./use-cases/branch/delete');
+
 // Controllers
 const { AuthController } = require('./controller/auth');
 const { RestaurantController } = require('./controller/restaurant');
+const { BranchController } = require('./controller/branch');
 
 // Routes
 const { createAuthRoutes } = require('./routes/v1/auth');
 const { createRestaurantRoutes } = require('./routes/v1/restaurant');
+const { createBranchRoutes } = require('./routes/v1/branches');
 
 // Middleware
 const { createAuthMiddleware } = require('./middleware/auth');
@@ -91,6 +98,10 @@ function createApp() {
     emailService,
     prisma
   );
+  const createBranchUseCase = new CreateBranchUseCase(branchRepository, restaurantRepository);
+  const updateBranchUseCase = new UpdateBranchUseCase(branchRepository);
+  const listBranchesUseCase = new ListBranchesUseCase(branchRepository, restaurantRepository);
+  const deleteBranchUseCase = new DeleteBranchUseCase(branchRepository);
 
   // Auth middleware
   const authMiddleware = createAuthMiddleware(tokenService);
@@ -124,6 +135,13 @@ function createApp() {
     uploadRestaurantLogoUseCase,
   });
 
+  const branchController = new BranchController(
+    createBranchUseCase,
+    updateBranchUseCase,
+    listBranchesUseCase,
+    deleteBranchUseCase
+  );
+
   // Routes
   app.get('/', (req, res) => {
     res.json({
@@ -146,6 +164,8 @@ function createApp() {
 
   // ✅ Pass authMiddleware vào restaurants (để uploadLogo có req.user)
   app.use('/api/v1/restaurants', createRestaurantRoutes(restaurantController, authMiddleware));
+
+  app.use('/api/v1/branches', createBranchRoutes(branchController, authMiddleware));
 
   // 404
   app.use((req, res) => {
