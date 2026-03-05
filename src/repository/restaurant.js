@@ -14,8 +14,8 @@ class RestaurantRepository {
   async create(data, tx) {
     const client = tx || this.prisma;
     const { v4: uuidv4 } = require('uuid');
-    
-    return client.restaurants.create({ 
+
+    return client.restaurants.create({
       data: {
         id: uuidv4(),
         name: data.name,
@@ -29,9 +29,12 @@ class RestaurantRepository {
   }
 
   async update(id, data) {
-    return this.prisma.restaurant.update({
+    return this.prisma.restaurants.update({
       where: { id },
-      data,
+      data: {
+        ...data,
+        updated_at: new Date(),
+      },
     });
   }
 }

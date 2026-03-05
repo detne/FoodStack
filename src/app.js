@@ -9,6 +9,7 @@ const { PrismaClient } = require('@prisma/client');
 // Services
 const { TokenService } = require('./service/token');
 const { EmailService } = require('./service/email');
+const { UploadService } = require('./service/upload');
 
 // Repositories
 const { UserRepository } = require('./repository/user');
@@ -25,6 +26,7 @@ const { RegisterRestaurantUseCase } = require('./use-cases/auth/register-restaur
 const { VerifyEmailOtpUseCase } = require('./use-cases/auth/verify-email-otp');
 
 const { GetRestaurantDetailsUseCase } = require('./use-cases/restaurant/get-details');
+const { UploadRestaurantLogoUseCase } = require('./use-cases/restaurant/upload-logo');
 
 // Controllers
 const { AuthController } = require('./controller/auth');
@@ -32,7 +34,7 @@ const { RestaurantController } = require('./controller/restaurant');
 
 // Routes
 const { createAuthRoutes } = require('./routes/v1/auth');
-const { createRestaurantRoutes } = require('./routes/v1/restaurants');
+const { createRestaurantRoutes } = require('./routes/v1/restaurant');
 
 // Middleware
 const { createAuthMiddleware } = require('./middleware/auth');
@@ -69,13 +71,14 @@ function createApp() {
 
   const tokenService = new TokenService();
   const emailService = new EmailService();
+  const uploadService = new UploadService();
 
   // Initialize repositories
   const userRepository = new UserRepository(prisma);
   const restaurantRepository = new RestaurantRepository(prisma);
   const branchRepository = new BranchRepository(prisma);
 
-  // Initialize use cases
+  // Initialize auth use cases
   const loginUseCase = new LoginUseCase(userRepository, tokenService);
   const refreshTokenUseCase = new RefreshTokenUseCase(userRepository, tokenService);
   const changePasswordUseCase = new ChangePasswordUseCase(userRepository, tokenService);
@@ -92,7 +95,7 @@ function createApp() {
   // Auth middleware
   const authMiddleware = createAuthMiddleware(tokenService);
 
-  // Initialize controllers
+  // Initialize controllers (auth)
   const authController = new AuthController(
     loginUseCase,
     registerRestaurantUseCase,
@@ -104,9 +107,22 @@ function createApp() {
     verifyEmailOtpUseCase
   );
 
-  // Use case + controller (restaurants)
-  const getRestaurantDetailsUseCase = new GetRestaurantDetailsUseCase(restaurantRepository, branchRepository);
-  const restaurantController = new RestaurantController(getRestaurantDetailsUseCase);
+  // ✅ Initialize restaurant use cases
+  const getRestaurantDetailsUseCase = new GetRestaurantDetailsUseCase(
+    restaurantRepository,
+    branchRepository
+  );
+
+  const uploadRestaurantLogoUseCase = new UploadRestaurantLogoUseCase(
+    restaurantRepository,
+    uploadService
+  );
+
+  // ✅ Restaurant controller inject đủ 2 use cases (object)
+  const restaurantController = new RestaurantController({
+    getRestaurantDetailsUseCase,
+    uploadRestaurantLogoUseCase,
+  });
 
   // Routes
   app.get('/', (req, res) => {
@@ -127,7 +143,9 @@ function createApp() {
   });
 
   app.use('/api/v1/auth', createAuthRoutes(authController, authMiddleware));
-  app.use('/api/v1/restaurants', createRestaurantRoutes(restaurantController));
+
+  // ✅ Pass authMiddleware vào restaurants (để uploadLogo có req.user)
+  app.use('/api/v1/restaurants', createRestaurantRoutes(restaurantController, authMiddleware));
 
   // 404
   app.use((req, res) => {
