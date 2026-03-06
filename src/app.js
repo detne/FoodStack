@@ -38,17 +38,25 @@ const { CreateCategoryUseCase } = require('./use-cases/category/create-category'
 const { UpdateCategoryUseCase } = require('./use-cases/category/update-category');
 const { DeleteCategoryUseCase } = require('./use-cases/category/delete-category');
 
+const { CreateMenuItemUseCase } = require('./use-cases/menu-item/create-menu-item');
+const { UpdateMenuItemUseCase } = require('./use-cases/menu-item/update-menu-item');
+const { DeleteMenuItemUseCase } = require('./use-cases/menu-item/delete-menu-item');
+const { UploadMenuItemImageUseCase } = require('./use-cases/menu-item/upload-menu-item-image');
+const { UpdateMenuItemAvailabilityUseCase } = require('./use-cases/menu-item/update-availability');
+
 // Controllers
 const { AuthController } = require('./controller/auth');
 const { RestaurantController } = require('./controller/restaurant');
 const { CategoryController } = require('./controller/category');
 const { BranchController } = require('./controller/branch');
+const { MenuItemController } = require('./controller/menu-item');
 
 // Routes
 const { createAuthRoutes } = require('./routes/v1/auth');
 const { createRestaurantRoutes } = require('./routes/v1/restaurant');
 const { createCategoryRoutes } = require('./routes/v1/category');
 const { createBranchRoutes } = require('./routes/v1/branch');
+const { createMenuItemRoutes } = require('./routes/v1/menu-item');
 
 // Middleware
 const { createAuthMiddleware } = require('./middleware/auth');
@@ -187,6 +195,44 @@ function createApp() {
     getFullMenuByBranchUseCase,
   });
 
+  // ✅ Initialize menu item use cases
+  const createMenuItemUseCase = new CreateMenuItemUseCase(
+    menuItemRepository,
+    categoryRepository,
+    userRepository
+  );
+
+  const updateMenuItemUseCase = new UpdateMenuItemUseCase(
+    menuItemRepository,
+    categoryRepository,
+    userRepository
+  );
+
+  const deleteMenuItemUseCase = new DeleteMenuItemUseCase(
+    menuItemRepository,
+    userRepository
+  );
+
+  const uploadMenuItemImageUseCase = new UploadMenuItemImageUseCase(
+    menuItemRepository,
+    uploadService,
+    userRepository
+  );
+
+  const updateMenuItemAvailabilityUseCase = new UpdateMenuItemAvailabilityUseCase(
+    menuItemRepository,
+    userRepository
+  );
+
+  // ✅ Menu item controller
+  const menuItemController = new MenuItemController({
+    createMenuItemUseCase,
+    updateMenuItemUseCase,
+    deleteMenuItemUseCase,
+    uploadMenuItemImageUseCase,
+    updateMenuItemAvailabilityUseCase,
+  });
+
   // Routes
   app.get('/', (req, res) => {
     res.json({
@@ -215,6 +261,9 @@ function createApp() {
 
   // branch menu endpoint (public)
   app.use('/api/v1/branches', createBranchRoutes(branchController));
+
+  // ✅ Menu item routes
+  app.use('/api/v1/menu-items', createMenuItemRoutes(menuItemController, authMiddleware));
 
   // 404
   app.use((req, res) => {

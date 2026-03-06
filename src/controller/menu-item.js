@@ -1,11 +1,12 @@
 // src/controller/menu-item.js
 
 class MenuItemController {
-  constructor({ createMenuItemUseCase, updateMenuItemUseCase, deleteMenuItemUseCase, uploadMenuItemImageUseCase }) {
+  constructor({ createMenuItemUseCase, updateMenuItemUseCase, deleteMenuItemUseCase, uploadMenuItemImageUseCase, updateMenuItemAvailabilityUseCase }) {
     this.createMenuItemUseCase = createMenuItemUseCase;
     this.updateMenuItemUseCase = updateMenuItemUseCase;
     this.deleteMenuItemUseCase = deleteMenuItemUseCase;
     this.uploadMenuItemImageUseCase = uploadMenuItemImageUseCase;
+    this.updateMenuItemAvailabilityUseCase = updateMenuItemAvailabilityUseCase;
   }
 
   // POST /api/v1/menu-items
@@ -108,6 +109,29 @@ class MenuItemController {
           menuItemId: result.menuItemId,
           imageUrl: result.imageUrl,
         },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // PATCH /api/v1/menu-items/:id/availability
+  async updateAvailability(req, res, next) {
+    try {
+      const { UpdateMenuItemAvailabilityDto } = require('../dto/menu-item/update-availability');
+
+      const dto = new UpdateMenuItemAvailabilityDto({
+        menuItemId: req.params.id,
+        available: req.body.available,
+        userId: req.user?.userId,
+      });
+
+      const result = await this.updateMenuItemAvailabilityUseCase.execute(dto);
+
+      res.status(200).json({
+        success: true,
+        message: 'Menu item availability updated successfully',
+        data: result,
       });
     } catch (error) {
       next(error);
