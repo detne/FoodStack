@@ -36,8 +36,8 @@ const Navbar = () => {
         </div>
 
         <div className="hidden md:flex items-center gap-3">
-          <Button variant="ghost" className="text-hero-muted hover:text-hero-foreground hover:bg-hero-muted/10">
-            Login
+          <Button asChild variant="ghost" className="text-hero-muted hover:text-hero-foreground hover:bg-hero-muted/10">
+            <Link to="/login">Login</Link>
           </Button>
           <Button asChild className="bg-accent text-accent-foreground hover:bg-accent/90 font-semibold">
             <Link to="/pricing">Start Free Trial</Link>
@@ -64,6 +64,9 @@ const Navbar = () => {
               {link.label}
             </a>
           ))}
+          <Button asChild variant="ghost" className="w-full text-hero-muted hover:text-hero-foreground">
+            <Link to="/login">Login</Link>
+          </Button>
           <Button asChild className="w-full bg-accent text-accent-foreground">
             <Link to="/pricing">Start Free Trial</Link>
           </Button>
