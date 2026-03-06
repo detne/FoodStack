@@ -265,9 +265,12 @@ model restaurants {
   created_at        DateTime       @default(now())
   updated_at        DateTime
   deleted_at        DateTime?
+  // ✅ NEW: ai là chủ sở hữu restaurant này
+  owner_id          String
+  owner             users          @relation("RestaurantOwner", fields: [owner_id], references: [id])
   branches          branches[]
   subscriptions     subscriptions? @relation(fields: [subscription_id], references: [id])
-  users             users[]
+  users             users[]        @relation("RestaurantMembers")
 }
 
 model roles {
@@ -349,7 +352,10 @@ model user_permissions {
 
 model users {
   id                      String      @id
-  restaurant_id           String
+
+  // ✅ nullable để Owner không cần thuộc 1 restaurant cố định
+  restaurant_id           String?
+
   email                   String      @unique
   password_hash           String
   full_name               String
@@ -362,7 +368,12 @@ model users {
   created_at              DateTime    @default(now())
   updated_at              DateTime
   deleted_at              DateTime?
-  restaurants             restaurants @relation(fields: [restaurant_id], references: [id])
   email_verify_otp            String?
   email_verify_otp_expires_at DateTime?
+
+  // ✅ relation cho user thuộc 1 restaurant (staff/manager)
+  restaurants             restaurants? @relation("RestaurantMembers", fields: [restaurant_id], references: [id])
+
+  // ✅ relation cho owner sở hữu nhiều restaurants
+  owned_restaurants       restaurants[] @relation("RestaurantOwner")
 }

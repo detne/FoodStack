@@ -3,11 +3,12 @@ const { UpdateBranchSchema } = require('../dto/branch/update-branch');
 const { ListBranchesSchema } = require('../dto/branch/list-branches');
 
 class BranchController {
-    constructor(createBranchUseCase, updateBranchUseCase, listBranchesUseCase, deleteBranchUseCase) {
+    constructor(createBranchUseCase, updateBranchUseCase, listBranchesUseCase, deleteBranchUseCase, getBranchDetailsUseCase) {
         this.createBranchUseCase = createBranchUseCase;
         this.updateBranchUseCase = updateBranchUseCase;
         this.listBranchesUseCase = listBranchesUseCase;
         this.deleteBranchUseCase = deleteBranchUseCase;
+        this.getBranchDetailsUseCase = getBranchDetailsUseCase;
     }
 
     // POST /api/v1/branches
@@ -84,6 +85,23 @@ class BranchController {
             res.status(200).json({
                 success: true,
                 message: result.message,
+            });
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    // GET /api/v1/branches/:id
+    async getDetails(req, res, next) {
+        try {
+            const { id } = req.params;
+
+            const result = await this.getBranchDetailsUseCase.execute(id);
+
+            res.status(200).json({
+                success: true,
+                message: 'Branch details',
+                data: result,
             });
         } catch (err) {
             next(err);

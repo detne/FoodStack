@@ -15,6 +15,10 @@ function createBranchRoutes(branchController, authMiddleware) {
     router.get('/', authMiddleware, (req, res, next) =>
         branchController.list(req, res, next));
 
+    router.get('/:id', authMiddleware, (req, res, next) =>
+        branchController.getDetails(req, res, next)
+    );
+
     router.delete('/:id', authMiddleware, (req, res, next) =>
         branchController.delete(req, res, next)
     );

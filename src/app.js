@@ -38,6 +38,7 @@ const { CreateBranchUseCase } = require('./use-cases/branch/create');
 const { UpdateBranchUseCase } = require('./use-cases/branch/update');
 const { ListBranchesUseCase } = require('./use-cases/branch/list');
 const { DeleteBranchUseCase } = require('./use-cases/branch/delete');
+const { GetBranchDetailsUseCase } = require('./use-cases/branch/get-details');
 
 // Controllers
 const { AuthController } = require('./controller/auth');
@@ -107,10 +108,13 @@ function createApp() {
     emailService,
     prisma
   );
+
+  // Initialize branches use cases
   const createBranchUseCase = new CreateBranchUseCase(branchRepository, restaurantRepository);
   const updateBranchUseCase = new UpdateBranchUseCase(branchRepository);
   const listBranchesUseCase = new ListBranchesUseCase(branchRepository, restaurantRepository);
   const deleteBranchUseCase = new DeleteBranchUseCase(branchRepository);
+  const getBranchDetailsUseCase = new GetBranchDetailsUseCase(branchRepository);
 
   // Auth middleware
   const authMiddleware = createAuthMiddleware(tokenService);
@@ -180,7 +184,8 @@ function createApp() {
     createBranchUseCase,
     updateBranchUseCase,
     listBranchesUseCase,
-    deleteBranchUseCase
+    deleteBranchUseCase,
+    getBranchDetailsUseCase
   );
 
   // Routes

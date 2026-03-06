@@ -1,8 +1,7 @@
-const { PrismaClient } = require('@prisma/client');
-
 class BranchRepository {
   constructor(prisma) {
-    this.prisma = prisma || new PrismaClient();
+    if (!prisma) throw new Error('BranchRepository requires prisma instance');
+    this.prisma = prisma;
   }
 
   async findById(id) {
@@ -39,12 +38,6 @@ class BranchRepository {
     });
   }
 
-  async findById(id) {
-    return this.prisma.branches.findUnique({
-      where: { id },
-    });
-  }
-
   async update(id, data) {
     return this.prisma.branches.update({
       where: { id },
@@ -62,7 +55,7 @@ class BranchRepository {
       this.prisma.branches.findMany({
         where: {
           restaurant_id: restaurantId,
-          deleted_at: null, // nếu bạn dùng soft delete
+          deleted_at: null,
         },
         orderBy: { created_at: 'desc' },
         skip,
@@ -85,7 +78,6 @@ class BranchRepository {
       data: {
         status: 'INACTIVE',
         updated_at: new Date(),
-        // nếu bạn muốn soft delete theo timestamp:
         deleted_at: new Date(),
       },
     });
