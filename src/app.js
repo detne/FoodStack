@@ -46,6 +46,7 @@ const { UploadMenuItemImageUseCase } = require('./use-cases/menu-item/upload-men
 const { UpdateMenuItemAvailabilityUseCase } = require('./use-cases/menu-item/update-availability');
 
 const { CreateCustomizationGroupUseCase } = require('./use-cases/customization/create-customization-group');
+const { AddCustomizationOptionUseCase } = require('./use-cases/customization/add-customization-option');
 
 // Controllers
 const { AuthController } = require('./controller/auth');
@@ -237,6 +238,11 @@ function createApp() {
     userRepository
   );
 
+  const addCustomizationOptionUseCase = new AddCustomizationOptionUseCase(
+    customizationRepository,
+    userRepository
+  );
+
   // ✅ Menu item controller
   const menuItemController = new MenuItemController({
     createMenuItemUseCase,
@@ -249,6 +255,7 @@ function createApp() {
   // ✅ Customization controller
   const customizationController = new CustomizationController({
     createCustomizationGroupUseCase,
+    addCustomizationOptionUseCase,
   });
 
   // Routes

@@ -11,6 +11,13 @@ function createCustomizationRoutes(customizationController, authMiddleware) {
     (req, res, next) => customizationController.createGroup(req, res, next)
   );
 
+  // POST /api/v1/customizations/options - Add customization option
+  router.post(
+    '/options',
+    authMiddleware,
+    (req, res, next) => customizationController.addOption(req, res, next)
+  );
+
   return router;
 }
 

@@ -42,6 +42,23 @@ class CustomizationRepository {
     });
   }
 
+  async addOption(groupId, optionData) {
+    const { v4: uuidv4 } = require('uuid');
+
+    return await this.prisma.customization_options.create({
+      data: {
+        id: uuidv4(),
+        customization_group_id: groupId,
+        name: optionData.name,
+        price_delta: optionData.priceDelta,
+        sort_order: optionData.sortOrder,
+        is_available: optionData.isAvailable,
+        created_at: new Date(),
+        updated_at: new Date(),
+      },
+    });
+  }
+
   async linkMenuItem(menuItemId, groupId) {
     const { v4: uuidv4 } = require('uuid');
 
