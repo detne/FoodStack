@@ -17,6 +17,7 @@ const { RestaurantRepository } = require('./repository/restaurant');
 const { BranchRepository } = require('./repository/branch');
 const { CategoryRepository } = require('./repository/category');
 const { MenuItemRepository } = require('./repository/menu-item');
+const { CustomizationRepository } = require('./repository/customization');
 
 // Use cases
 const { LoginUseCase } = require('./use-cases/auth/login');
@@ -44,12 +45,15 @@ const { DeleteMenuItemUseCase } = require('./use-cases/menu-item/delete-menu-ite
 const { UploadMenuItemImageUseCase } = require('./use-cases/menu-item/upload-menu-item-image');
 const { UpdateMenuItemAvailabilityUseCase } = require('./use-cases/menu-item/update-availability');
 
+const { CreateCustomizationGroupUseCase } = require('./use-cases/customization/create-customization-group');
+
 // Controllers
 const { AuthController } = require('./controller/auth');
 const { RestaurantController } = require('./controller/restaurant');
 const { CategoryController } = require('./controller/category');
 const { BranchController } = require('./controller/branch');
 const { MenuItemController } = require('./controller/menu-item');
+const { CustomizationController } = require('./controller/customization');
 
 // Routes
 const { createAuthRoutes } = require('./routes/v1/auth');
@@ -57,6 +61,7 @@ const { createRestaurantRoutes } = require('./routes/v1/restaurant');
 const { createCategoryRoutes } = require('./routes/v1/category');
 const { createBranchRoutes } = require('./routes/v1/branch');
 const { createMenuItemRoutes } = require('./routes/v1/menu-item');
+const { createCustomizationRoutes } = require('./routes/v1/customization');
 
 // Middleware
 const { createAuthMiddleware } = require('./middleware/auth');
@@ -101,6 +106,7 @@ function createApp() {
   const branchRepository = new BranchRepository(prisma);
   const categoryRepository = new CategoryRepository(prisma);
   const menuItemRepository = new MenuItemRepository(prisma);
+  const customizationRepository = new CustomizationRepository(prisma);
 
   // Initialize auth use cases
   const loginUseCase = new LoginUseCase(userRepository, tokenService);
@@ -224,6 +230,13 @@ function createApp() {
     userRepository
   );
 
+  // customization use cases
+  const createCustomizationGroupUseCase = new CreateCustomizationGroupUseCase(
+    menuItemRepository,
+    customizationRepository,
+    userRepository
+  );
+
   // ✅ Menu item controller
   const menuItemController = new MenuItemController({
     createMenuItemUseCase,
@@ -231,6 +244,11 @@ function createApp() {
     deleteMenuItemUseCase,
     uploadMenuItemImageUseCase,
     updateMenuItemAvailabilityUseCase,
+  });
+
+  // ✅ Customization controller
+  const customizationController = new CustomizationController({
+    createCustomizationGroupUseCase,
   });
 
   // Routes
@@ -264,6 +282,9 @@ function createApp() {
 
   // ✅ Menu item routes
   app.use('/api/v1/menu-items', createMenuItemRoutes(menuItemController, authMiddleware));
+
+  // ✅ Customization routes
+  app.use('/api/v1/customizations', createCustomizationRoutes(customizationController, authMiddleware));
 
   // 404
   app.use((req, res) => {
