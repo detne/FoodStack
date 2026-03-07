@@ -44,6 +44,7 @@ const { UpdateMenuItemUseCase } = require('./use-cases/menu-item/update-menu-ite
 const { DeleteMenuItemUseCase } = require('./use-cases/menu-item/delete-menu-item');
 const { UploadMenuItemImageUseCase } = require('./use-cases/menu-item/upload-menu-item-image');
 const { UpdateMenuItemAvailabilityUseCase } = require('./use-cases/menu-item/update-availability');
+const { SearchMenuItemsUseCase } = require('./use-cases/menu-item/search-menu-items');
 
 const { CreateCustomizationGroupUseCase } = require('./use-cases/customization/create-customization-group');
 const { AddCustomizationOptionUseCase } = require('./use-cases/customization/add-customization-option');
@@ -231,6 +232,10 @@ function createApp() {
     userRepository
   );
 
+  const searchMenuItemsUseCase = new SearchMenuItemsUseCase(
+    menuItemRepository
+  );
+
   // customization use cases
   const createCustomizationGroupUseCase = new CreateCustomizationGroupUseCase(
     menuItemRepository,
@@ -250,6 +255,7 @@ function createApp() {
     deleteMenuItemUseCase,
     uploadMenuItemImageUseCase,
     updateMenuItemAvailabilityUseCase,
+    searchMenuItemsUseCase,
   });
 
   // ✅ Customization controller
