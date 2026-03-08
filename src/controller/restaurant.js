@@ -1,4 +1,6 @@
-// src/controller/restaurant.js
+const {
+  GetRestaurantStatisticsQuerySchema,
+} = require('../dto/restaurant/get-restaurant-statistics');
 const {
   UpdateRestaurantSchema,
 } = require('../dto/restaurant/update-restaurant');
@@ -9,11 +11,13 @@ class RestaurantController {
     uploadRestaurantLogoUseCase,
     createRestaurantUseCase,
     updateRestaurantUseCase,
+    getRestaurantStatisticsUseCase,
   }) {
     this.getRestaurantDetailsUseCase = getRestaurantDetailsUseCase;
     this.uploadRestaurantLogoUseCase = uploadRestaurantLogoUseCase;
     this.createRestaurantUseCase = createRestaurantUseCase;
     this.updateRestaurantUseCase = updateRestaurantUseCase;
+    this.getRestaurantStatisticsUseCase = getRestaurantStatisticsUseCase;
   }
 
   // GET /api/v1/restaurants/:id
@@ -103,6 +107,29 @@ class RestaurantController {
         success: true,
         message: result.message,
         data: result.restaurant,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * GET /api/v1/restaurants/me/statistics?from=...&to=...
+   */
+  async getMyStatistics(req, res, next) {
+    try {
+      const dto = GetRestaurantStatisticsQuerySchema.parse(req.query);
+
+      const result = await this.getRestaurantStatisticsUseCase.execute(dto, {
+        userId: req.user.userId,
+        role: req.user.role,
+        restaurantId: req.user.restaurantId,
+      });
+
+      res.status(200).json({
+        success: true,
+        message: 'Restaurant statistics',
+        data: result,
       });
     } catch (err) {
       next(err);

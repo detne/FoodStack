@@ -30,6 +30,7 @@ const { GetRestaurantDetailsUseCase } = require('./use-cases/restaurant/get-deta
 const { UploadRestaurantLogoUseCase } = require('./use-cases/restaurant/upload-logo');
 const { CreateRestaurantUseCase } = require('./use-cases/restaurant/create-restaurant');
 const { UpdateRestaurantUseCase } = require('./dto/restaurant/update-restaurant');
+const { GetRestaurantStatisticsUseCase } = require('./dto/restaurant/get-restaurant-statistics');
 
 const { CreateCategoryUseCase } = require('./use-cases/category/create-category');
 const { UpdateCategoryUseCase } = require('./use-cases/category/update-category');
@@ -50,6 +51,9 @@ const { createCustomerOrderRoutes } = require('./routes/v1/customer-orders');
 // Middleware
 const { createAuthMiddleware } = require('./middleware/auth');
 
+/**
+ * Create Express application
+ */
 function createApp() {
   const app = express();
 
@@ -89,6 +93,8 @@ function createApp() {
   const restaurantRepository = new RestaurantRepository(prisma);
   const branchRepository = new BranchRepository(prisma);
   const categoryRepository = new CategoryRepository(prisma);
+
+  const getRestaurantStatisticsUseCase = new GetRestaurantStatisticsUseCase(prisma);
 
   // Initialize auth use cases
   const loginUseCase = new LoginUseCase(userRepository, tokenService);
@@ -139,12 +145,13 @@ function createApp() {
 
   const updateRestaurantUseCase = new UpdateRestaurantUseCase(prisma);
 
-  // ✅ Restaurant controller inject đủ 4 use cases (object)
+  // ✅ Restaurant controller inject đủ use cases (object)
   const restaurantController = new RestaurantController({
     getRestaurantDetailsUseCase,
     uploadRestaurantLogoUseCase,
     createRestaurantUseCase,
     updateRestaurantUseCase,
+    getRestaurantStatisticsUseCase,
   });
 
   // ✅ Initialize category use cases
@@ -193,17 +200,9 @@ function createApp() {
   });
 
   app.use('/api/v1/auth', createAuthRoutes(authController, authMiddleware));
-
-  // ✅ Pass authMiddleware vào restaurants (để uploadLogo có req.user)
   app.use('/api/v1/restaurants', createRestaurantRoutes(restaurantController, authMiddleware));
-
-  // ✅ Category routes
   app.use('/api/v1/categories', createCategoryRoutes(categoryController, authMiddleware));
-
-  // 🆕 Public routes (no auth required)
   app.use('/api/v1/public', createPublicRoutes(prisma));
-
-  // 🆕 Customer order routes (session-based)
   app.use('/api/v1/customer-orders', createCustomerOrderRoutes(prisma));
 
   // 404
