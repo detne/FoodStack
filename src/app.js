@@ -289,6 +289,11 @@ function createApp() {
       endpoints: {
         auth: '/api/v1/auth',
         restaurants: '/api/v1/restaurants',
+        categories: '/api/v1/categories',
+        branches: '/api/v1/branches',
+        'menu-items': '/api/v1/menu-items',
+        customizations: '/api/v1/customizations',
+        staff: '/api/v1/staff',
         health: '/health',
       },
     });
