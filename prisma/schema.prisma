@@ -353,23 +353,6 @@ model user_permissions {
 }
 
 model users {
-<<<<<<< Updated upstream
-  id                      String      @id
-  restaurant_id           String?
-  email                   String      @unique
-  password_hash           String
-  full_name               String
-  phone                   String?
-  role                    String      @default("STAFF")
-  status                  String      @default("ACTIVE")
-  reset_token             String?
-  reset_token_expires_at  DateTime?
-  last_login_at           DateTime?
-  created_at              DateTime    @default(now())
-  updated_at              DateTime
-  deleted_at              DateTime?
-  restaurants             restaurants? @relation(fields: [restaurant_id], references: [id])
-=======
   id                          String              @id
   restaurant_id               String?             // NULL for OWNER, set for MANAGER/STAFF
   email                       String              @unique
@@ -384,11 +367,11 @@ model users {
   created_at                  DateTime            @default(now())
   updated_at                  DateTime
   deleted_at                  DateTime?
->>>>>>> Stashed changes
   email_verify_otp            String?
   email_verify_otp_expires_at DateTime?
   restaurants                 restaurants?        @relation("RestaurantStaff", fields: [restaurant_id], references: [id])
   owned_restaurants           restaurants[]       @relation("RestaurantOwner")
+  user_restaurants            user_restaurants[]
 }
 
 model user_restaurants {

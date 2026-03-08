@@ -15,6 +15,20 @@ const upload = multer({
 function createMenuItemRoutes(menuItemController, authMiddleware) {
   const router = express.Router();
 
+  // GET /api/v1/menu-items - List menu items by category
+  router.get(
+    '/',
+    authMiddleware,
+    (req, res, next) => menuItemController.list(req, res, next)
+  );
+
+  // GET /api/v1/menu-items/:id - Get menu item details
+  router.get(
+    '/:id',
+    authMiddleware,
+    (req, res, next) => menuItemController.getDetails(req, res, next)
+  );
+
   // POST /api/v1/menu-items - Create menu item
   router.post(
     '/',

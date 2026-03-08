@@ -1,10 +1,56 @@
 // src/controller/category.js
 
 class CategoryController {
-  constructor({ createCategoryUseCase, updateCategoryUseCase, deleteCategoryUseCase }) {
+  constructor({ createCategoryUseCase, updateCategoryUseCase, deleteCategoryUseCase, categoryRepository }) {
     this.createCategoryUseCase = createCategoryUseCase;
     this.updateCategoryUseCase = updateCategoryUseCase;
     this.deleteCategoryUseCase = deleteCategoryUseCase;
+    this.categoryRepository = categoryRepository;
+  }
+
+  // GET /api/v1/categories
+  async list(req, res, next) {
+    try {
+      const { branch_id } = req.query;
+      
+      if (!branch_id) {
+        return res.status(400).json({
+          success: false,
+          message: 'branch_id is required',
+        });
+      }
+
+      const categories = await this.categoryRepository.findByBranchId(branch_id);
+
+      res.json({
+        success: true,
+        data: categories,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // GET /api/v1/categories/:id
+  async getDetails(req, res, next) {
+    try {
+      const { id } = req.params;
+      const category = await this.categoryRepository.findById(id);
+
+      if (!category) {
+        return res.status(404).json({
+          success: false,
+          message: 'Category not found',
+        });
+      }
+
+      res.json({
+        success: true,
+        data: category,
+      });
+    } catch (error) {
+      next(error);
+    }
   }
 
   // POST /api/v1/categories

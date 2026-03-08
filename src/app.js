@@ -16,6 +16,7 @@ const { UserRepository } = require('./repository/user');
 const { RestaurantRepository } = require('./repository/restaurant');
 const { BranchRepository } = require('./repository/branch');
 const { CategoryRepository } = require('./repository/category');
+const { MenuItemRepository } = require('./repository/menu-item');
 
 // Use cases
 const { LoginUseCase } = require('./use-cases/auth/login');
@@ -35,15 +36,24 @@ const { CreateCategoryUseCase } = require('./use-cases/category/create-category'
 const { UpdateCategoryUseCase } = require('./use-cases/category/update-category');
 const { DeleteCategoryUseCase } = require('./use-cases/category/delete-category');
 
+const { CreateMenuItemUseCase } = require('./use-cases/menu-item/create-menu-item');
+const { UpdateMenuItemUseCase } = require('./use-cases/menu-item/update-menu-item');
+const { DeleteMenuItemUseCase } = require('./use-cases/menu-item/delete-menu-item');
+const { UploadMenuItemImageUseCase } = require('./use-cases/menu-item/upload-menu-item-image');
+
 // Controllers
 const { AuthController } = require('./controller/auth');
 const { RestaurantController } = require('./controller/restaurant');
 const { CategoryController } = require('./controller/category');
+const BranchController = require('./controller/branch');
+const { MenuItemController } = require('./controller/menu-item');
 
 // Routes
 const { createAuthRoutes } = require('./routes/v1/auth');
 const { createRestaurantRoutes } = require('./routes/v1/restaurant');
 const { createCategoryRoutes } = require('./routes/v1/category');
+const { createBranchRoutes } = require('./routes/v1/branch');
+const { createMenuItemRoutes } = require('./routes/v1/menu-item');
 const { createPublicRoutes } = require('./routes/v1/public');
 const { createCustomerOrderRoutes } = require('./routes/v1/customer-orders');
 
@@ -89,6 +99,7 @@ function createApp() {
   const restaurantRepository = new RestaurantRepository(prisma);
   const branchRepository = new BranchRepository(prisma);
   const categoryRepository = new CategoryRepository(prisma);
+  const menuItemRepository = new MenuItemRepository(prisma);
 
   // Initialize auth use cases
   const loginUseCase = new LoginUseCase(userRepository, tokenService);
@@ -169,6 +180,47 @@ function createApp() {
     createCategoryUseCase,
     updateCategoryUseCase,
     deleteCategoryUseCase,
+    categoryRepository,
+  });
+
+  // ✅ Branch controller
+  const branchController = new BranchController(branchRepository, prisma);
+
+  // ✅ Initialize menu item use cases
+  const { CreateMenuItemUseCase } = require('./use-cases/menu-item/create-menu-item');
+  const { UpdateMenuItemUseCase } = require('./use-cases/menu-item/update-menu-item');
+  const { DeleteMenuItemUseCase } = require('./use-cases/menu-item/delete-menu-item');
+  const { UploadMenuItemImageUseCase } = require('./use-cases/menu-item/upload-menu-item-image');
+
+  const createMenuItemUseCase = new CreateMenuItemUseCase(
+    menuItemRepository,
+    categoryRepository,
+    userRepository
+  );
+
+  const updateMenuItemUseCase = new UpdateMenuItemUseCase(
+    menuItemRepository,
+    categoryRepository,
+    userRepository
+  );
+
+  const deleteMenuItemUseCase = new DeleteMenuItemUseCase(
+    menuItemRepository,
+    userRepository
+  );
+
+  const uploadMenuItemImageUseCase = new UploadMenuItemImageUseCase(
+    menuItemRepository,
+    uploadService
+  );
+
+  // ✅ Menu item controller
+  const menuItemController = new MenuItemController({
+    createMenuItemUseCase,
+    updateMenuItemUseCase,
+    deleteMenuItemUseCase,
+    uploadMenuItemImageUseCase,
+    menuItemRepository,
   });
 
   // Routes
@@ -180,7 +232,9 @@ function createApp() {
       endpoints: {
         auth: '/api/v1/auth',
         restaurants: '/api/v1/restaurants',
+        branches: '/api/v1/branches',
         categories: '/api/v1/categories',
+        menuItems: '/api/v1/menu-items',
         public: '/api/v1/public',
         customerOrders: '/api/v1/customer-orders',
         health: '/health',
@@ -199,6 +253,12 @@ function createApp() {
 
   // ✅ Category routes
   app.use('/api/v1/categories', createCategoryRoutes(categoryController, authMiddleware));
+
+  // ✅ Branch routes
+  app.use('/api/v1/branches', createBranchRoutes(branchController, authMiddleware));
+
+  // ✅ Menu item routes
+  app.use('/api/v1/menu-items', createMenuItemRoutes(menuItemController, authMiddleware));
 
   // 🆕 Public routes (no auth required)
   app.use('/api/v1/public', createPublicRoutes(prisma));

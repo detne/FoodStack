@@ -1,11 +1,58 @@
 // src/controller/menu-item.js
 
 class MenuItemController {
-  constructor({ createMenuItemUseCase, updateMenuItemUseCase, deleteMenuItemUseCase, uploadMenuItemImageUseCase }) {
+  constructor({ createMenuItemUseCase, updateMenuItemUseCase, deleteMenuItemUseCase, uploadMenuItemImageUseCase, menuItemRepository }) {
     this.createMenuItemUseCase = createMenuItemUseCase;
     this.updateMenuItemUseCase = updateMenuItemUseCase;
     this.deleteMenuItemUseCase = deleteMenuItemUseCase;
     this.uploadMenuItemImageUseCase = uploadMenuItemImageUseCase;
+    this.menuItemRepository = menuItemRepository;
+  }
+
+  // GET /api/v1/menu-items?categoryId=xxx
+  async list(req, res, next) {
+    try {
+      const { categoryId } = req.query;
+
+      if (!categoryId) {
+        return res.status(400).json({
+          success: false,
+          message: 'categoryId is required',
+        });
+      }
+
+      const menuItems = await this.menuItemRepository.findByCategoryId(categoryId);
+
+      res.status(200).json({
+        success: true,
+        data: menuItems,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // GET /api/v1/menu-items/:id
+  async getDetails(req, res, next) {
+    try {
+      const { id } = req.params;
+
+      const menuItem = await this.menuItemRepository.findById(id);
+
+      if (!menuItem) {
+        return res.status(404).json({
+          success: false,
+          message: 'Menu item not found',
+        });
+      }
+
+      res.status(200).json({
+        success: true,
+        data: menuItem,
+      });
+    } catch (error) {
+      next(error);
+    }
   }
 
   // POST /api/v1/menu-items

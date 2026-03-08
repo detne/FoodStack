@@ -26,10 +26,29 @@ class RegisterRestaurantUseCase {
       const userId = uuidv4();
       const branchId = uuidv4();
 
-      // 3) Create restaurant
+      // 3) Hash password
+      const hashedPassword = await hashPassword(dto.ownerPassword);
+
+      // 4) Create owner user FIRST (without restaurant_id)
+      const user = await tx.users.create({
+        data: {
+          id: userId,
+          restaurant_id: null, // Owner doesn't belong to a restaurant
+          email: dto.ownerEmail,
+          password_hash: hashedPassword,
+          full_name: dto.ownerName,
+          phone: dto.ownerPhone,
+          role: 'OWNER',
+          status: 'ACTIVE',
+          updated_at: now,
+        },
+      });
+
+      // 5) Create restaurant with owner_id
       const restaurant = await tx.restaurants.create({
         data: {
           id: restaurantId,
+          owner_id: user.id, // Link to owner
           name: dto.restaurantName ?? 'My Restaurant',
           email: dto.ownerEmail,
           phone: dto.ownerPhone,
@@ -38,25 +57,6 @@ class RegisterRestaurantUseCase {
           email_verified_at: null,
           subscription_id: null,
           updated_at: now,
-        },
-      });
-
-      // 4) Hash password
-      const hashedPassword = await hashPassword(dto.ownerPassword);
-
-      // 5) Create owner user
-      const user = await tx.users.create({
-        data: {
-          id: userId,
-          restaurant_id: restaurant.id,
-          email: dto.ownerEmail,
-          password_hash: hashedPassword,
-          full_name: dto.ownerName,
-          phone: dto.ownerPhone,
-          role: 'OWNER',
-          status: 'ACTIVE',
-          updated_at: now,
-          // KHÔNG cần set reset_token/reset_token_expires_at/last_login_at
         },
       });
 

@@ -20,6 +20,20 @@ class BranchRepository {
       orderBy: { created_at: 'asc' },
     });
   }
+
+  async update(id, data) {
+    return await this.prisma.branches.update({
+      where: { id },
+      data,
+    });
+  }
+
+  async delete(id) {
+    return await this.prisma.branches.update({
+      where: { id },
+      data: { deleted_at: new Date() },
+    });
+  }
 }
 
 module.exports = { BranchRepository };
