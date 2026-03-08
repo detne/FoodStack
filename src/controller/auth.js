@@ -62,11 +62,17 @@ class AuthController {
   }
 
   async registerRestaurant(req, res, next) {
-    console.log('[DEBUG] registerRestaurantUseCase =', this.registerRestaurantUseCase?.constructor?.name);
+    console.log(
+      '[DEBUG] registerRestaurantUseCase =',
+      this.registerRestaurantUseCase?.constructor?.name
+    );
     console.log('[DEBUG] body keys =', Object.keys(req.body || {}));
-    try {
-      const dto = RegisterRestaurantSchema.parse(req.body);
 
+    try {
+      console.log('Request body:', req.body);
+      console.log('Request headers:', req.headers);
+
+      const dto = RegisterRestaurantSchema.parse(req.body);
       const result = await this.registerRestaurantUseCase.execute(dto);
 
       res.status(201).json({
@@ -75,6 +81,7 @@ class AuthController {
         data: result,
       });
     } catch (error) {
+      console.error('Register error:', error);
       next(error);
     }
   }
@@ -126,6 +133,7 @@ class AuthController {
       next(err);
     }
   }
+
   /**
    * Forgot password endpoint
    * POST /api/v1/auth/forgot-password
