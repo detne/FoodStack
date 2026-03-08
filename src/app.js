@@ -44,6 +44,8 @@ const { CategoryController } = require('./controller/category');
 const { createAuthRoutes } = require('./routes/v1/auth');
 const { createRestaurantRoutes } = require('./routes/v1/restaurant');
 const { createCategoryRoutes } = require('./routes/v1/category');
+const { createPublicRoutes } = require('./routes/v1/public');
+const { createCustomerOrderRoutes } = require('./routes/v1/customer-orders');
 
 // Middleware
 const { createAuthMiddleware } = require('./middleware/auth');
@@ -178,6 +180,9 @@ function createApp() {
       endpoints: {
         auth: '/api/v1/auth',
         restaurants: '/api/v1/restaurants',
+        categories: '/api/v1/categories',
+        public: '/api/v1/public',
+        customerOrders: '/api/v1/customer-orders',
         health: '/health',
       },
     });
@@ -194,6 +199,12 @@ function createApp() {
 
   // ✅ Category routes
   app.use('/api/v1/categories', createCategoryRoutes(categoryController, authMiddleware));
+
+  // 🆕 Public routes (no auth required)
+  app.use('/api/v1/public', createPublicRoutes(prisma));
+
+  // 🆕 Customer order routes (session-based)
+  app.use('/api/v1/customer-orders', createCustomerOrderRoutes(prisma));
 
   // 404
   app.use((req, res) => {
