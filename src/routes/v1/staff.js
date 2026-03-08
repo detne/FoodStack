@@ -60,6 +60,17 @@ function createStaffRoutes(staffController, authMiddleware) {
     (req, res, next) => staffController.updateStaff(req, res, next)
   );
 
+  /**
+   * @route   DELETE /api/v1/staff/:id
+   * @desc    Delete staff (soft delete - set INACTIVE) (Owner/Manager only)
+   * @access  Private (OWNER, MANAGER)
+   */
+  router.delete(
+    '/:id',
+    authMiddleware,
+    (req, res, next) => staffController.deleteStaff(req, res, next)
+  );
+
   return router;
 }
 
