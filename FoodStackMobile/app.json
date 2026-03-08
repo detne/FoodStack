@@ -1,0 +1,45 @@
+{
+  "expo": {
+    "name": "FoodStack Mobile",
+    "slug": "foodstack-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#6366f1"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "This app uses the camera to scan QR codes on restaurant tables."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#6366f1",
+        "foregroundImage": "./assets/android-icon-foreground.png"
+      },
+      "permissions": [
+        "android.permission.CAMERA"
+      ],
+      "package": "com.foodstack.mobile"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow FoodStack to access your camera to scan QR codes."
+        }
+      ]
+    ]
+  }
+}
