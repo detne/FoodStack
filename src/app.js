@@ -50,6 +50,7 @@ const { CreateCustomizationGroupUseCase } = require('./use-cases/customization/c
 const { AddCustomizationOptionUseCase } = require('./use-cases/customization/add-customization-option');
 
 const { CreateStaffUseCase } = require('./use-cases/staff/create-staff');
+const { UpdateStaffUseCase } = require('./use-cases/staff/update-staff');
 
 // Controllers
 const { AuthController } = require('./controller/auth');
@@ -277,8 +278,16 @@ function createApp() {
     prisma
   );
 
+  const updateStaffUseCase = new UpdateStaffUseCase(
+    userRepository,
+    prisma
+  );
+
   // ✅ Staff controller
-  const staffController = new StaffController(createStaffUseCase);
+  const staffController = new StaffController(
+    createStaffUseCase,
+    updateStaffUseCase
+  );
 
   // Routes
   app.get('/', (req, res) => {

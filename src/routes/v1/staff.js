@@ -2,6 +2,7 @@
 
 const express = require('express');
 const { CreateStaffSchema } = require('../../dto/staff/create-staff');
+const { UpdateStaffSchema } = require('../../dto/staff/update-staff');
 
 /**
  * Validation middleware
@@ -45,6 +46,18 @@ function createStaffRoutes(staffController, authMiddleware) {
     authMiddleware,
     validateRequest(CreateStaffSchema),
     (req, res, next) => staffController.createStaff(req, res, next)
+  );
+
+  /**
+   * @route   PUT /api/v1/staff/:id
+   * @desc    Update staff information (Owner/Manager only)
+   * @access  Private (OWNER, MANAGER)
+   */
+  router.put(
+    '/:id',
+    authMiddleware,
+    validateRequest(UpdateStaffSchema),
+    (req, res, next) => staffController.updateStaff(req, res, next)
   );
 
   return router;
