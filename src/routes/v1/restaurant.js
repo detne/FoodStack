@@ -48,6 +48,13 @@ function createRestaurantRoutes(restaurantController, authMiddleware = null) {
     (req, res, next) => restaurantController.updateRestaurant(req, res, next)
   );
 
+  // DELETE /api/v1/restaurants/:id - Delete restaurant
+  router.delete(
+    '/:id',
+    authMiddleware,
+    (req, res, next) => restaurantController.deleteRestaurant(req, res, next)
+  );
+
   // GET /api/v1/restaurants/me/statistics?from=...&to=... - Get restaurant statistics
   router.get('/me/statistics', authMiddleware, (req, res, next) =>
     restaurantController.getMyStatistics(req, res, next)

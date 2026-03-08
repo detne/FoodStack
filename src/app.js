@@ -31,6 +31,7 @@ const { UploadRestaurantLogoUseCase } = require('./use-cases/restaurant/upload-l
 const { CreateRestaurantUseCase } = require('./use-cases/restaurant/create-restaurant');
 const { UpdateRestaurantUseCase } = require('./dto/restaurant/update-restaurant');
 const { GetRestaurantStatisticsUseCase } = require('./dto/restaurant/get-restaurant-statistics');
+const { DeleteRestaurantUseCase } = require('./use-cases/restaurant/delete');
 
 const { CreateCategoryUseCase } = require('./use-cases/category/create-category');
 const { UpdateCategoryUseCase } = require('./use-cases/category/update-category');
@@ -67,7 +68,9 @@ function createApp() {
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
-    if (req.method === 'OPTIONS') return res.sendStatus(200);
+    if (req.method === 'OPTIONS') {
+      return res.sendStatus(200);
+    }
     next();
   });
 
@@ -145,6 +148,8 @@ function createApp() {
 
   const updateRestaurantUseCase = new UpdateRestaurantUseCase(prisma);
 
+  const deleteRestaurantUseCase = new DeleteRestaurantUseCase(restaurantRepository);
+
   // ✅ Restaurant controller inject đủ use cases (object)
   const restaurantController = new RestaurantController({
     getRestaurantDetailsUseCase,
@@ -152,6 +157,7 @@ function createApp() {
     createRestaurantUseCase,
     updateRestaurantUseCase,
     getRestaurantStatisticsUseCase,
+    deleteRestaurantUseCase,
   });
 
   // ✅ Initialize category use cases

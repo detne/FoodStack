@@ -12,12 +12,14 @@ class RestaurantController {
     createRestaurantUseCase,
     updateRestaurantUseCase,
     getRestaurantStatisticsUseCase,
+    deleteRestaurantUseCase,
   }) {
     this.getRestaurantDetailsUseCase = getRestaurantDetailsUseCase;
     this.uploadRestaurantLogoUseCase = uploadRestaurantLogoUseCase;
     this.createRestaurantUseCase = createRestaurantUseCase;
     this.updateRestaurantUseCase = updateRestaurantUseCase;
     this.getRestaurantStatisticsUseCase = getRestaurantStatisticsUseCase;
+    this.deleteRestaurantUseCase = deleteRestaurantUseCase;
   }
 
   // GET /api/v1/restaurants/:id
@@ -36,12 +38,12 @@ class RestaurantController {
     }
   }
 
-  // POST/PUT /api/v1/restaurants/:restaurantId/logo (depending on your routes)
+  // POST /api/v1/restaurants/:restaurantId/logo
   async uploadLogo(req, res, next) {
     try {
       const { restaurantId } = req.params;
       const file = req.file;
-      const userId = req.user?.userId; // From auth middleware
+      const userId = req.user?.userId;
 
       if (!file) {
         return res.status(400).json({
@@ -110,6 +112,23 @@ class RestaurantController {
       });
     } catch (err) {
       next(err);
+    }
+  }
+
+  // DELETE /api/v1/restaurants/:id
+  async deleteRestaurant(req, res, next) {
+    try {
+      const { id } = req.params;
+      const userId = req.user?.userId;
+
+      const result = await this.deleteRestaurantUseCase.execute(id, userId);
+
+      res.status(200).json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
     }
   }
 
