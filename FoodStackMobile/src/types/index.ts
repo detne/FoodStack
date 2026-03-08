@@ -138,6 +138,21 @@ export interface CartItem {
 
 // Navigation Types
 export type RootStackParamList = {
+  // Splash Screen
+  Splash: undefined;
+  
+  // Auth Screens
+  Login: undefined;
+  UserTypeSelection: undefined;
+  Register: {
+    userType?: 'customer' | 'partner';
+  };
+  ForgotPassword: undefined;
+  EmailVerification: {
+    email: string;
+  };
+  
+  // Main App Screens
   Home: undefined;
   QRScan: undefined;
   RestaurantList: undefined;
@@ -172,7 +187,54 @@ export type RootStackParamList = {
   };
   OrderHistory: undefined;
   Profile: undefined;
+  Offers: undefined;
   RestaurantDetail: {
     restaurantId: string;
   };
 };
+
+// Auth Types
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface RegisterRequest {
+  fullName: string;
+  email: string;
+  password: string;
+  phone?: string;
+  userType: 'user' | 'restaurant';
+  // Restaurant specific fields
+  restaurantName?: string;
+  restaurantEmail?: string;
+  restaurantAddress?: string;
+}
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  fullName: string;
+  role: string;
+  restaurantId?: string;
+  restaurant?: {
+    id: string;
+    name: string;
+    email_verified: boolean;
+  };
+}
+
+export interface AuthResponse {
+  accessToken: string;
+  refreshToken: string;
+  user: AuthUser;
+}
+
+export interface ForgotPasswordRequest {
+  email: string;
+}
+
+export interface VerifyEmailOtpRequest {
+  email: string;
+  otp: string;
+}
