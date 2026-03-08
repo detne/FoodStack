@@ -1,376 +1,380 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
-  Image,
-  Alert,
+  ScrollView,
+  Dimensions,
 } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { RouteProp } from '@react-navigation/native';
-import { RootStackParamList, CustomizationGroup, CustomizationOption } from '../types';
-import { publicApi } from '../services/api';
-import { useCartContext } from '../context/CartContext';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import { RootStackParamList } from '../types';
+import { theme } from '../theme';
+import Icon from '../components/Icon';
 
 type FoodDetailScreenNavigationProp = StackNavigationProp<RootStackParamList, 'FoodDetail'>;
-type FoodDetailScreenRouteProp = RouteProp<RootStackParamList, 'FoodDetail'>;
 
 interface Props {
   navigation: FoodDetailScreenNavigationProp;
-  route: FoodDetailScreenRouteProp;
+  route: {
+    params: {
+      menuItem: any;
+      restaurantId?: string;
+      sessionToken?: string;
+    };
+  };
 }
 
+const { width } = Dimensions.get('window');
+
 const FoodDetailScreen: React.FC<Props> = ({ navigation, route }) => {
-  const { menuItem, tableInfo, sessionToken } = route.params;
-  const { addToCart } = useCartContext();
-  
-  const [customizations, setCustomizations] = useState<CustomizationGroup[]>([]);
-  const [selectedCustomizations, setSelectedCustomizations] = useState<{
-    [groupId: string]: CustomizationOption[];
-  }>({});
-  const [quantity, setQuantity] = useState(1);
-  const [notes, setNotes] = useState('');
-  const [loading, setLoading] = useState(true);
+  const { menuItem: item } = route.params;
+  const [qty, setQty] = useState(1);
+  const [selections, setSelections] = useState<{[key: string]: string}>({});
 
-  useEffect(() => {
-    loadCustomizations();
-  }, []);
+  if (!item) return null;
 
-  const loadCustomizations = async () => {
-    try {
-      setLoading(true);
-      const data = await publicApi.getItemCustomizations(menuItem.id);
-      setCustomizations(data.customizations);
-    } catch (error) {
-      console.error('Load customizations error:', error);
-      // Continue without customizations
-    } finally {
-      setLoading(false);
-    }
+  const total = item.price * qty;
+
+  const setOption = (groupName: string, option: string) => {
+    setSelections(s => ({ ...s, [groupName]: option }));
   };
 
-  const handleCustomizationSelect = (groupId: string, option: CustomizationOption, group: CustomizationGroup) => {
-    setSelectedCustomizations(prev => {
-      const currentSelections = prev[groupId] || [];
-      
-      if (group.max_select === 1) {
-        // Single select - replace selection
-        return {
-          ...prev,
-          [groupId]: [option],
-        };
-      } else {
-        // Multi select
-        const isSelected = currentSelections.some(selected => selected.id === option.id);
-        
-        if (isSelected) {
-          // Remove selection
-          return {
-            ...prev,
-            [groupId]: currentSelections.filter(selected => selected.id !== option.id),
-          };
-        } else {
-          // Add selection if under limit
-          if (currentSelections.length < group.max_select) {
-            return {
-              ...prev,
-              [groupId]: [...currentSelections, option],
-            };
-          }
-        }
-      }
-      
-      return prev;
-    });
+  const addToCart = () => {
+    // Add to cart logic here
+    navigation.goBack();
   };
 
-  const validateSelections = (): boolean => {
-    for (const group of customizations) {
-      const selections = selectedCustomizations[group.group_id] || [];
-      
-      if (group.is_required && selections.length < group.min_select) {
-        Alert.alert('Required Selection', `Please select at least ${group.min_select} option(s) for ${group.name}`);
-        return false;
-      }
-    }
-    return true;
+  const goBack = () => {
+    navigation.goBack();
   };
-
-  const calculateTotalPrice = (): number => {
-    let total = menuItem.price * quantity;
-    
-    Object.values(selectedCustomizations).forEach(options => {
-      options.forEach(option => {
-        total += option.price_delta * quantity;
-      });
-    });
-    
-    return total;
-  };
-
-  const handleAddToCart = () => {
-    if (!validateSelections()) return;
-    
-    const formattedCustomizations = Object.entries(selectedCustomizations).map(([groupId, options]) => {
-      const group = customizations.find(g => g.group_id === groupId);
-      return {
-        group_id: groupId,
-        group_name: group?.name || '',
-        options,
-      };
-    }).filter(group => group.options.length > 0);
-
-    addToCart(menuItem, quantity, formattedCustomizations, notes);
-    
-    Alert.alert(
-      'Added to Cart',
-      `${menuItem.name} has been added to your cart`,
-      [
-        { text: 'Continue Shopping', onPress: () => navigation.goBack() },
-        { text: 'View Cart', onPress: () => navigation.navigate('Cart', { tableInfo, sessionToken }) },
-      ]
-    );
-  };
-
-  const renderCustomizationGroup = (group: CustomizationGroup) => (
-    <View key={group.group_id} style={styles.customizationGroup}>
-      <View style={styles.groupHeader}>
-        <Text style={styles.groupName}>{group.name}</Text>
-        {group.is_required && <Text style={styles.requiredLabel}>Required</Text>}
-      </View>
-      <Text style={styles.groupDescription}>
-        Select {group.min_select === group.max_select 
-          ? group.min_select 
-          : `${group.min_select}-${group.max_select}`} option(s)
-      </Text>
-      
-      {group.options.map(option => {
-        const isSelected = (selectedCustomizations[group.group_id] || [])
-          .some(selected => selected.id === option.id);
-        
-        return (
-          <TouchableOpacity
-            key={option.id}
-            style={[styles.customizationOption, isSelected && styles.selectedOption]}
-            onPress={() => handleCustomizationSelect(group.group_id, option, group)}
-          >
-            <View style={styles.optionContent}>
-              <Text style={[styles.optionName, isSelected && styles.selectedOptionText]}>
-                {option.name}
-              </Text>
-              {option.price_delta !== 0 && (
-                <Text style={[styles.optionPrice, isSelected && styles.selectedOptionText]}>
-                  {option.price_delta > 0 ? '+' : ''}${option.price_delta.toFixed(2)}
-                </Text>
-              )}
-            </View>
-          </TouchableOpacity>
-        );
-      })}
-    </View>
-  );
 
   return (
-    <View style={styles.container}>
-      <ScrollView style={styles.content}>
-        {/* Food Image */}
-        {menuItem.image_url && (
-          <Image source={{ uri: menuItem.image_url }} style={styles.foodImage} />
-        )}
-        
-        {/* Food Info */}
-        <View style={styles.foodInfo}>
-          <Text style={styles.foodName}>{menuItem.name}</Text>
-          <Text style={styles.foodPrice}>${menuItem.price.toFixed(2)}</Text>
-          {menuItem.description && (
-            <Text style={styles.foodDescription}>{menuItem.description}</Text>
-          )}
-        </View>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Food Image Header */}
+      <View style={styles.imageHeader}>
+        <LinearGradient
+          colors={['#f8f8f8', '#eeeeee']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.imageBackground}
+        >
+          <Text style={styles.foodEmoji}>{item.emoji}</Text>
+          
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={goBack}
+            activeOpacity={0.8}
+          >
+            <Icon name="back" size={20} color="#333" />
+          </TouchableOpacity>
+        </LinearGradient>
+      </View>
 
-        {/* Quantity Selector */}
-        <View style={styles.quantitySection}>
-          <Text style={styles.sectionTitle}>Quantity</Text>
-          <View style={styles.quantityControls}>
-            <TouchableOpacity
-              style={styles.quantityButton}
-              onPress={() => setQuantity(Math.max(1, quantity - 1))}
-            >
-              <Text style={styles.quantityButtonText}>-</Text>
-            </TouchableOpacity>
-            <Text style={styles.quantityText}>{quantity}</Text>
-            <TouchableOpacity
-              style={styles.quantityButton}
-              onPress={() => setQuantity(quantity + 1)}
-            >
-              <Text style={styles.quantityButtonText}>+</Text>
-            </TouchableOpacity>
-          </View>
+      {/* Food Info */}
+      <View style={styles.foodInfo}>
+        <View style={styles.foodHeader}>
+          <Text style={styles.foodName}>{item.name}</Text>
+          <Text style={styles.foodPrice}>${item.price.toFixed(2)}</Text>
         </View>
+        <Text style={styles.foodDesc}>{item.desc}</Text>
+      </View>
 
-        {/* Customizations */}
-        {!loading && customizations.length > 0 && (
-          <View style={styles.customizationsSection}>
-            <Text style={styles.sectionTitle}>Customizations</Text>
-            {customizations.map(renderCustomizationGroup)}
-          </View>
+      {/* Customizations */}
+      <ScrollView
+        style={styles.customizationsContainer}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.customizationsContent}
+      >
+        {item.customizations && item.customizations.length > 0 && (
+          item.customizations.map((group: any) => (
+            <View key={group.name} style={styles.customizationGroup}>
+              <View style={styles.customizationHeader}>
+                <Text style={styles.customizationTitle}>{group.name}</Text>
+                {group.required && (
+                  <Text style={styles.requiredLabel}>• Required</Text>
+                )}
+              </View>
+              
+              <View style={styles.optionsContainer}>
+                {group.options.map((option: string) => (
+                  <TouchableOpacity
+                    key={option}
+                    style={[
+                      styles.optionButton,
+                      selections[group.name] === option && styles.selectedOption
+                    ]}
+                    onPress={() => setOption(group.name, option)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[
+                      styles.optionText,
+                      selections[group.name] === option && styles.selectedOptionText
+                    ]}>
+                      {option}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          ))
         )}
       </ScrollView>
 
-      {/* Add to Cart Button */}
-      <View style={styles.footer}>
-        <TouchableOpacity style={styles.addToCartButton} onPress={handleAddToCart}>
-          <Text style={styles.addToCartButtonText}>
-            Add to Cart - ${calculateTotalPrice().toFixed(2)}
-          </Text>
+      {/* Quantity & Add to Cart */}
+      <View style={styles.bottomSection}>
+        <View style={styles.quantityContainer}>
+          <TouchableOpacity
+            style={styles.quantityButton}
+            onPress={() => setQty(q => Math.max(1, q - 1))}
+            activeOpacity={0.8}
+          >
+            <Icon name="minus" size={16} color="#333" />
+          </TouchableOpacity>
+          
+          <Text style={styles.quantityText}>{qty}</Text>
+          
+          <TouchableOpacity
+            style={styles.quantityButton}
+            onPress={() => setQty(q => q + 1)}
+            activeOpacity={0.8}
+          >
+            <Icon name="plus" size={16} color="#E8622A" />
+          </TouchableOpacity>
+        </View>
+
+        <TouchableOpacity
+          style={styles.addToCartButton}
+          onPress={addToCart}
+          activeOpacity={0.8}
+        >
+          <LinearGradient
+            colors={['#FF7A30', '#E8622A']}
+            style={styles.addToCartGradient}
+          >
+            <Text style={styles.addToCartText}>
+              Add to Cart • ${total.toFixed(2)}
+            </Text>
+          </LinearGradient>
         </TouchableOpacity>
       </View>
-    </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#f5f5f0',
   },
-  content: {
+
+  imageHeader: {
+    height: 240,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
+    overflow: 'hidden',
+    marginBottom: 16,
+  },
+
+  imageBackground: {
     flex: 1,
-  },
-  foodImage: {
-    width: '100%',
-    height: 250,
-    resizeMode: 'cover',
-  },
-  foodInfo: {
-    padding: 20,
-    backgroundColor: '#fff',
-  },
-  foodName: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#111827',
-    marginBottom: 8,
-  },
-  foodPrice: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#059669',
-    marginBottom: 12,
-  },
-  foodDescription: {
-    fontSize: 16,
-    color: '#6b7280',
-    lineHeight: 24,
-  },
-  quantitySection: {
-    padding: 20,
-    backgroundColor: '#fff',
-    marginTop: 8,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#111827',
-    marginBottom: 12,
-  },
-  quantityControls: {
-    flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
+    position: 'relative',
   },
-  quantityButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#f3f4f6',
+
+  foodEmoji: {
+    fontSize: 100,
+  },
+
+  backButton: {
+    position: 'absolute',
+    top: 16,
+    left: 20,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(0,0,0,0.15)',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  quantityButtonText: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#374151',
-  },
-  quantityText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#111827',
-    marginHorizontal: 20,
-  },
-  customizationsSection: {
-    padding: 20,
+
+  foodInfo: {
     backgroundColor: '#fff',
-    marginTop: 8,
+    marginHorizontal: 16,
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 16,
+    ...theme.shadows.sm,
   },
-  customizationGroup: {
-    marginBottom: 24,
-  },
-  groupHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  groupName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#111827',
-    flex: 1,
-  },
-  requiredLabel: {
-    fontSize: 12,
-    color: '#dc2626',
-    fontWeight: '600',
-  },
-  groupDescription: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginBottom: 12,
-  },
-  customizationOption: {
-    padding: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    marginBottom: 8,
-  },
-  selectedOption: {
-    borderColor: '#3b82f6',
-    backgroundColor: '#eff6ff',
-  },
-  optionContent: {
+
+  foodHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    marginBottom: 8,
   },
-  optionName: {
+
+  foodName: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: '#1a1a1a',
+    flex: 1,
+  },
+
+  foodPrice: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: '#E8622A',
+  },
+
+  foodDesc: {
     fontSize: 14,
-    color: '#374151',
+    color: '#666',
+    lineHeight: 20,
   },
-  selectedOptionText: {
-    color: '#3b82f6',
-    fontWeight: '600',
+
+  customizationsContainer: {
+    flex: 1,
   },
-  optionPrice: {
-    fontSize: 14,
-    color: '#6b7280',
+
+  customizationsContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 16,
   },
-  footer: {
-    padding: 20,
+
+  customizationGroup: {
     backgroundColor: '#fff',
-    borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 12,
+    ...theme.shadows.sm,
   },
-  addToCartButton: {
-    backgroundColor: '#3b82f6',
+
+  customizationHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+
+  customizationTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#1a1a1a',
+  },
+
+  requiredLabel: {
+    fontSize: 11,
+    color: '#E8622A',
+    fontWeight: '700',
+    marginLeft: 4,
+  },
+
+  optionsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+
+  optionButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: '#e0e0e0',
+    backgroundColor: '#fff',
+  },
+
+  selectedOption: {
+    borderColor: '#E8622A',
+    backgroundColor: '#FFF0E8',
+  },
+
+  optionText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#666',
+  },
+
+  selectedOptionText: {
+    color: '#E8622A',
+  },
+
+  bottomSection: {
+    backgroundColor: '#fff',
+    paddingHorizontal: 20,
     paddingVertical: 16,
-    borderRadius: 12,
+    paddingBottom: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    ...theme.shadows.lg,
+  },
+
+  quantityContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f0',
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    gap: 12,
+  },
+
+  quantityButton: {
+    justifyContent: 'center',
     alignItems: 'center',
   },
-  addToCartButtonText: {
+
+  quantityText: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#1a1a1a',
+    minWidth: 20,
+    textAlign: 'center',
+  },
+
+  addToCartButton: {
+    flex: 1,
+    borderRadius: 14,
+    overflow: 'hidden',
+  },
+
+  addToCartGradient: {
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+
+  addToCartText: {
+    fontSize: 15,
+    fontWeight: '800',
     color: '#fff',
+  },
+
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 80,
+  },
+
+  emptyStateIcon: {
+    fontSize: 60,
+    marginBottom: 16,
+  },
+
+  emptyStateTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: '800',
+    color: '#333',
+    marginBottom: 8,
+  },
+
+  emptyStateDescription: {
+    fontSize: 14,
+    color: '#888',
+    textAlign: 'center',
   },
 });
 
