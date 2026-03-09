@@ -16,6 +16,7 @@ const { UserRepository } = require('./repository/user');
 const { RestaurantRepository } = require('./repository/restaurant');
 const { BranchRepository } = require('./repository/branch');
 const { CategoryRepository } = require('./repository/category');
+const { MenuItemRepository } = require('./repository/menu-item');
 
 // Use cases
 const { LoginUseCase } = require('./use-cases/auth/login');
@@ -32,6 +33,8 @@ const { CreateRestaurantUseCase } = require('./use-cases/restaurant/create-resta
 const { UpdateRestaurantUseCase } = require('./dto/restaurant/update-restaurant');
 const { GetRestaurantStatisticsUseCase } = require('./dto/restaurant/get-restaurant-statistics');
 const { DeleteRestaurantUseCase } = require('./use-cases/restaurant/delete');
+
+const { GetFullMenuByBranchUseCase } = require('./use-cases/branch/get-full-menu');
 
 const { CreateCategoryUseCase } = require('./use-cases/category/create-category');
 const { UpdateCategoryUseCase } = require('./use-cases/category/update-category');
@@ -104,6 +107,7 @@ function createApp() {
   const restaurantRepository = new RestaurantRepository(prisma);
   const branchRepository = new BranchRepository(prisma);
   const categoryRepository = new CategoryRepository(prisma);
+  const menuItemRepository = new MenuItemRepository(prisma);
 
   const getRestaurantStatisticsUseCase = new GetRestaurantStatisticsUseCase(prisma);
 
@@ -163,6 +167,14 @@ function createApp() {
 
   const updateRestaurantUseCase = new UpdateRestaurantUseCase(prisma);
 
+  // branch menu use case
+  const getFullMenuByBranchUseCase = new GetFullMenuByBranchUseCase(
+    branchRepository,
+    categoryRepository,
+    menuItemRepository
+  );
+
+  // ✅ Restaurant controller inject đủ 4 use cases (object)
   const deleteRestaurantUseCase = new DeleteRestaurantUseCase(restaurantRepository);
 
   // ✅ Restaurant controller inject đủ use cases (object)
@@ -199,13 +211,14 @@ function createApp() {
     deleteCategoryUseCase,
   });
 
-  const branchController = new BranchController(
+  const branchController = new BranchController({
     createBranchUseCase,
     updateBranchUseCase,
     listBranchesUseCase,
     deleteBranchUseCase,
-    getBranchDetailsUseCase
-  );
+    getBranchDetailsUseCase,
+    getFullMenuByBranchUseCase,
+  });
 
   // Routes
   app.get('/', (req, res) => {
@@ -236,6 +249,9 @@ function createApp() {
   app.use('/api/v1/categories', createCategoryRoutes(categoryController, authMiddleware));
   app.use('/api/v1/public', createPublicRoutes(prisma));
   app.use('/api/v1/customer-orders', createCustomerOrderRoutes(prisma));
+
+  // branch menu endpoint (public)
+  app.use('/api/v1/branches', createBranchRoutes(branchController));
 
   // 404
   app.use((req, res) => {

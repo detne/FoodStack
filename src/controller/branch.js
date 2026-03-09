@@ -1,14 +1,23 @@
+// src/controller/branch.js
 const { CreateBranchSchema } = require('../dto/branch/create-branch');
 const { UpdateBranchSchema } = require('../dto/branch/update-branch');
 const { ListBranchesSchema } = require('../dto/branch/list-branches');
 
 class BranchController {
-    constructor(createBranchUseCase, updateBranchUseCase, listBranchesUseCase, deleteBranchUseCase, getBranchDetailsUseCase) {
+    constructor({
+        createBranchUseCase,
+        updateBranchUseCase,
+        listBranchesUseCase,
+        deleteBranchUseCase,
+        getBranchDetailsUseCase,
+        getFullMenuByBranchUseCase
+    }) {
         this.createBranchUseCase = createBranchUseCase;
         this.updateBranchUseCase = updateBranchUseCase;
         this.listBranchesUseCase = listBranchesUseCase;
         this.deleteBranchUseCase = deleteBranchUseCase;
         this.getBranchDetailsUseCase = getBranchDetailsUseCase;
+        this.getFullMenuByBranchUseCase = getFullMenuByBranchUseCase;
     }
 
     // POST /api/v1/branches
@@ -102,6 +111,22 @@ class BranchController {
                 success: true,
                 message: 'Branch details',
                 data: result,
+            });
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    // GET /api/v1/branches/:branchId/menu
+    async getMenu(req, res, next) {
+        try {
+            const { branchId } = req.params;
+            const data = await this.getFullMenuByBranchUseCase.execute(branchId);
+
+            res.status(200).json({
+                success: true,
+                message: 'Branch menu retrieved',
+                data,
             });
         } catch (err) {
             next(err);
