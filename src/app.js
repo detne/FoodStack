@@ -37,14 +37,22 @@ const { CreateCategoryUseCase } = require('./use-cases/category/create-category'
 const { UpdateCategoryUseCase } = require('./use-cases/category/update-category');
 const { DeleteCategoryUseCase } = require('./use-cases/category/delete-category');
 
+const { CreateBranchUseCase } = require('./use-cases/branch/create');
+const { UpdateBranchUseCase } = require('./use-cases/branch/update');
+const { ListBranchesUseCase } = require('./use-cases/branch/list');
+const { DeleteBranchUseCase } = require('./use-cases/branch/delete');
+const { GetBranchDetailsUseCase } = require('./use-cases/branch/get-details');
+
 // Controllers
 const { AuthController } = require('./controller/auth');
 const { RestaurantController } = require('./controller/restaurant');
+const { BranchController } = require('./controller/branch');
 const { CategoryController } = require('./controller/category');
 
 // Routes
 const { createAuthRoutes } = require('./routes/v1/auth');
 const { createRestaurantRoutes } = require('./routes/v1/restaurant');
+const { createBranchRoutes } = require('./routes/v1/branches');
 const { createCategoryRoutes } = require('./routes/v1/category');
 const { createPublicRoutes } = require('./routes/v1/public');
 const { createCustomerOrderRoutes } = require('./routes/v1/customer-orders');
@@ -112,6 +120,13 @@ function createApp() {
     emailService,
     prisma
   );
+
+  // Initialize branches use cases
+  const createBranchUseCase = new CreateBranchUseCase(branchRepository, restaurantRepository);
+  const updateBranchUseCase = new UpdateBranchUseCase(branchRepository);
+  const listBranchesUseCase = new ListBranchesUseCase(branchRepository, restaurantRepository);
+  const deleteBranchUseCase = new DeleteBranchUseCase(branchRepository);
+  const getBranchDetailsUseCase = new GetBranchDetailsUseCase(branchRepository);
 
   // Auth middleware
   const authMiddleware = createAuthMiddleware(tokenService);
@@ -184,6 +199,14 @@ function createApp() {
     deleteCategoryUseCase,
   });
 
+  const branchController = new BranchController(
+    createBranchUseCase,
+    updateBranchUseCase,
+    listBranchesUseCase,
+    deleteBranchUseCase,
+    getBranchDetailsUseCase
+  );
+
   // Routes
   app.get('/', (req, res) => {
     res.json({
@@ -207,6 +230,9 @@ function createApp() {
 
   app.use('/api/v1/auth', createAuthRoutes(authController, authMiddleware));
   app.use('/api/v1/restaurants', createRestaurantRoutes(restaurantController, authMiddleware));
+
+  app.use('/api/v1/branches', createBranchRoutes(branchController, authMiddleware));
+  // ✅ Category routes
   app.use('/api/v1/categories', createCategoryRoutes(categoryController, authMiddleware));
   app.use('/api/v1/public', createPublicRoutes(prisma));
   app.use('/api/v1/customer-orders', createCustomerOrderRoutes(prisma));
