@@ -6,6 +6,8 @@ import {
   TouchableOpacity,
   ScrollView,
   Dimensions,
+  TextInput,
+  Alert,
 } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
@@ -24,8 +26,20 @@ interface Props {
 const { width } = Dimensions.get('window');
 
 const OffersScreen: React.FC<Props> = ({ navigation }) => {
+  const [voucherCode, setVoucherCode] = React.useState('');
+
   const navigate = (to: keyof RootStackParamList) => {
     navigation.navigate(to as any);
+  };
+
+  const handleApplyVoucher = () => {
+    if (!voucherCode.trim()) {
+      Alert.alert('Lỗi', 'Vui lòng nhập mã voucher');
+      return;
+    }
+    // TODO: Implement voucher validation
+    Alert.alert('Thành công', `Đã áp dụng mã voucher: ${voucherCode}`);
+    setVoucherCode('');
   };
 
   return (
@@ -54,6 +68,30 @@ const OffersScreen: React.FC<Props> = ({ navigation }) => {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.offersContent}
       >
+        {/* Voucher Input Section */}
+        <View style={styles.voucherSection}>
+          <Text style={styles.voucherTitle}>Có mã voucher?</Text>
+          <Text style={styles.voucherSubtitle}>Nhập mã để nhận ưu đãi đặc biệt</Text>
+          
+          <View style={styles.voucherInputContainer}>
+            <TextInput
+              style={styles.voucherInput}
+              placeholder="Nhập mã voucher"
+              placeholderTextColor="#999"
+              value={voucherCode}
+              onChangeText={setVoucherCode}
+              autoCapitalize="characters"
+            />
+            <TouchableOpacity
+              style={styles.applyButton}
+              onPress={handleApplyVoucher}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.applyButtonText}>Áp dụng</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
         {OFFERS.map(offer => (
           <View key={offer.code} style={styles.offerCard}>
             <LinearGradient
@@ -177,6 +215,59 @@ const styles = StyleSheet.create({
   offersContent: {
     padding: 16,
     paddingBottom: 100, // Space for bottom nav
+  },
+
+  voucherSection: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 20,
+    ...theme.shadows.sm,
+  },
+
+  voucherTitle: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#1a1a1a',
+    marginBottom: 4,
+  },
+
+  voucherSubtitle: {
+    fontSize: 13,
+    color: '#666',
+    marginBottom: 16,
+  },
+
+  voucherInputContainer: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+
+  voucherInput: {
+    flex: 1,
+    backgroundColor: '#f5f5f0',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    borderWidth: 2,
+    borderColor: '#e0e0e0',
+  },
+
+  applyButton: {
+    backgroundColor: '#FF7A30',
+    borderRadius: 12,
+    paddingHorizontal: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  applyButtonText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#fff',
   },
 
   offerCard: {

@@ -18,6 +18,7 @@ import HomeScreen from '../screens/HomeScreen';
 import QRScanScreen from '../screens/QRScanScreen';
 import RestaurantListScreen from '../screens/RestaurantListScreen';
 import RestaurantDetailScreen from '../screens/RestaurantDetailScreen';
+import RestaurantSelectionScreen from '../screens/RestaurantSelectionScreen';
 import MenuScreen from '../screens/MenuScreen';
 import FoodDetailScreen from '../screens/FoodDetailScreen';
 import CartScreen from '../screens/CartScreen';
@@ -26,6 +27,22 @@ import PaymentScreen from '../screens/PaymentScreen';
 import OrderHistoryScreen from '../screens/OrderHistoryScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import OffersScreen from '../screens/OffersScreen';
+
+// Restaurant Management Screens
+import RestaurantDashboardScreen from '../screens/RestaurantDashboardScreen';
+import MenuManagementScreen from '../screens/MenuManagementScreen';
+import OrderManagementScreen from '../screens/OrderManagementScreen';
+import RestaurantStatisticsScreen from '../screens/RestaurantStatisticsScreen';
+import RestaurantSettingsScreen from '../screens/RestaurantSettingsScreen';
+
+// Admin Screens
+import AdminDashboardScreen from '../screens/AdminDashboardScreen';
+import AdminRestaurantsScreen from '../screens/AdminRestaurantsScreen';
+import AdminUsersScreen from '../screens/AdminUsersScreen';
+import AdminOrdersScreen from '../screens/AdminOrdersScreen';
+import AdminReportsScreen from '../screens/AdminReportsScreen';
+import AdminApprovalsScreen from '../screens/AdminApprovalsScreen';
+import AdminSettingsScreen from '../screens/AdminSettingsScreen';
 
 const Stack = createStackNavigator<RootStackParamList>();
 
@@ -127,18 +144,28 @@ const AppNavigator: React.FC = () => {
           })}
         />
         <Stack.Screen
+          name="RestaurantSelection"
+          component={RestaurantSelectionScreen}
+          options={{
+            title: 'Chọn nhà hàng',
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
           name="Menu"
           component={MenuScreen}
-          options={({ route }) => ({
-            title: route.params.tableInfo?.restaurant.name || 'Menu',
-          })}
+          options={{
+            title: 'Menu',
+            headerShown: false,
+          }}
         />
         <Stack.Screen
           name="FoodDetail"
           component={FoodDetailScreen}
-          options={({ route }) => ({
-            title: route.params.menuItem.name,
-          })}
+          options={{
+            title: 'Chi tiết món ăn',
+            headerShown: false,
+          }}
         />
         <Stack.Screen
           name="Cart"
@@ -182,6 +209,106 @@ const AppNavigator: React.FC = () => {
           component={OffersScreen}
           options={{
             title: 'Special Offers',
+            headerShown: false,
+          }}
+        />
+
+        {/* Restaurant Management Screens */}
+        <Stack.Screen
+          name="RestaurantDashboard"
+          component={RestaurantDashboardScreen}
+          options={{
+            title: 'Dashboard',
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="MenuManagement"
+          component={MenuManagementScreen}
+          options={{
+            title: 'Quản lý Menu',
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="OrderManagement"
+          component={OrderManagementScreen}
+          options={{
+            title: 'Quản lý đơn hàng',
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="RestaurantStatistics"
+          component={RestaurantStatisticsScreen}
+          options={{
+            title: 'Thống kê',
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="RestaurantSettings"
+          component={RestaurantSettingsScreen}
+          options={{
+            title: 'Cài đặt',
+            headerShown: false,
+          }}
+        />
+
+        {/* Admin Screens */}
+        <Stack.Screen
+          name="AdminDashboard"
+          component={AdminDashboardScreen}
+          options={{
+            title: 'Admin Dashboard',
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="AdminRestaurants"
+          component={AdminRestaurantsScreen}
+          options={{
+            title: 'Quản lý nhà hàng',
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="AdminUsers"
+          component={AdminUsersScreen}
+          options={{
+            title: 'Quản lý người dùng',
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="AdminOrders"
+          component={AdminOrdersScreen}
+          options={{
+            title: 'Quản lý đơn hàng',
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="AdminReports"
+          component={AdminReportsScreen}
+          options={{
+            title: 'Báo cáo',
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="AdminApprovals"
+          component={AdminApprovalsScreen}
+          options={{
+            title: 'Phê duyệt',
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="AdminSettings"
+          component={AdminSettingsScreen}
+          options={{
+            title: 'Cài đặt',
             headerShown: false,
           }}
         />

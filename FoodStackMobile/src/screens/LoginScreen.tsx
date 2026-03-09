@@ -56,17 +56,66 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
     setIsLoading(true);
     
     try {
-      // Simple mock login for testing
-      if (email === 'test@example.com' && password === '123456') {
+      // Mock login accounts for testing
+      const mockAccounts = [
+        {
+          email: 'customer@test.com',
+          password: 'password123',
+          user: { role: 'CUSTOMER', fullName: 'Test Customer' }
+        },
+        {
+          email: 'owner@restaurant.com',
+          password: 'password123',
+          user: { role: 'OWNER', fullName: 'Restaurant Owner' }
+        },
+        {
+          email: 'admin@foodstack.com',
+          password: 'admin123',
+          user: { role: 'ADMIN', fullName: 'System Administrator' }
+        },
+        {
+          email: 'test@example.com',
+          password: '123456',
+          user: { role: 'CUSTOMER', fullName: 'Test User' }
+        }
+      ];
+
+      // Check mock accounts first
+      const mockAccount = mockAccounts.find(
+        acc => acc.email === email.toLowerCase().trim() && acc.password === password
+      );
+
+      if (mockAccount) {
         Alert.alert('Thành công', 'Đăng nhập thành công!');
-        navigation.navigate('Home');
+        
+        // Navigate based on user role
+        if (mockAccount.user.role === 'ADMIN') {
+          // Admin - go to admin dashboard
+          navigation.navigate('AdminDashboard');
+        } else if (mockAccount.user.role === 'OWNER' || mockAccount.user.role === 'MANAGER' || mockAccount.user.role === 'STAFF') {
+          // Restaurant staff - go to restaurant dashboard
+          navigation.navigate('RestaurantDashboard');
+        } else {
+          // Customer - go to home screen
+          navigation.navigate('Home');
+        }
+        return;
+      }
+
+      // Try real API call if mock account not found
+      const authData = await AuthService.login({
+        email: email.toLowerCase().trim(),
+        password,
+      });
+
+      Alert.alert('Thành công', 'Đăng nhập thành công!');
+      
+      // Navigate based on user role
+      if (authData.user.role === 'OWNER' || authData.user.role === 'MANAGER' || authData.user.role === 'STAFF') {
+        // Restaurant staff - go to restaurant dashboard
+        navigation.navigate('RestaurantDashboard');
       } else {
-        // Try real API call
-        await AuthService.login({
-          email: email.toLowerCase().trim(),
-          password,
-        });
-        Alert.alert('Thành công', 'Đăng nhập thành công!');
+        // Customer - go to home screen
         navigation.navigate('Home');
       }
     } catch (error) {

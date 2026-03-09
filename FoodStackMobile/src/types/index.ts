@@ -156,6 +156,37 @@ export type RootStackParamList = {
   Home: undefined;
   QRScan: undefined;
   RestaurantList: undefined;
+  
+  // Restaurant Management Screens (for partners)
+  RestaurantDashboard: undefined;
+  MenuManagement: undefined;
+  OrderManagement: undefined;
+  RestaurantStatistics: undefined;
+  RestaurantSettings: undefined;
+  AddMenuItem: {
+    categoryId: string;
+  };
+  EditMenuItem: {
+    item: any; // Define proper type later
+  };
+  OrderDetails: {
+    order: any; // Define proper type later
+  };
+
+  // Admin Screens
+  AdminDashboard: undefined;
+  AdminRestaurants: undefined;
+  AdminUsers: undefined;
+  AdminOrders: undefined;
+  AdminReports: undefined;
+  AdminApprovals: undefined;
+  AdminSettings: undefined;
+  
+  // Main App Screens
+  Home: undefined;
+  QRScan: undefined;
+  RestaurantList: undefined;
+  RestaurantSelection: undefined;
   Menu: { 
     tableInfo?: TableInfo;
     sessionToken?: string;

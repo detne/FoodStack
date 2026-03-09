@@ -41,6 +41,30 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
         { icon: "help", label: "Help & Support" }
       ] 
     },
+    { 
+      title: "Settings", 
+      items: [
+        { 
+          icon: "log-out", 
+          label: "Logout", 
+          action: () => {
+            Alert.alert(
+              'Đăng xuất',
+              'Bạn có chắc chắn muốn đăng xuất?',
+              [
+                { text: 'Hủy', style: 'cancel' },
+                { 
+                  text: 'Đăng xuất', 
+                  style: 'destructive',
+                  onPress: () => navigation.navigate('Login')
+                },
+              ]
+            );
+          },
+          isLogout: true
+        }
+      ] 
+    },
   ];
 
   const navigate = (to: keyof RootStackParamList) => {
@@ -99,31 +123,22 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
                   key={item.label}
                   style={[
                     styles.sectionItem,
-                    index < section.items.length - 1 && styles.sectionItemBorder
+                    index < section.items.length - 1 && styles.sectionItemBorder,
+                    item.isLogout && styles.logoutItem
                   ]}
                   onPress={item.action || (() => Alert.alert('Feature', 'Coming soon!'))}
                   activeOpacity={0.8}
                 >
-                  <View style={styles.sectionItemIcon}>
-                    <Icon name={item.icon} size={16} color="#E8622A" />
+                  <View style={[styles.sectionItemIcon, item.isLogout && styles.logoutIcon]}>
+                    <Icon name={item.icon} size={16} color={item.isLogout ? "#ff4444" : "#E8622A"} />
                   </View>
-                  <Text style={styles.sectionItemLabel}>{item.label}</Text>
+                  <Text style={[styles.sectionItemLabel, item.isLogout && styles.logoutLabel]}>{item.label}</Text>
                   <Icon name="chevron" size={16} color="#ccc" />
                 </TouchableOpacity>
               ))}
             </View>
           </View>
         ))}
-
-        {/* Logout Button */}
-        <TouchableOpacity
-          style={styles.logoutButton}
-          onPress={() => Alert.alert('Logout', 'Are you sure you want to logout?')}
-          activeOpacity={0.8}
-        >
-          <Icon name="logout" size={16} color="#ff4444" />
-          <Text style={styles.logoutButtonText}>Log Out</Text>
-        </TouchableOpacity>
       </ScrollView>
 
       {/* Bottom Navigation */}
@@ -303,22 +318,15 @@ const styles = StyleSheet.create({
     color: '#1a1a1a',
   },
 
-  logoutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 13,
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#ffdddd',
-    gap: 8,
-    ...theme.shadows.sm,
+  logoutItem: {
+    backgroundColor: '#FFF5F5',
   },
 
-  logoutButtonText: {
-    fontSize: 14,
-    fontWeight: '700',
+  logoutIcon: {
+    backgroundColor: '#FFEBEE',
+  },
+
+  logoutLabel: {
     color: '#ff4444',
   },
 
