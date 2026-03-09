@@ -5,17 +5,41 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
+import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate, Link } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  
+  const { login } = useAuth();
+  const navigate = useNavigate();
+  const { toast } = useToast();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle login logic here
-    console.log({ email, password, rememberMe });
+    setIsLoading(true);
+    
+    try {
+      await login(email, password);
+      toast({
+        title: "Login successful",
+        description: "Welcome back!",
+      });
+      navigate("/dashboard");
+    } catch (error: any) {
+      toast({
+        title: "Login failed",
+        description: error.message || "Invalid email or password",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleGoogleLogin = () => {
@@ -46,9 +70,11 @@ const Login = () => {
         </div>
         <div className="flex items-center gap-2">
           <span className="text-sm text-gray-600">Don't have an account?</span>
-          <Button variant="link" className="text-indigo-600 font-medium p-0">
-            Sign Up
-          </Button>
+          <Link to="/onboarding">
+            <Button variant="link" className="text-indigo-600 font-medium p-0">
+              Sign Up
+            </Button>
+          </Link>
         </div>
       </header>
 
@@ -188,8 +214,9 @@ const Login = () => {
               <Button
                 type="submit"
                 className="w-full h-11 bg-indigo-600 hover:bg-indigo-700 text-white font-medium"
+                disabled={isLoading}
               >
-                Sign in
+                {isLoading ? "Signing in..." : "Sign in"}
               </Button>
             </form>
           </div>

@@ -80,6 +80,7 @@ const { createCustomizationRoutes } = require('./routes/v1/customization');
 const { createStaffRoutes } = require('./routes/v1/staff');
 const { createPublicRoutes } = require('./routes/v1/public');
 const { createCustomerOrderRoutes } = require('./routes/v1/customer-orders');
+const { createBranchRoutes: createPublicBranchRoutes } = require('./routes/v1/branch');
 
 // Middleware
 const { createAuthMiddleware } = require('./middleware/auth');
@@ -231,8 +232,10 @@ function createApp() {
     createCategoryUseCase,
     updateCategoryUseCase,
     deleteCategoryUseCase,
+    categoryRepository,
   });
 
+  // ✅ Branch controller
   const branchController = new BranchController({
     createBranchUseCase,
     updateBranchUseCase,
@@ -338,11 +341,13 @@ function createApp() {
       endpoints: {
         auth: '/api/v1/auth',
         restaurants: '/api/v1/restaurants',
-        categories: '/api/v1/categories',
         branches: '/api/v1/branches',
+        categories: '/api/v1/categories',
         'menu-items': '/api/v1/menu-items',
         customizations: '/api/v1/customizations',
         staff: '/api/v1/staff',
+        public: '/api/v1/public',
+        customerOrders: '/api/v1/customer-orders',
         health: '/health',
       },
     });
@@ -354,24 +359,16 @@ function createApp() {
 
   app.use('/api/v1/auth', createAuthRoutes(authController, authMiddleware));
   app.use('/api/v1/restaurants', createRestaurantRoutes(restaurantController, authMiddleware));
-
   app.use('/api/v1/branches', createBranchRoutes(branchController, authMiddleware));
-  // ✅ Category routes
   app.use('/api/v1/categories', createCategoryRoutes(categoryController, authMiddleware));
+  app.use('/api/v1/menu-items', createMenuItemRoutes(menuItemController, authMiddleware));
+  app.use('/api/v1/customizations', createCustomizationRoutes(customizationController, authMiddleware));
+  app.use('/api/v1/staff', createStaffRoutes(staffController, authMiddleware));
   app.use('/api/v1/public', createPublicRoutes(prisma));
   app.use('/api/v1/customer-orders', createCustomerOrderRoutes(prisma));
 
-  // branch menu endpoint (public)
-  app.use('/api/v1/branches', createBranchRoutes(branchController));
-
-  // ✅ Menu item routes
-  app.use('/api/v1/menu-items', createMenuItemRoutes(menuItemController, authMiddleware));
-
-  // ✅ Customization routes
-  app.use('/api/v1/customizations', createCustomizationRoutes(customizationController, authMiddleware));
-
-  // ✅ Staff routes
-  app.use('/api/v1/staff', createStaffRoutes(staffController, authMiddleware));
+  // Public branch menu endpoint (no auth required)
+  app.use('/api/v1/branches', createPublicBranchRoutes(branchController));
 
   // 404
   app.use((req, res) => {

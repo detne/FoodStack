@@ -1,7 +1,14 @@
 // src/controller/menu-item.js
 
 class MenuItemController {
-  constructor({ createMenuItemUseCase, updateMenuItemUseCase, deleteMenuItemUseCase, uploadMenuItemImageUseCase, updateMenuItemAvailabilityUseCase, searchMenuItemsUseCase }) {
+  constructor({ 
+    createMenuItemUseCase, 
+    updateMenuItemUseCase, 
+    deleteMenuItemUseCase, 
+    uploadMenuItemImageUseCase, 
+    updateMenuItemAvailabilityUseCase, 
+    searchMenuItemsUseCase 
+  }) {
     this.createMenuItemUseCase = createMenuItemUseCase;
     this.updateMenuItemUseCase = updateMenuItemUseCase;
     this.deleteMenuItemUseCase = deleteMenuItemUseCase;
