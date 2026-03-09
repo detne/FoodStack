@@ -37,6 +37,14 @@ class RestaurantRepository {
       },
     });
   }
+
+  async findOwnerIdById(restaurantId, tx) {
+    const client = tx || this.prisma;
+    return await client.restaurants.findUnique({
+      where: { id: restaurantId },
+      select: { owner_id: true },
+    });
+  }
 }
 
 module.exports = { RestaurantRepository };
