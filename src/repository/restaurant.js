@@ -38,6 +38,14 @@ class RestaurantRepository {
     });
   }
 
+  async findOwnerIdById(restaurantId, tx) {
+    const client = tx || this.prisma;
+    return await client.restaurants.findUnique({
+      where: { id: restaurantId },
+      select: { owner_id: true },
+    });
+  }
+
   async softDelete(id) {
     return this.prisma.restaurants.update({
       where: { id },

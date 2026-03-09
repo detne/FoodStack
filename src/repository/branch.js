@@ -4,10 +4,9 @@ class BranchRepository {
     this.prisma = prisma;
   }
 
-  async findById(id) {
-    return await this.prisma.branches.findUnique({
-      where: { id },
-    });
+  async findById(id, tx) {
+    const client = tx || this.prisma;
+    return await client.branches.findUnique({ where: { id } });
   }
 
   async findByRestaurantId(restaurantId) {
