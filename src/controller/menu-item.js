@@ -1,58 +1,20 @@
 // src/controller/menu-item.js
 
 class MenuItemController {
-  constructor({ createMenuItemUseCase, updateMenuItemUseCase, deleteMenuItemUseCase, uploadMenuItemImageUseCase, menuItemRepository }) {
+  constructor({ 
+    createMenuItemUseCase, 
+    updateMenuItemUseCase, 
+    deleteMenuItemUseCase, 
+    uploadMenuItemImageUseCase, 
+    updateMenuItemAvailabilityUseCase, 
+    searchMenuItemsUseCase 
+  }) {
     this.createMenuItemUseCase = createMenuItemUseCase;
     this.updateMenuItemUseCase = updateMenuItemUseCase;
     this.deleteMenuItemUseCase = deleteMenuItemUseCase;
     this.uploadMenuItemImageUseCase = uploadMenuItemImageUseCase;
-    this.menuItemRepository = menuItemRepository;
-  }
-
-  // GET /api/v1/menu-items?categoryId=xxx
-  async list(req, res, next) {
-    try {
-      const { categoryId } = req.query;
-
-      if (!categoryId) {
-        return res.status(400).json({
-          success: false,
-          message: 'categoryId is required',
-        });
-      }
-
-      const menuItems = await this.menuItemRepository.findByCategoryId(categoryId);
-
-      res.status(200).json({
-        success: true,
-        data: menuItems,
-      });
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  // GET /api/v1/menu-items/:id
-  async getDetails(req, res, next) {
-    try {
-      const { id } = req.params;
-
-      const menuItem = await this.menuItemRepository.findById(id);
-
-      if (!menuItem) {
-        return res.status(404).json({
-          success: false,
-          message: 'Menu item not found',
-        });
-      }
-
-      res.status(200).json({
-        success: true,
-        data: menuItem,
-      });
-    } catch (error) {
-      next(error);
-    }
+    this.updateMenuItemAvailabilityUseCase = updateMenuItemAvailabilityUseCase;
+    this.searchMenuItemsUseCase = searchMenuItemsUseCase;
   }
 
   // POST /api/v1/menu-items
@@ -155,6 +117,54 @@ class MenuItemController {
           menuItemId: result.menuItemId,
           imageUrl: result.imageUrl,
         },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // PATCH /api/v1/menu-items/:id/availability
+  async updateAvailability(req, res, next) {
+    try {
+      const { UpdateMenuItemAvailabilityDto } = require('../dto/menu-item/update-availability');
+
+      const dto = new UpdateMenuItemAvailabilityDto({
+        menuItemId: req.params.id,
+        available: req.body.available,
+        userId: req.user?.userId,
+      });
+
+      const result = await this.updateMenuItemAvailabilityUseCase.execute(dto);
+
+      res.status(200).json({
+        success: true,
+        message: 'Menu item availability updated successfully',
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // GET /api/v1/menu-items/search
+  async search(req, res, next) {
+    try {
+      const { SearchMenuItemsDto } = require('../dto/menu-item/search-menu-items');
+
+      const dto = new SearchMenuItemsDto({
+        keyword: req.query.keyword,
+        category: req.query.category,
+        page: req.query.page ? parseInt(req.query.page) : 1,
+        limit: req.query.limit ? parseInt(req.query.limit) : 10,
+        branchId: req.query.branchId,
+      });
+
+      const result = await this.searchMenuItemsUseCase.execute(dto);
+
+      res.status(200).json({
+        success: true,
+        message: 'Menu items retrieved successfully',
+        ...result,
       });
     } catch (error) {
       next(error);

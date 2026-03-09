@@ -62,6 +62,69 @@ class MenuItemRepository {
       },
     });
   }
+
+  async search(filters) {
+    const { keyword = '', categoryId, branchId, limit = 10, offset = 0 } = filters;
+
+    // Build where clause
+    const whereClause = {
+      deleted_at: null,
+    };
+
+    // Search by keyword (name or description)
+    if (keyword.trim()) {
+      whereClause.OR = [
+        {
+          name: {
+            contains: keyword,
+            mode: 'insensitive',
+          },
+        },
+        {
+          description: {
+            contains: keyword,
+            mode: 'insensitive',
+          },
+        },
+      ];
+    }
+
+    // Filter by category
+    if (categoryId) {
+      whereClause.category_id = categoryId;
+    }
+
+    // Filter by branch (through category relationship)
+    if (branchId) {
+      whereClause.categories = {
+        branch_id: branchId,
+      };
+    }
+
+    // Get total count
+    const total = await this.prisma.menu_items.count({
+      where: whereClause,
+    });
+
+    // Get paginated results
+    const items = await this.prisma.menu_items.findMany({
+      where: whereClause,
+      include: {
+        categories: true,
+      },
+      orderBy: { created_at: 'desc' },
+      take: limit,
+      skip: offset,
+    });
+
+    return {
+      items,
+      total,
+      page: Math.floor(offset / limit) + 1,
+      limit,
+      pages: Math.ceil(total / limit),
+    };
+  }
 }
 
 module.exports = { MenuItemRepository };
