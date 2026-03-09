@@ -100,6 +100,8 @@ const RegisterScreen: React.FC<Props> = ({ navigation, route }) => {
           address: address.trim(),
           taxCode: taxCode.trim() || undefined,
         });
+        Alert.alert('Thành công', 'Đăng ký thành công! Vui lòng kiểm tra email để xác thực tài khoản.');
+        navigation.navigate('EmailVerification', { email: email.toLowerCase().trim() });
       } else {
         // Register as customer (placeholder - needs backend implementation)
         await AuthService.registerCustomer({
@@ -108,10 +110,9 @@ const RegisterScreen: React.FC<Props> = ({ navigation, route }) => {
           password,
           phone: phone.trim(),
         });
+        Alert.alert('Thành công', 'Đăng ký thành công! Vui lòng kiểm tra email để xác thực tài khoản.');
+        navigation.navigate('EmailVerification', { email: email.toLowerCase().trim() });
       }
-      
-      Alert.alert('Thành công', 'Đăng ký thành công! Vui lòng kiểm tra email để xác thực tài khoản.');
-      navigation.navigate('EmailVerification');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Đăng ký thất bại';
       Alert.alert('Lỗi', errorMessage);

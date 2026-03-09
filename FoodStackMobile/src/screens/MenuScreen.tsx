@@ -41,21 +41,35 @@ const MENU_CATS_VI = {
 };
 
 const MenuScreen: React.FC<Props> = ({ navigation, route }) => {
-  const { restaurantId } = route.params || {};
+  const { restaurantId, tableInfo } = route.params || {};
   const [category, setCategory] = useState('All');
   const [search, setSearch] = useState('');
   const [cart, setCart] = useState(0);
 
+  // Get restaurant name from tableInfo or use default
+  const restaurantName = tableInfo?.restaurantName || "Selected Restaurant";
+
+  // Debug: Log data
+  console.log('MENU_ITEMS length:', MENU_ITEMS.length);
+  console.log('restaurantId:', restaurantId);
+  console.log('tableInfo:', tableInfo);
+  console.log('category:', category);
+  console.log('search:', search);
+
   // Filter menu items based on restaurant and search
   const menuItems = MENU_ITEMS.filter(item => {
+    if (!item || !item.name || !item.desc) return false;
+    
+    // If no specific restaurant, show all items
     const matchesRestaurant = !restaurantId || item.restaurant.toString() === restaurantId;
     const matchesCategory = category === 'All' || item.category === category;
     const matchesSearch = item.name.toLowerCase().includes(search.toLowerCase()) || 
                          item.desc.toLowerCase().includes(search.toLowerCase());
+    
     return matchesRestaurant && matchesCategory && matchesSearch;
   });
 
-  const restaurant = restaurantId ? { name: "Selected Restaurant" } : null;
+  console.log('Filtered menuItems length:', menuItems.length);
 
   const goBack = () => {
     navigation.goBack();
@@ -85,11 +99,11 @@ const MenuScreen: React.FC<Props> = ({ navigation, route }) => {
               onPress={goBack}
               activeOpacity={0.8}
             >
-              <Icon name="back" size={20} color="#fff" />
+              <Icon name="arrow-left" size={20} color="#fff" />
             </TouchableOpacity>
             
             <View style={styles.headerTitleContainer}>
-              <Text style={styles.headerTitle}>{restaurant?.name || "Menu"}</Text>
+              <Text style={styles.headerTitle}>{restaurantName}</Text>
               <Text style={styles.headerSubtitle}>Duyệt menu</Text>
             </View>
             
@@ -322,7 +336,6 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     borderRadius: 20,
     backgroundColor: '#f5f5f0',
-    whiteSpace: 'nowrap',
   },
 
   activeCategoryChip: {
