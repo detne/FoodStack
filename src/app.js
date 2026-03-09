@@ -30,19 +30,29 @@ const { GetRestaurantDetailsUseCase } = require('./use-cases/restaurant/get-deta
 const { UploadRestaurantLogoUseCase } = require('./use-cases/restaurant/upload-logo');
 const { CreateRestaurantUseCase } = require('./use-cases/restaurant/create-restaurant');
 const { UpdateRestaurantUseCase } = require('./dto/restaurant/update-restaurant');
+const { GetRestaurantStatisticsUseCase } = require('./dto/restaurant/get-restaurant-statistics');
+const { DeleteRestaurantUseCase } = require('./use-cases/restaurant/delete');
 
 const { CreateCategoryUseCase } = require('./use-cases/category/create-category');
 const { UpdateCategoryUseCase } = require('./use-cases/category/update-category');
 const { DeleteCategoryUseCase } = require('./use-cases/category/delete-category');
 
+const { CreateBranchUseCase } = require('./use-cases/branch/create');
+const { UpdateBranchUseCase } = require('./use-cases/branch/update');
+const { ListBranchesUseCase } = require('./use-cases/branch/list');
+const { DeleteBranchUseCase } = require('./use-cases/branch/delete');
+const { GetBranchDetailsUseCase } = require('./use-cases/branch/get-details');
+
 // Controllers
 const { AuthController } = require('./controller/auth');
 const { RestaurantController } = require('./controller/restaurant');
+const { BranchController } = require('./controller/branch');
 const { CategoryController } = require('./controller/category');
 
 // Routes
 const { createAuthRoutes } = require('./routes/v1/auth');
 const { createRestaurantRoutes } = require('./routes/v1/restaurant');
+const { createBranchRoutes } = require('./routes/v1/branches');
 const { createCategoryRoutes } = require('./routes/v1/category');
 const { createPublicRoutes } = require('./routes/v1/public');
 const { createCustomerOrderRoutes } = require('./routes/v1/customer-orders');
@@ -50,6 +60,9 @@ const { createCustomerOrderRoutes } = require('./routes/v1/customer-orders');
 // Middleware
 const { createAuthMiddleware } = require('./middleware/auth');
 
+/**
+ * Create Express application
+ */
 function createApp() {
   const app = express();
 
@@ -63,7 +76,9 @@ function createApp() {
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
-    if (req.method === 'OPTIONS') return res.sendStatus(200);
+    if (req.method === 'OPTIONS') {
+      return res.sendStatus(200);
+    }
     next();
   });
 
@@ -90,6 +105,8 @@ function createApp() {
   const branchRepository = new BranchRepository(prisma);
   const categoryRepository = new CategoryRepository(prisma);
 
+  const getRestaurantStatisticsUseCase = new GetRestaurantStatisticsUseCase(prisma);
+
   // Initialize auth use cases
   const loginUseCase = new LoginUseCase(userRepository, tokenService);
   const refreshTokenUseCase = new RefreshTokenUseCase(userRepository, tokenService);
@@ -103,6 +120,13 @@ function createApp() {
     emailService,
     prisma
   );
+
+  // Initialize branches use cases
+  const createBranchUseCase = new CreateBranchUseCase(branchRepository, restaurantRepository);
+  const updateBranchUseCase = new UpdateBranchUseCase(branchRepository);
+  const listBranchesUseCase = new ListBranchesUseCase(branchRepository, restaurantRepository);
+  const deleteBranchUseCase = new DeleteBranchUseCase(branchRepository);
+  const getBranchDetailsUseCase = new GetBranchDetailsUseCase(branchRepository);
 
   // Auth middleware
   const authMiddleware = createAuthMiddleware(tokenService);
@@ -139,12 +163,16 @@ function createApp() {
 
   const updateRestaurantUseCase = new UpdateRestaurantUseCase(prisma);
 
-  // ✅ Restaurant controller inject đủ 4 use cases (object)
+  const deleteRestaurantUseCase = new DeleteRestaurantUseCase(restaurantRepository);
+
+  // ✅ Restaurant controller inject đủ use cases (object)
   const restaurantController = new RestaurantController({
     getRestaurantDetailsUseCase,
     uploadRestaurantLogoUseCase,
     createRestaurantUseCase,
     updateRestaurantUseCase,
+    getRestaurantStatisticsUseCase,
+    deleteRestaurantUseCase,
   });
 
   // ✅ Initialize category use cases
@@ -171,6 +199,14 @@ function createApp() {
     deleteCategoryUseCase,
   });
 
+  const branchController = new BranchController(
+    createBranchUseCase,
+    updateBranchUseCase,
+    listBranchesUseCase,
+    deleteBranchUseCase,
+    getBranchDetailsUseCase
+  );
+
   // Routes
   app.get('/', (req, res) => {
     res.json({
@@ -193,17 +229,12 @@ function createApp() {
   });
 
   app.use('/api/v1/auth', createAuthRoutes(authController, authMiddleware));
-
-  // ✅ Pass authMiddleware vào restaurants (để uploadLogo có req.user)
   app.use('/api/v1/restaurants', createRestaurantRoutes(restaurantController, authMiddleware));
 
+  app.use('/api/v1/branches', createBranchRoutes(branchController, authMiddleware));
   // ✅ Category routes
   app.use('/api/v1/categories', createCategoryRoutes(categoryController, authMiddleware));
-
-  // 🆕 Public routes (no auth required)
   app.use('/api/v1/public', createPublicRoutes(prisma));
-
-  // 🆕 Customer order routes (session-based)
   app.use('/api/v1/customer-orders', createCustomerOrderRoutes(prisma));
 
   // 404
