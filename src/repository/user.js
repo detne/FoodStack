@@ -19,32 +19,28 @@ class UserRepository {
     return await this.prisma.users.findUnique({
       where: { email },
       include: {
+        // restaurant user đang thuộc (Staff/Manager) - nullable
         restaurants: {
-          select: {
-            id: true,
-            name: true,
-            email_verified: true,
-          },
+          select: { id: true, name: true, email_verified: true },
+        },
+
+        // ✅ restaurants mà Owner sở hữu (nhiều)
+        owned_restaurants: {
+          select: { id: true, name: true, email_verified: true },
         },
       },
     });
   }
 
-  /**
-   * Find user by ID
-   * @param {string} id - User ID
-   * @returns {Promise<Object|null>} User object or null
-   */
   async findById(id) {
     return await this.prisma.users.findUnique({
       where: { id },
       include: {
         restaurants: {
-          select: {
-            id: true,
-            name: true,
-            email_verified: true,
-          },
+          select: { id: true, name: true, email_verified: true },
+        },
+        owned_restaurants: {
+          select: { id: true, name: true, email_verified: true },
         },
       },
     });
@@ -59,19 +55,26 @@ class UserRepository {
   async create(data, tx) {
     const client = tx || this.prisma;
     const { v4: uuidv4 } = require('uuid');
-    
-    return client.users.create({ 
+
+    const role = data.role; // 'Owner' | 'Manager' | 'Staff'
+
+    // Staff/Manager phải có restaurantId
+    if ((role === 'Manager' || role === 'Staff') && !data.restaurantId) {
+      throw new Error('restaurantId is required for Manager/Staff');
+    }
+
+    return client.users.create({
       data: {
         id: uuidv4(),
         email: data.email,
         password_hash: data.passwordHash,
         full_name: data.fullName,
         phone: data.phone,
-        role: data.role,
-        restaurant_id: data.restaurantId,
+        role,
+        restaurant_id: data.restaurantId ?? null, // ✅ Owner => null
         status: data.status,
         updated_at: new Date(),
-      }
+      },
     });
   }
 
@@ -98,7 +101,7 @@ class UserRepository {
     // This would typically log to MongoDB or a separate auth_logs table
     // For now, we'll just console.log
     console.log(`[AUTH EVENT] User: ${userId}, Event: ${event}, IP: ${ipAddress}`);
-    
+
     // TODO: Implement actual logging to MongoDB
     // await this.mongoClient.collection('auth_logs').insertOne({
     //   userId,
@@ -184,6 +187,13 @@ class UserRepository {
         reset_token_expires_at: data.resetTokenExpiresAt,
         updated_at: new Date(),
       },
+    });
+  }
+
+  async setActiveRestaurant(userId, restaurantId) {
+    return await this.prisma.users.update({
+      where: { id: userId },
+      data: { restaurant_id: restaurantId, updated_at: new Date() },
     });
   }
 }

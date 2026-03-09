@@ -37,6 +37,16 @@ class RestaurantRepository {
       },
     });
   }
+
+  async softDelete(id) {
+    return this.prisma.restaurants.update({
+      where: { id },
+      data: {
+        deleted_at: new Date(),
+        updated_at: new Date(),
+      },
+    });
+  }
 }
 
 module.exports = { RestaurantRepository };
