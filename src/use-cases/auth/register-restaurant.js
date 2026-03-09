@@ -1,5 +1,4 @@
 // src/use-cases/auth/register-restaurant.js
-
 const { v4: uuidv4 } = require('uuid');
 const { hashPassword } = require('../../utils/bcrypt');
 const { ValidationError } = require('../../exception/validation-error');
@@ -15,18 +14,33 @@ class RegisterRestaurantUseCase {
   async execute(dto) {
     // 1) Validate unique email
     const existingUser = await this.userRepository.findByEmail(dto.ownerEmail);
-    if (existingUser) {
-      throw new ValidationError('Email already registered');
-    }
+    if (existingUser) throw new ValidationError('Email already registered');
 
-    // 2) Transaction
     return await this.prisma.$transaction(async (tx) => {
       const now = new Date();
-      const restaurantId = uuidv4();
       const userId = uuidv4();
+      const restaurantId = uuidv4();
       const branchId = uuidv4();
 
-      // 3) Create restaurant
+      // 2) Hash password
+      const hashedPassword = await hashPassword(dto.ownerPassword);
+
+      // 3) Create owner user FIRST (restaurant_id null)
+      const user = await tx.users.create({
+        data: {
+          id: userId,
+          restaurant_id: null,            // ✅ owner chưa cần gắn restaurant cố định
+          email: dto.ownerEmail,
+          password_hash: hashedPassword,
+          full_name: dto.ownerName,
+          phone: dto.ownerPhone,
+          role: 'OWNER',                  // ✅ dùng đúng role value hệ thống bạn
+          status: 'ACTIVE',
+          updated_at: now,
+        },
+      });
+
+      // 4) Create restaurant with owner_id
       const restaurant = await tx.restaurants.create({
         data: {
           id: restaurantId,
@@ -38,25 +52,17 @@ class RegisterRestaurantUseCase {
           email_verified_at: null,
           subscription_id: null,
           updated_at: now,
+
+          owner_id: user.id,              // ✅ QUAN TRỌNG: owner sở hữu restaurant
         },
       });
 
-      // 4) Hash password
-      const hashedPassword = await hashPassword(dto.ownerPassword);
-
-      // 5) Create owner user
-      const user = await tx.users.create({
+      // 5) Optional: set active restaurant for owner (tiện cho luồng hiện tại)
+      await tx.users.update({
+        where: { id: user.id },
         data: {
-          id: userId,
           restaurant_id: restaurant.id,
-          email: dto.ownerEmail,
-          password_hash: hashedPassword,
-          full_name: dto.ownerName,
-          phone: dto.ownerPhone,
-          role: 'OWNER',
-          status: 'ACTIVE',
           updated_at: now,
-          // KHÔNG cần set reset_token/reset_token_expires_at/last_login_at
         },
       });
 
@@ -73,11 +79,11 @@ class RegisterRestaurantUseCase {
         },
       });
 
-      // 7) Generate OTP (6 digits) + expiry (10 minutes)
+      // 7) Generate OTP + expiry
       const otp = String(Math.floor(100000 + Math.random() * 900000));
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
-      // 8) Store OTP in users table
+      // 8) Store OTP
       await tx.users.update({
         where: { id: user.id },
         data: {
@@ -88,7 +94,6 @@ class RegisterRestaurantUseCase {
       });
 
       // 9) Send OTP email (async)
-      // NOTE: bạn cần implement emailService.sendOtpEmail(toEmail, toName, otp)
       this.emailService
         .sendOtpEmail(dto.ownerEmail, dto.ownerName, otp)
         .catch((err) => console.error('Email error:', err));
@@ -99,7 +104,6 @@ class RegisterRestaurantUseCase {
         email: user.email,
         message: 'Registration successful. OTP has been sent to your email.',
         otpSent: true,
-        // otpExpiresAt: expiresAt, // nếu muốn debug thì bật, production nên tắt
       };
     });
   }
