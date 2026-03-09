@@ -57,8 +57,11 @@ const { SearchMenuItemsUseCase } = require('./use-cases/menu-item/search-menu-it
 const { CreateCustomizationGroupUseCase } = require('./use-cases/customization/create-customization-group');
 const { AddCustomizationOptionUseCase } = require('./use-cases/customization/add-customization-option');
 
+const { CreateStaffUseCase } = require('./use-cases/staff/create-staff');
+
 // Controllers
 const { AuthController } = require('./controller/auth');
+const { StaffController } = require('./controller/staff');
 const { RestaurantController } = require('./controller/restaurant');
 const { BranchController } = require('./controller/branch');
 const { CategoryController } = require('./controller/category');
@@ -72,6 +75,7 @@ const { createBranchRoutes } = require('./routes/v1/branches');
 const { createCategoryRoutes } = require('./routes/v1/category');
 const { createMenuItemRoutes } = require('./routes/v1/menu-item');
 const { createCustomizationRoutes } = require('./routes/v1/customization');
+const { createStaffRoutes } = require('./routes/v1/staff');
 const { createPublicRoutes } = require('./routes/v1/public');
 const { createCustomerOrderRoutes } = require('./routes/v1/customer-orders');
 
@@ -297,6 +301,18 @@ function createApp() {
     addCustomizationOptionUseCase,
   });
 
+  // ✅ Initialize staff use cases
+  const createStaffUseCase = new CreateStaffUseCase(
+    userRepository,
+    restaurantRepository,
+    branchRepository,
+    emailService,
+    prisma
+  );
+
+  // ✅ Staff controller
+  const staffController = new StaffController(createStaffUseCase);
+
   // Routes
   app.get('/', (req, res) => {
     res.json({
@@ -307,8 +323,10 @@ function createApp() {
         auth: '/api/v1/auth',
         restaurants: '/api/v1/restaurants',
         categories: '/api/v1/categories',
-        public: '/api/v1/public',
-        customerOrders: '/api/v1/customer-orders',
+        branches: '/api/v1/branches',
+        'menu-items': '/api/v1/menu-items',
+        customizations: '/api/v1/customizations',
+        staff: '/api/v1/staff',
         health: '/health',
       },
     });
@@ -335,6 +353,9 @@ function createApp() {
 
   // ✅ Customization routes
   app.use('/api/v1/customizations', createCustomizationRoutes(customizationController, authMiddleware));
+
+  // ✅ Staff routes
+  app.use('/api/v1/staff', createStaffRoutes(staffController, authMiddleware));
 
   // 404
   app.use((req, res) => {

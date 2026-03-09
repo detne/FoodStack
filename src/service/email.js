@@ -70,6 +70,36 @@ class EmailService {
       throw error;
     }
   }
+
+  /// ✅ Send staff activation email with temporary password
+  async sendStaffActivationEmail(email, name, tempPassword, restaurantName) {
+    try {
+      console.log(`
+      ========================================
+      📧 STAFF ACTIVATION EMAIL
+      ========================================
+      To: ${email}
+      Name: ${name}
+      Restaurant: ${restaurantName}
+      Temporary Password: ${tempPassword}
+      
+      Please login and change your password immediately.
+      ========================================
+    `);
+
+      // TODO: Implement actual email sending
+      // await emailProvider.send({
+      //   to: email,
+      //   subject: 'Welcome to ' + restaurantName,
+      //   html: `<p>Hi ${name}, your account has been created. Temporary password: <b>${tempPassword}</b></p>`
+      // });
+
+      return true;
+    } catch (error) {
+      console.error('Staff activation email sending failed:', error);
+      throw error;
+    }
+  }
 }
 
 module.exports = { EmailService };
