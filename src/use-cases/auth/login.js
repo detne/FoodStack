@@ -36,6 +36,14 @@ class LoginUseCase {
       ? user.restaurants[0]
       : user.restaurants || null;
 
+    if (restaurant && restaurant.email_verified === false) {
+      console.log('[DEBUG] BLOCK LOGIN - email=', user.email);
+      console.log('[DEBUG] BLOCK LOGIN - user.restaurant_id=', user.restaurant_id);
+      console.log('[DEBUG] BLOCK LOGIN - restaurant.id=', restaurant?.id);
+      console.log('[DEBUG] BLOCK LOGIN - restaurant.email_verified=', restaurant?.email_verified);
+      throw new Error('Restaurant email not verified. Please verify your restaurant email.');
+    }
+
     // 5. Check restaurant email verified (if applicable)
     if (restaurant && restaurant.email_verified === false) {
       throw new Error('Restaurant email not verified. Please verify your restaurant email.');
@@ -60,6 +68,9 @@ class LoginUseCase {
     );
 
     // Debug
+    console.log('[DEBUG] login email=', user.email);
+    console.log('[DEBUG] user.restaurant_id=', user.restaurant_id);
+    console.log('[DEBUG] restaurant.email_verified=', restaurant?.email_verified);
     console.log('[DEBUG] user.restaurant_id =', user.restaurant_id);
     console.log('[DEBUG] restaurant?.id =', restaurant?.id);
     console.log('[DEBUG] restaurantId used in token =', restaurantId);
@@ -95,10 +106,10 @@ class LoginUseCase {
         restaurantId, // ✅ return normalized
         restaurant: restaurant
           ? {
-              id: restaurant.id,
-              name: restaurant.name,
-              email_verified: restaurant.email_verified,
-            }
+            id: restaurant.id,
+            name: restaurant.name,
+            email_verified: restaurant.email_verified,
+          }
           : null,
       },
     };
