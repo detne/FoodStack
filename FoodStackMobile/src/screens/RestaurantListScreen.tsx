@@ -3,14 +3,17 @@ import {
   View,
   Text,
   StyleSheet,
-  FlatList,
   TouchableOpacity,
-  Image,
+  ScrollView,
   TextInput,
-  SafeAreaView,
+  Dimensions,
 } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { RootStackParamList } from '../types';
+import { theme } from '../theme';
+import Icon from '../components/Icon';
+import { RESTAURANTS, RestaurantType } from '../constants/data';
 
 type RestaurantListScreenNavigationProp = StackNavigationProp<RootStackParamList, 'RestaurantList'>;
 
@@ -18,195 +21,152 @@ interface Props {
   navigation: RestaurantListScreenNavigationProp;
 }
 
-interface Restaurant {
-  id: string;
-  name: string;
-  description: string;
-  image_url: string;
-  rating: number;
-  cuisine_type: string;
-  delivery_time: string;
-  distance: string;
-  is_open: boolean;
-}
+const { width } = Dimensions.get('window');
 
 const RestaurantListScreen: React.FC<Props> = ({ navigation }) => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState('All');
 
-  // Mock data - trong thực tế sẽ fetch từ API
-  const restaurants: Restaurant[] = [
-    {
-      id: '1',
-      name: 'Nhà hàng Sài Gòn',
-      description: 'Món Việt truyền thống, phở, bún bò Huế',
-      image_url: 'https://via.placeholder.com/300x200?text=Saigon+Restaurant',
-      rating: 4.5,
-      cuisine_type: 'Việt Nam',
-      delivery_time: '20-30 phút',
-      distance: '0.5 km',
-      is_open: true,
-    },
-    {
-      id: '2',
-      name: 'Pizza House',
-      description: 'Pizza Ý chính gốc, pasta, salad',
-      image_url: 'https://via.placeholder.com/300x200?text=Pizza+House',
-      rating: 4.2,
-      cuisine_type: 'Ý',
-      delivery_time: '25-35 phút',
-      distance: '1.2 km',
-      is_open: true,
-    },
-    {
-      id: '3',
-      name: 'Sushi Tokyo',
-      description: 'Sushi, sashimi, ramen Nhật Bản',
-      image_url: 'https://via.placeholder.com/300x200?text=Sushi+Tokyo',
-      rating: 4.7,
-      cuisine_type: 'Nhật Bản',
-      delivery_time: '30-40 phút',
-      distance: '2.1 km',
-      is_open: false,
-    },
-    {
-      id: '4',
-      name: 'Burger King',
-      description: 'Burger, khoai tây chiên, gà rán',
-      image_url: 'https://via.placeholder.com/300x200?text=Burger+King',
-      rating: 4.0,
-      cuisine_type: 'Fast Food',
-      delivery_time: '15-25 phút',
-      distance: '0.8 km',
-      is_open: true,
-    },
-    {
-      id: 'demo',
-      name: 'FoodStack Demo',
-      description: 'Nhà hàng demo để test ứng dụng',
-      image_url: 'https://via.placeholder.com/300x200?text=Demo+Restaurant',
-      rating: 5.0,
-      cuisine_type: 'Demo',
-      delivery_time: '5-10 phút',
-      distance: '0.1 km',
-      is_open: true,
-    },
-  ];
+  const categories = ['All', 'fastfood', 'italian', 'japanese', 'healthy'];
 
-  const categories = ['Tất cả', 'Việt Nam', 'Ý', 'Nhật Bản', 'Fast Food', 'Demo'];
-
-  const filteredRestaurants = restaurants.filter(restaurant => {
-    const matchesSearch = restaurant.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         restaurant.description.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = !selectedCategory || selectedCategory === 'Tất cả' || 
-                           restaurant.cuisine_type === selectedCategory;
-    return matchesSearch && matchesCategory;
+  const filteredRestaurants = RESTAURANTS.filter(restaurant => {
+    const matchesSearch = restaurant.name.toLowerCase().includes(search.toLowerCase());
+    const matchesFilter = filter === 'All' || restaurant.category === filter;
+    return matchesSearch && matchesFilter;
   });
 
-  const renderRestaurant = ({ item }: { item: Restaurant }) => (
-    <TouchableOpacity
-      style={[styles.restaurantCard, !item.is_open && styles.closedCard]}
-      onPress={() => navigation.navigate('RestaurantDetail', { restaurantId: item.id })}
-    >
-      <Image source={{ uri: item.image_url }} style={styles.restaurantImage} />
-      <View style={styles.restaurantInfo}>
-        <View style={styles.restaurantHeader}>
-          <Text style={styles.restaurantName}>{item.name}</Text>
-          {!item.is_open && <Text style={styles.closedBadge}>Đóng cửa</Text>}
-        </View>
-        <Text style={styles.restaurantDescription} numberOfLines={2}>
-          {item.description}
-        </Text>
-        <View style={styles.restaurantMeta}>
-          <View style={styles.rating}>
-            <Text style={styles.ratingText}>⭐ {item.rating}</Text>
-          </View>
-          <Text style={styles.metaText}>{item.cuisine_type}</Text>
-          <Text style={styles.metaText}>•</Text>
-          <Text style={styles.metaText}>{item.delivery_time}</Text>
-          <Text style={styles.metaText}>•</Text>
-          <Text style={styles.metaText}>{item.distance}</Text>
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
+  const setSelectedRestaurant = (restaurant: RestaurantType) => {
+    navigation.navigate('Menu', { restaurantId: restaurant.id.toString() });
+  };
 
-  const renderCategory = ({ item }: { item: string }) => (
-    <TouchableOpacity
-      style={[
-        styles.categoryChip,
-        selectedCategory === item && styles.selectedCategoryChip,
-      ]}
-      onPress={() => setSelectedCategory(selectedCategory === item ? null : item)}
-    >
-      <Text
-        style={[
-          styles.categoryText,
-          selectedCategory === item && styles.selectedCategoryText,
-        ]}
-      >
-        {item}
-      </Text>
-    </TouchableOpacity>
-  );
+  const goBack = () => {
+    navigation.goBack();
+  };
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Nhà hàng</Text>
-        <Text style={styles.headerSubtitle}>Khám phá các nhà hàng gần bạn</Text>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Header with Gradient */}
+      <View style={styles.headerGradient}>
+        <LinearGradient
+          colors={['#FF7A30', '#E8622A']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.headerGradientBackground}
+        >
+          <View style={styles.headerTop}>
+            <TouchableOpacity
+              style={styles.headerBackButton}
+              onPress={goBack}
+              activeOpacity={0.8}
+            >
+              <Icon name="back" size={20} color="#fff" />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Chọn Nhà Hàng</Text>
+            <View style={styles.headerBackButton} />
+          </View>
+
+          {/* Search in Header */}
+          <View style={styles.headerSearchContainer}>
+            <Icon name="search" size={16} color="#aaa" />
+            <TextInput
+              value={search}
+              onChangeText={setSearch}
+              placeholder="Tìm nhà hàng..."
+              style={styles.headerSearchInput}
+              placeholderTextColor="#aaa"
+            />
+          </View>
+        </LinearGradient>
       </View>
 
-      {/* Search */}
-      <View style={styles.searchContainer}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Tìm kiếm nhà hàng, món ăn..."
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
+      {/* Category Filter */}
+      <View style={styles.categoryContainer}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filterScroll}
+        >
+          {categories.map(category => (
+            <TouchableOpacity
+              key={category}
+              style={[
+                styles.filterChip,
+                filter === category && styles.activeFilterChip
+              ]}
+              onPress={() => setFilter(category)}
+              activeOpacity={0.8}
+            >
+              <Text style={[
+                styles.filterChipText,
+                filter === category && styles.activeFilterChipText
+              ]}>
+                {category === 'All' ? 'Tất cả' : category.charAt(0).toUpperCase() + category.slice(1)}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
       </View>
 
-      {/* Categories */}
-      <FlatList
-        data={categories}
-        renderItem={renderCategory}
-        keyExtractor={(item) => item}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.categoriesList}
-        contentContainerStyle={styles.categoriesContent}
-      />
-
-      {/* Restaurants */}
-      <FlatList
-        data={filteredRestaurants}
-        renderItem={renderRestaurant}
-        keyExtractor={(item) => item.id}
-        style={styles.restaurantsList}
-        contentContainerStyle={styles.restaurantsContent}
+      {/* Restaurant List */}
+      <ScrollView
+        style={styles.restaurantList}
         showsVerticalScrollIndicator={false}
-      />
-
-      {/* Quick Actions */}
-      <View style={styles.quickActions}>
-        <TouchableOpacity
-          style={styles.quickActionButton}
-          onPress={() => navigation.navigate('QRScan')}
-        >
-          <Text style={styles.quickActionIcon}>📱</Text>
-          <Text style={styles.quickActionText}>Quét QR</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity
-          style={styles.quickActionButton}
-          onPress={() => navigation.navigate('Menu', { restaurantId: 'demo' })}
-        >
-          <Text style={styles.quickActionIcon}>🍽️</Text>
-          <Text style={styles.quickActionText}>Menu Demo</Text>
-        </TouchableOpacity>
-      </View>
+        contentContainerStyle={styles.restaurantListContent}
+      >
+        {filteredRestaurants.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyStateIcon}>🔍</Text>
+            <Text style={styles.emptyStateTitle}>No restaurants found</Text>
+            <Text style={styles.emptyStateDescription}>
+              Try adjusting your search or filter criteria
+            </Text>
+          </View>
+        ) : (
+          filteredRestaurants.map(restaurant => (
+            <TouchableOpacity
+              key={restaurant.id}
+              style={styles.restaurantCard}
+              onPress={() => setSelectedRestaurant(restaurant)}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.restaurantImage, { backgroundColor: restaurant.color + '18', borderColor: restaurant.color + '22' }]}>
+                <Text style={styles.restaurantEmoji}>{restaurant.img}</Text>
+              </View>
+              
+              <View style={styles.restaurantInfo}>
+                <View style={styles.restaurantHeader}>
+                  <Text style={styles.restaurantName}>{restaurant.name}</Text>
+                  <View style={[
+                    styles.statusBadge,
+                    restaurant.open ? styles.openBadge : styles.closedBadge
+                  ]}>
+                    <Text style={[
+                      styles.statusBadgeText,
+                      restaurant.open ? styles.openBadgeText : styles.closedBadgeText
+                    ]}>
+                      {restaurant.open ? 'MỞ CỬA' : 'ĐÓNG CỬA'}
+                    </Text>
+                  </View>
+                </View>
+                
+                <Text style={styles.restaurantCuisine}>{restaurant.cuisine}</Text>
+                
+                <View style={styles.restaurantMeta}>
+                  <View style={styles.ratingContainer}>
+                    <Icon name="star" size={12} color="#F4A261" />
+                    <Text style={styles.ratingText}>{restaurant.rating}</Text>
+                  </View>
+                  <Text style={styles.metaText}>•</Text>
+                  <Text style={styles.metaText}>📍 {restaurant.distance}</Text>
+                  <Text style={styles.metaText}>•</Text>
+                  <Text style={styles.metaText}>⏱ {restaurant.time}</Text>
+                </View>
+              </View>
+              <Icon name="chevron" size={16} color="#ddd" />
+            </TouchableOpacity>
+          ))
+        )}
+      </ScrollView>
     </SafeAreaView>
   );
 };
@@ -214,166 +174,222 @@ const RestaurantListScreen: React.FC<Props> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#f5f5f0',
   },
-  header: {
-    backgroundColor: '#fff',
+
+  headerGradient: {
+    zIndex: 10,
+  },
+
+  headerGradientBackground: {
     paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    paddingTop: 16,
+    paddingBottom: 20,
   },
+
+  headerTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+  },
+
+  headerBackButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
   headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#111827',
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginTop: 4,
-  },
-  searchContainer: {
-    backgroundColor: '#fff',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-  },
-  searchInput: {
-    backgroundColor: '#f3f4f6',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 12,
-    fontSize: 16,
-  },
-  categoriesList: {
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-  },
-  categoriesContent: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-  },
-  categoryChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    marginRight: 8,
-    borderRadius: 20,
-    backgroundColor: '#f3f4f6',
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  selectedCategoryChip: {
-    backgroundColor: '#3b82f6',
-    borderColor: '#3b82f6',
-  },
-  categoryText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#6b7280',
-  },
-  selectedCategoryText: {
+    fontSize: 20,
+    fontWeight: '900',
     color: '#fff',
   },
-  restaurantsList: {
+
+  headerSearchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    gap: 8,
+  },
+
+  headerSearchInput: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+  },
+
+  categoryContainer: {
+    backgroundColor: '#fff',
+    paddingVertical: 10,
+    ...theme.shadows.sm,
+  },
+
+  filterScroll: {
+    paddingHorizontal: 16,
+    gap: 8,
+  },
+
+  filterChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 20,
+    backgroundColor: '#f5f5f0',
+    whiteSpace: 'nowrap',
+  },
+
+  activeFilterChip: {
+    backgroundColor: '#E8622A',
+  },
+
+  filterChipText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#666',
+  },
+
+  activeFilterChipText: {
+    color: '#fff',
+  },
+
+  restaurantList: {
     flex: 1,
   },
-  restaurantsContent: {
-    padding: 20,
+
+  restaurantListContent: {
+    padding: 14,
+    paddingHorizontal: 16,
+    gap: 12,
   },
+
   restaurantCard: {
     backgroundColor: '#fff',
-    borderRadius: 16,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    overflow: 'hidden',
-  },
-  closedCard: {
-    opacity: 0.7,
-  },
-  restaurantImage: {
-    width: '100%',
-    height: 160,
-    resizeMode: 'cover',
-  },
-  restaurantInfo: {
+    borderRadius: 20,
     padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    ...theme.shadows.sm,
   },
+
+  restaurantImage: {
+    width: 68,
+    height: 68,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1.5,
+  },
+
+  restaurantEmoji: {
+    fontSize: 32,
+  },
+
+  restaurantInfo: {
+    flex: 1,
+  },
+
   restaurantHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
+    alignItems: 'flex-start',
+    marginBottom: 2,
   },
+
   restaurantName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#111827',
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#1a1a1a',
     flex: 1,
   },
-  closedBadge: {
-    fontSize: 12,
-    color: '#dc2626',
-    backgroundColor: '#fee2e2',
+
+  statusBadge: {
     paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingVertical: 3,
+    borderRadius: 20,
+  },
+
+  openBadge: {
+    backgroundColor: '#E8F5E9',
+  },
+
+  closedBadge: {
+    backgroundColor: '#FFEBEE',
+  },
+
+  statusBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+  },
+
+  openBadgeText: {
+    color: '#2E7D32',
+  },
+
+  closedBadgeText: {
+    color: '#C62828',
+  },
+
+  restaurantCuisine: {
+    fontSize: 12,
+    color: '#888',
     fontWeight: '600',
+    marginBottom: 6,
   },
-  restaurantDescription: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginBottom: 12,
-    lineHeight: 20,
-  },
+
   restaurantMeta: {
     flexDirection: 'row',
     alignItems: 'center',
-    flexWrap: 'wrap',
+    gap: 10,
   },
-  rating: {
-    marginRight: 8,
-  },
-  ratingText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#f59e0b',
-  },
-  metaText: {
-    fontSize: 12,
-    color: '#9ca3af',
-    marginRight: 8,
-  },
-  quickActions: {
-    flexDirection: 'row',
-    backgroundColor: '#fff',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
-    gap: 12,
-  },
-  quickActionButton: {
-    flex: 1,
+
+  ratingContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#f3f4f6',
-    paddingVertical: 12,
-    borderRadius: 12,
+    gap: 3,
   },
-  quickActionIcon: {
-    fontSize: 16,
-    marginRight: 8,
+
+  ratingText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#333',
   },
-  quickActionText: {
-    fontSize: 14,
+
+  metaText: {
+    fontSize: 11,
+    color: '#bbb',
     fontWeight: '600',
-    color: '#374151',
+  },
+
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 80,
+  },
+
+  emptyStateIcon: {
+    fontSize: 60,
+    marginBottom: 16,
+  },
+
+  emptyStateTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#333',
+    marginBottom: 8,
+  },
+
+  emptyStateDescription: {
+    fontSize: 14,
+    color: '#888',
+    textAlign: 'center',
   },
 });
 

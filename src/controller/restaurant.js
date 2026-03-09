@@ -1,4 +1,6 @@
-// src/controller/restaurant.js
+const {
+  GetRestaurantStatisticsQuerySchema,
+} = require('../dto/restaurant/get-restaurant-statistics');
 const {
   UpdateRestaurantSchema,
 } = require('../dto/restaurant/update-restaurant');
@@ -9,11 +11,15 @@ class RestaurantController {
     uploadRestaurantLogoUseCase,
     createRestaurantUseCase,
     updateRestaurantUseCase,
+    getRestaurantStatisticsUseCase,
+    deleteRestaurantUseCase,
   }) {
     this.getRestaurantDetailsUseCase = getRestaurantDetailsUseCase;
     this.uploadRestaurantLogoUseCase = uploadRestaurantLogoUseCase;
     this.createRestaurantUseCase = createRestaurantUseCase;
     this.updateRestaurantUseCase = updateRestaurantUseCase;
+    this.getRestaurantStatisticsUseCase = getRestaurantStatisticsUseCase;
+    this.deleteRestaurantUseCase = deleteRestaurantUseCase;
   }
 
   // GET /api/v1/restaurants/:id
@@ -32,12 +38,12 @@ class RestaurantController {
     }
   }
 
-  // POST/PUT /api/v1/restaurants/:restaurantId/logo (depending on your routes)
+  // POST /api/v1/restaurants/:restaurantId/logo
   async uploadLogo(req, res, next) {
     try {
       const { restaurantId } = req.params;
       const file = req.file;
-      const userId = req.user?.userId; // From auth middleware
+      const userId = req.user?.userId;
 
       if (!file) {
         return res.status(400).json({
@@ -103,6 +109,46 @@ class RestaurantController {
         success: true,
         message: result.message,
         data: result.restaurant,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  // DELETE /api/v1/restaurants/:id
+  async deleteRestaurant(req, res, next) {
+    try {
+      const { id } = req.params;
+      const userId = req.user?.userId;
+
+      const result = await this.deleteRestaurantUseCase.execute(id, userId);
+
+      res.status(200).json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * GET /api/v1/restaurants/me/statistics?from=...&to=...
+   */
+  async getMyStatistics(req, res, next) {
+    try {
+      const dto = GetRestaurantStatisticsQuerySchema.parse(req.query);
+
+      const result = await this.getRestaurantStatisticsUseCase.execute(dto, {
+        userId: req.user.userId,
+        role: req.user.role,
+        restaurantId: req.user.restaurantId,
+      });
+
+      res.status(200).json({
+        success: true,
+        message: 'Restaurant statistics',
+        data: result,
       });
     } catch (err) {
       next(err);
