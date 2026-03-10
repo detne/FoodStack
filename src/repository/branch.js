@@ -71,6 +71,13 @@ class BranchRepository {
     return { items, total };
   }
 
+  async delete(id) {
+    return await this.prisma.branches.update({
+      where: { id },
+      data: { deleted_at: new Date() },
+    });
+  }
+
   async deactivate(id) {
     return this.prisma.branches.update({
       where: { id },

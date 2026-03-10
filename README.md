@@ -1,405 +1,289 @@
-# 🍽️ FoodStack - QR Service Platform
+# QRService - Restaurant Management System
 
-**Multi-tenant QR-based restaurant ordering system**
-
-[![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-blue.svg)](https://www.postgresql.org/)
-[![MongoDB](https://img.shields.io/badge/MongoDB-6+-green.svg)](https://www.mongodb.com/)
-[![Redis](https://img.shields.io/badge/Redis-7+-red.svg)](https://redis.io/)
-
----
-
-## 📋 Table of Contents
-
-- [Features](#features)
-- [Tech Stack](#tech-stack)
-- [Prerequisites](#prerequisites)
-- [Quick Start](#quick-start)
-- [Project Structure](#project-structure)
-- [Development](#development)
-- [Documentation](#documentation)
-- [Team](#team)
-
----
-
-## ✨ Features
-
-### MVP (Sprint 1-6)
-- ✅ **Authentication** - JWT-based auth with email verification
-- ✅ **Restaurant Management** - Multi-tenant restaurant setup
-- ✅ **Branch Management** - Multiple branch support
-- ✅ **Table & QR System** - Dynamic QR code generation
-- ✅ **Menu Management** - Categories, items, customizations
-- ✅ **Order System** - Real-time order processing
-- ✅ **Payment Integration** - PayOS payment gateway
-
-### Future Features (Sprint 7-9)
-- 🔄 Staff Management
-- 🔄 Service Requests
-- 🔄 Reservations
-- 🔄 Subscriptions
-- 🔄 Analytics Dashboard
-- 🔄 Notifications
-
----
-
-## 🛠️ Tech Stack
-
-### Backend
-- **Runtime:** Node.js 18+
-- **Framework:** Express.js
-- **Language:** JavaScript (ES6+)
-- **Architecture:** Clean Architecture
-
-### Databases
-- **PostgreSQL** - Primary database (Supabase)
-- **MongoDB** - Event store & logs
-- **Redis** - Cache & session store
-
-### External Services
-- **Cloudinary** - Image storage
-- **PayOS** - Payment gateway
-- **SMTP** - Email service
-
----
-
-## 📦 Prerequisites
-
-Before you begin, ensure you have:
-
-- **Node.js** 20+ ([Download](https://nodejs.org/))
-- **npm** or **yarn**
-- **Git** ([Download](https://git-scm.com/))
-- **PostgreSQL** 15+ (or Supabase account)
-- **MongoDB** 6+ (or MongoDB Atlas account)
-- **Redis** 7+ (or Redis Cloud account)
-
-**🪟 Windows Users:** See [WINDOWS-SETUP.md](./WINDOWS-SETUP.md) for detailed instructions
-
----
+Modern restaurant management platform with QR ordering, table management, and analytics.
 
 ## 🚀 Quick Start
 
-### 1. Clone the repository
+### Prerequisites
+- Node.js 18+
+- PostgreSQL
+- npm or yarn
 
+### Backend Setup
 ```bash
-git clone https://github.com/your-org/foodstack-backend.git
-cd foodstack-backend
-```
-
-### 2. Install dependencies
-
-```bash
+# Install dependencies
 npm install
-```
 
-### 3. Setup environment variables
-
-```bash
-# Copy example file
+# Setup environment
 cp .env.example .env
+# Edit .env with your database credentials
 
-# Edit .env with your credentials
-# See SETUP-COMPLETE-GUIDE.md for detailed instructions
-```
-
-### 4. Setup databases
-
-```bash
-# Run PostgreSQL migrations
+# Run migrations
 npx prisma migrate dev
 
-# Seed initial data
-npm run seed
+# Start backend server
+npm start
 ```
 
-### 5. Start development server
+Backend runs on: http://localhost:3000
 
+### Frontend Setup
 ```bash
+cd frontend
+
+# Install dependencies
+npm install
+
+# Setup environment
+cp .env.example .env
+# Edit .env with backend API URL
+
+# Start development server
 npm run dev
 ```
 
-Server will start at `http://localhost:3000`
-
----
+Frontend runs on: http://localhost:8081
 
 ## 📁 Project Structure
 
 ```
-src/
-├── configuration/       # Config files
-├── controller/          # HTTP controllers
-├── dto/                 # Data Transfer Objects
-├── entities/            # Domain entities
-├── exception/           # Custom errors
-├── mapper/              # Data mappers
-├── repository/          # Data access layer
-├── service/             # Business services
-├── utils/               # Utility functions
-├── validator/           # Input validators
-├── middleware/          # Express middleware
-├── routes/              # API routes
-└── use-cases/           # Business use cases ⭐
+FoodStack-new/
+├── src/                    # Backend source code
+│   ├── controller/         # API controllers
+│   ├── routes/            # API routes
+│   ├── use-cases/         # Business logic
+│   ├── repository/        # Database access
+│   ├── dto/               # Data transfer objects
+│   ├── service/           # External services
+│   └── middleware/        # Express middleware
+├── frontend/              # React frontend
+│   ├── src/
+│   │   ├── pages/        # Page components
+│   │   ├── components/   # Reusable components
+│   │   ├── contexts/     # React contexts
+│   │   └── lib/          # Utilities
+├── prisma/               # Database schema & migrations
+└── database/             # SQL scripts
 ```
 
-See [PROJECT-STRUCTURE-SIMPLIFIED.md](./PROJECT-STRUCTURE-SIMPLIFIED.md) for details.
+## 🎯 Features
 
----
+### Admin Dashboard
+- ✅ Dashboard with KPIs and analytics
+- ✅ Branch management (CRUD)
+- ✅ Menu management (Categories & Items)
+- ✅ Table & area management
+- ✅ Order management
+- ✅ Staff management
+- ✅ QR code generation
+- ✅ Reservations
+- ✅ Reviews & feedback
+- ✅ Analytics & reports
+- ✅ Settings & configuration
 
-## 💻 Development
+### Customer Features (Mobile)
+- QR code scanning
+- Digital menu browsing
+- Order placement
+- Live order tracking
+- Service requests
+- Payment integration
 
-### Available Scripts
+## 🔧 Tech Stack
 
-```bash
-# Development
-npm run dev              # Start dev server with hot reload
-npm run dev:debug        # Start with debugger
+### Backend
+- Node.js + Express
+- Prisma ORM
+- PostgreSQL
+- JWT Authentication
+- PayOS Payment Gateway
 
-# Database
-npm run db:migrate       # Run Prisma migrations
-npm run db:seed          # Seed database
-npm run db:studio        # Open Prisma Studio
+### Frontend
+- React + TypeScript
+- Vite
+- TailwindCSS
+- shadcn/ui
+- React Router
+- React Query
 
-# Testing
-npm test                 # Run all tests
-npm run test:unit        # Run unit tests
-npm run test:integration # Run integration tests
-npm run test:e2e         # Run E2E tests
-npm run test:coverage    # Generate coverage report
+## 📝 API Documentation
 
-# Code Quality
-npm run lint             # Run ESLint
-npm run lint:fix         # Fix ESLint errors
-npm run format           # Format with Prettier
-
-# Build
-npm run build            # Build for production
-npm start                # Start production server
+### Authentication
+```
+POST /api/v1/auth/login
+POST /api/v1/auth/register
+POST /api/v1/auth/refresh-token
 ```
 
-### Git Workflow
-
-```bash
-# Create feature branch
-git checkout -b feature/AUTH-101-register
-
-# Make changes and commit
-git add .
-git commit -m "feat(auth): implement register restaurant use case"
-
-# Push to remote
-git push origin feature/AUTH-101-register
-
-# Create Pull Request on GitHub
+### Branches
+```
+GET    /api/v1/branches
+POST   /api/v1/branches
+PUT    /api/v1/branches/:id
+DELETE /api/v1/branches/:id
 ```
 
-### Commit Convention
-
-Follow [Conventional Commits](https://www.conventionalcommits.org/):
-
+### Categories
 ```
-feat(auth): add login use case
-fix(order): resolve payment timeout issue
-docs(readme): update setup instructions
-refactor(menu): simplify category logic
-test(payment): add webhook verification tests
+GET    /api/v1/categories?branch_id=xxx
+POST   /api/v1/categories
+PUT    /api/v1/categories/:id
+DELETE /api/v1/categories/:id
 ```
 
----
-
-## 📚 Documentation
-
-- **[SETUP-COMPLETE-GUIDE.md](./SETUP-COMPLETE-GUIDE.md)** - Detailed setup instructions
-- **[SPRINT1-AUTH-CODE-STRUCTURE.md](./SPRINT1-AUTH-CODE-STRUCTURE.md)** - Sprint 1 implementation guide
-- **[JIRA-MANUAL-INPUT-GUIDE.md](./JIRA-MANUAL-INPUT-GUIDE.md)** - Jira stories guide
-- **[SUPABASE-SETUP.md](./SUPABASE-SETUP.md)** - Supabase configuration
-- **[DATABASE-SCHEMA.md](./database/docs/SCHEMA_DIAGRAM.md)** - Database schema
-
-### API Documentation
-
-Once server is running, visit:
-- **Swagger UI:** `http://localhost:3000/api-docs`
-- **Postman Collection:** [Download](./docs/postman-collection.json)
-
----
-
-## 🏗️ Architecture
-
-This project follows **Clean Architecture** principles:
-
+### Menu Items
 ```
-┌─────────────────────────────────────┐
-│  Presentation Layer (Controllers)   │
-└──────────────┬──────────────────────┘
-               │
-┌──────────────▼──────────────────────┐
-│  Application Layer (Use Cases)      │  ← Business Logic
-└──────────────┬──────────────────────┘
-               │
-┌──────────────▼──────────────────────┐
-│  Domain Layer (Entities)            │
-└──────────────┬──────────────────────┘
-               │
-┌──────────────▼──────────────────────┐
-│  Infrastructure Layer (Repositories) │
-└─────────────────────────────────────┘
+GET    /api/v1/menu-items?category_id=xxx
+POST   /api/v1/menu-items
+PUT    /api/v1/menu-items/:id
+DELETE /api/v1/menu-items/:id
 ```
-
-**Benefits:**
-- ✅ Testable
-- ✅ Maintainable
-- ✅ Scalable
-- ✅ Independent of frameworks
-
----
 
 ## 🧪 Testing
 
-### Run Tests
+### Test Account
+```
+Email: test@example.com
+Password: Test123456
+```
 
+### Run Tests
 ```bash
-# All tests
+# Backend tests
 npm test
 
-# Watch mode
-npm run test:watch
-
-# Coverage
-npm run test:coverage
+# Frontend tests
+cd frontend && npm test
 ```
 
-### Test Structure
+## 🔐 Environment Variables
 
+### Backend (.env)
+```env
+DATABASE_URL="postgresql://user:password@localhost:5432/foodstack"
+JWT_SECRET="your-secret-key"
+JWT_REFRESH_SECRET="your-refresh-secret"
+PORT=3000
 ```
-tests/
-├── unit/           # Unit tests (isolated)
-├── integration/    # Integration tests (with DB)
-└── e2e/            # End-to-end tests (full flow)
+
+### Frontend (.env)
+```env
+VITE_API_BASE_URL=http://localhost:3000/api/v1
 ```
 
----
+## 📦 Deployment
 
-## 🚢 Deployment
-
-### Environment Setup
-
-1. **Development:** Local machine
-2. **Staging:** Heroku/Railway
-3. **Production:** AWS/GCP/Azure
-
-### Deploy to Production
-
+### Backend
 ```bash
-# Build
 npm run build
-
-# Set production env vars
-export NODE_ENV=production
-export DATABASE_URL=your_production_db_url
-
-# Start
-npm start
+npm run start:prod
 ```
 
-See [DEPLOYMENT.md](./docs/DEPLOYMENT.md) for detailed instructions.
+### Frontend
+```bash
+cd frontend
+npm run build
+# Deploy dist/ folder to hosting
+```
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit changes (`git commit -m 'Add amazing feature'`)
+4. Push to branch (`git push origin feature/amazing-feature`)
+5. Open Pull Request
+
+## 📄 License
+
+MIT License - see LICENSE file for details
+
+## 👥 Team
+
+- Backend: Node.js + Express + Prisma
+- Frontend: React + TypeScript + TailwindCSS
+- Database: PostgreSQL
+
+## 📞 Support
+
+For support, email support@qrservice.com or open an issue.
 
 ---
 
-## 🔐 Security
+Built with ❤️ for modern restaurants
 
-### Important Notes
+### Prerequisites
+- Node.js 20+
+- npm 10+
+- PostgreSQL
+- Redis (optional)
 
-- ⚠️ **Never commit `.env` file**
-- ⚠️ **Generate new secrets for production**
-- ⚠️ **Use HTTPS in production**
-- ⚠️ **Enable rate limiting**
-- ⚠️ **Validate all inputs**
-- ⚠️ **Sanitize user data**
-
-### Generate Secrets
-
+### Setup
 ```bash
-# Generate JWT secret
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+# Clone repository
+git clone <repo-url>
+cd FoodStack-new
+
+# Install backend dependencies
+npm install
+
+# Install frontend dependencies
+cd frontend
+npm install
+
+# Setup database
+cd ..
+npm run prisma:migrate
+
+# Start development
+npm run dev                    # Backend
+cd frontend && npm run dev     # Frontend
 ```
+
+---
+
+## 🚀 Deployment
+
+### Backend
+```bash
+npm run build
+npm run start:prod
+```
+
+### Frontend
+```bash
+cd frontend
+npm run build
+# Deploy dist/ folder
+```
+
+---
+
+## 📄 License
+
+Proprietary - QR Service Platform Team
 
 ---
 
 ## 👥 Team
 
-### Development Team
-
-- **Backend Lead:** [Your Name]
-- **Frontend Lead:** [Name]
-- **DevOps:** [Name]
-- **QA:** [Name]
-
-### Sprint Planning
-
-- **Sprint Duration:** 2 weeks
-- **Total Sprints:** 9
-- **Current Sprint:** Sprint 1 - Authentication
-- **Next Sprint:** Sprint 2 - Restaurant & Branch
-
-See [JIRA Board](https://your-jira-url.atlassian.net) for details.
-
----
-
-## 📝 License
-
-This project is proprietary and confidential.
-
----
-
-## 🤝 Contributing
-
-### Setup Development Environment
-
-1. Fork the repository
-2. Clone your fork
-3. Create feature branch
-4. Make changes
-5. Write tests
-6. Submit Pull Request
-
-### Code Review Process
-
-1. All PRs require 2 approvals
-2. All tests must pass
-3. Code coverage must be > 80%
-4. Follow coding standards
+- Backend: Node.js + Express + Prisma
+- Frontend: React + TypeScript + shadcn/ui
+- Database: PostgreSQL + Redis + MongoDB
 
 ---
 
 ## 📞 Support
 
-### Need Help?
-
-- **Documentation:** Check docs folder
-- **Issues:** [GitHub Issues](https://github.com/your-org/foodstack-backend/issues)
-- **Slack:** #foodstack-dev channel
-- **Email:** dev@foodstack.com
-
----
-
-## 🎯 Roadmap
-
-### Q1 2024
-- ✅ Sprint 1-3: Core MVP
-- 🔄 Sprint 4-6: Payment & Orders
-
-### Q2 2024
-- 🔄 Sprint 7-9: Advanced Features
-- 🔄 Production Launch
+**Gặp vấn đề?**
+1. Đọc [START-HERE.md](START-HERE.md)
+2. Đọc [QUICK-FIX.md](QUICK-FIX.md)
+3. Check [FIX-LOGIN-ERROR.md](FIX-LOGIN-ERROR.md)
+4. Cung cấp:
+   - Screenshot
+   - Console logs
+   - Terminal output
 
 ---
 
-## 📊 Project Status
-
-- **Version:** 0.1.0 (MVP Development)
-- **Status:** 🟡 In Development
-- **Last Updated:** 2024-01-XX
-
----
-
-**Built with ❤️ by FoodStack Team**
+**Happy Coding! 🎉**

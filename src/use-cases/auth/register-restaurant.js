@@ -29,12 +29,12 @@ class RegisterRestaurantUseCase {
       const user = await tx.users.create({
         data: {
           id: userId,
-          restaurant_id: null,            // ✅ owner chưa cần gắn restaurant cố định
+          restaurant_id: null,
           email: dto.ownerEmail,
           password_hash: hashedPassword,
           full_name: dto.ownerName,
           phone: dto.ownerPhone,
-          role: 'OWNER',                  // ✅ dùng đúng role value hệ thống bạn
+          role: 'OWNER',
           status: 'ACTIVE',
           updated_at: now,
         },
@@ -44,6 +44,7 @@ class RegisterRestaurantUseCase {
       const restaurant = await tx.restaurants.create({
         data: {
           id: restaurantId,
+          owner_id: user.id,
           name: dto.restaurantName ?? 'My Restaurant',
           email: dto.ownerEmail,
           phone: dto.ownerPhone,
@@ -52,8 +53,6 @@ class RegisterRestaurantUseCase {
           email_verified_at: null,
           subscription_id: null,
           updated_at: now,
-
-          owner_id: user.id,              // ✅ QUAN TRỌNG: owner sở hữu restaurant
         },
       });
 

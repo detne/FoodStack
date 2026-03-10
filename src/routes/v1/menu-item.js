@@ -15,6 +15,12 @@ const upload = multer({
 function createMenuItemRoutes(menuItemController, authMiddleware) {
   const router = express.Router();
 
+  // GET /api/v1/menu-items/search - Search menu items
+  router.get(
+    '/search',
+    (req, res, next) => menuItemController.search(req, res, next)
+  );
+
   // POST /api/v1/menu-items - Create menu item
   router.post(
     '/',
@@ -42,6 +48,13 @@ function createMenuItemRoutes(menuItemController, authMiddleware) {
     authMiddleware,
     upload.single('image'),
     (req, res, next) => menuItemController.uploadImage(req, res, next)
+  );
+
+  // PATCH /api/v1/menu-items/:id/availability - Update availability
+  router.patch(
+    '/:id/availability',
+    authMiddleware,
+    (req, res, next) => menuItemController.updateAvailability(req, res, next)
   );
 
   return router;

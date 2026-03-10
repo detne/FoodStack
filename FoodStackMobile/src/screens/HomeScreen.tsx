@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   Animated,
   Dimensions,
+  Alert,
 } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -21,6 +22,7 @@ interface Props {
 }
 
 const { width } = Dimensions.get('window');
+const CARD_WIDTH = (width - 44) / 2;
 
 const HomeScreen: React.FC<Props> = ({ navigation }) => {
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -53,13 +55,36 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
             </View>
           </View>
           
-          <TouchableOpacity
-            style={styles.notificationButton}
-            onPress={() => {}}
-            activeOpacity={0.8}
-          >
-            <Icon name="bell" size={18} color="#333" />
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              style={styles.notificationButton}
+              onPress={() => {}}
+              activeOpacity={0.8}
+            >
+              <Icon name="bell" size={18} color="#333" />
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={styles.logoutButton}
+              onPress={() => {
+                Alert.alert(
+                  'Đăng xuất',
+                  'Bạn có chắc chắn muốn đăng xuất?',
+                  [
+                    { text: 'Hủy', style: 'cancel' },
+                    { 
+                      text: 'Đăng xuất', 
+                      style: 'destructive',
+                      onPress: () => navigation.navigate('Login')
+                    },
+                  ]
+                );
+              }}
+              activeOpacity={0.8}
+            >
+              <Icon name="log-out" size={18} color="#FF6B35" />
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
@@ -119,7 +144,7 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
             
             <TouchableOpacity
               style={styles.quickActionCard}
-              onPress={() => navigation.navigate('Menu', { restaurantId: 'demo' })}
+              onPress={() => navigation.navigate('RestaurantSelection')}
               activeOpacity={0.8}
             >
               <LinearGradient
@@ -317,11 +342,27 @@ const styles = StyleSheet.create({
     color: '#1a1a1a',
   },
   
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  
   notificationButton: {
     width: 42,
     height: 42,
     borderRadius: 21,
     backgroundColor: theme.colors.white,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...theme.shadows.sm,
+  },
+
+  logoutButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#FFF5F5',
     justifyContent: 'center',
     alignItems: 'center',
     ...theme.shadows.sm,
@@ -431,7 +472,7 @@ const styles = StyleSheet.create({
   },
   
   quickActionCard: {
-    width: (width - 44) / 2,
+    width: CARD_WIDTH,
     backgroundColor: theme.colors.white,
     borderRadius: 20,
     paddingVertical: 16,

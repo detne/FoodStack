@@ -1,11 +1,20 @@
 // src/controller/menu-item.js
 
 class MenuItemController {
-  constructor({ createMenuItemUseCase, updateMenuItemUseCase, deleteMenuItemUseCase, uploadMenuItemImageUseCase }) {
+  constructor({ 
+    createMenuItemUseCase, 
+    updateMenuItemUseCase, 
+    deleteMenuItemUseCase, 
+    uploadMenuItemImageUseCase, 
+    updateMenuItemAvailabilityUseCase, 
+    searchMenuItemsUseCase 
+  }) {
     this.createMenuItemUseCase = createMenuItemUseCase;
     this.updateMenuItemUseCase = updateMenuItemUseCase;
     this.deleteMenuItemUseCase = deleteMenuItemUseCase;
     this.uploadMenuItemImageUseCase = uploadMenuItemImageUseCase;
+    this.updateMenuItemAvailabilityUseCase = updateMenuItemAvailabilityUseCase;
+    this.searchMenuItemsUseCase = searchMenuItemsUseCase;
   }
 
   // POST /api/v1/menu-items
@@ -108,6 +117,54 @@ class MenuItemController {
           menuItemId: result.menuItemId,
           imageUrl: result.imageUrl,
         },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // PATCH /api/v1/menu-items/:id/availability
+  async updateAvailability(req, res, next) {
+    try {
+      const { UpdateMenuItemAvailabilityDto } = require('../dto/menu-item/update-availability');
+
+      const dto = new UpdateMenuItemAvailabilityDto({
+        menuItemId: req.params.id,
+        available: req.body.available,
+        userId: req.user?.userId,
+      });
+
+      const result = await this.updateMenuItemAvailabilityUseCase.execute(dto);
+
+      res.status(200).json({
+        success: true,
+        message: 'Menu item availability updated successfully',
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // GET /api/v1/menu-items/search
+  async search(req, res, next) {
+    try {
+      const { SearchMenuItemsDto } = require('../dto/menu-item/search-menu-items');
+
+      const dto = new SearchMenuItemsDto({
+        keyword: req.query.keyword,
+        category: req.query.category,
+        page: req.query.page ? parseInt(req.query.page) : 1,
+        limit: req.query.limit ? parseInt(req.query.limit) : 10,
+        branchId: req.query.branchId,
+      });
+
+      const result = await this.searchMenuItemsUseCase.execute(dto);
+
+      res.status(200).json({
+        success: true,
+        message: 'Menu items retrieved successfully',
+        ...result,
       });
     } catch (error) {
       next(error);

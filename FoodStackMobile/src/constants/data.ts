@@ -66,6 +66,7 @@ export const RESTAURANTS = [
 export const MENU_CATEGORIES = ["All", "Popular", "Main", "Sides", "Drinks", "Desserts"];
 
 export const MENU_ITEMS = [
+  // Burger King Items
   { 
     id: 1, 
     name: "Whopper Burger", 
@@ -102,41 +103,6 @@ export const MENU_ITEMS = [
     ] 
   },
   { 
-    id: 4, 
-    name: "Pepperoni Pizza", 
-    category: "Popular", 
-    price: 14.99, 
-    desc: "Classic pepperoni with mozzarella on tomato base", 
-    emoji: "🍕", 
-    restaurant: 2, 
-    customizations: [
-      { name: "Size", required: true, options: ["Personal", "Medium", "Large"] }, 
-      { name: "Crust", required: false, options: ["Thin", "Thick", "Stuffed"] }
-    ] 
-  },
-  { 
-    id: 5, 
-    name: "Tonkotsu Ramen", 
-    category: "Popular", 
-    price: 13.50, 
-    desc: "Rich pork bone broth with chashu and soft egg", 
-    emoji: "🍜", 
-    restaurant: 3, 
-    customizations: [
-      { name: "Spice Level", required: true, options: ["Mild", "Medium", "Hot", "Extra Hot"] }
-    ] 
-  },
-  { 
-    id: 6, 
-    name: "Avocado Bowl", 
-    category: "Popular", 
-    price: 12.50, 
-    desc: "Fresh greens with avocado, seeds and lemon dressing", 
-    emoji: "🥗", 
-    restaurant: 4, 
-    customizations: [] 
-  },
-  { 
     id: 7, 
     name: "Cola", 
     category: "Drinks", 
@@ -157,6 +123,221 @@ export const MENU_ITEMS = [
     emoji: "🍦", 
     restaurant: 1, 
     customizations: [] 
+  },
+  { 
+    id: 9, 
+    name: "Chicken Burger", 
+    category: "Main", 
+    price: 7.99, 
+    desc: "Crispy chicken breast with lettuce and mayo", 
+    emoji: "🍗", 
+    restaurant: 1, 
+    customizations: [] 
+  },
+  { 
+    id: 10, 
+    name: "Onion Rings", 
+    category: "Sides", 
+    price: 4.99, 
+    desc: "Crispy golden onion rings", 
+    emoji: "🧅", 
+    restaurant: 1, 
+    customizations: [] 
+  },
+
+  // Pizza Hut Items
+  { 
+    id: 4, 
+    name: "Pepperoni Pizza", 
+    category: "Popular", 
+    price: 14.99, 
+    desc: "Classic pepperoni with mozzarella on tomato base", 
+    emoji: "🍕", 
+    restaurant: 2, 
+    customizations: [
+      { name: "Size", required: true, options: ["Personal", "Medium", "Large"] }, 
+      { name: "Crust", required: false, options: ["Thin", "Thick", "Stuffed"] }
+    ] 
+  },
+  { 
+    id: 11, 
+    name: "Margherita Pizza", 
+    category: "Main", 
+    price: 12.99, 
+    desc: "Fresh mozzarella, tomato sauce and basil", 
+    emoji: "🍕", 
+    restaurant: 2, 
+    customizations: [
+      { name: "Size", required: true, options: ["Personal", "Medium", "Large"] }
+    ] 
+  },
+  { 
+    id: 12, 
+    name: "Meat Lovers Pizza", 
+    category: "Popular", 
+    price: 18.99, 
+    desc: "Pepperoni, sausage, ham and bacon", 
+    emoji: "🍕", 
+    restaurant: 2, 
+    customizations: [] 
+  },
+  { 
+    id: 13, 
+    name: "Garlic Bread", 
+    category: "Sides", 
+    price: 5.99, 
+    desc: "Warm bread with garlic butter and herbs", 
+    emoji: "🥖", 
+    restaurant: 2, 
+    customizations: [] 
+  },
+
+  // Ramen Items
+  { 
+    id: 5, 
+    name: "Tonkotsu Ramen", 
+    category: "Popular", 
+    price: 13.50, 
+    desc: "Rich pork bone broth with chashu and soft egg", 
+    emoji: "🍜", 
+    restaurant: 3, 
+    customizations: [
+      { name: "Spice Level", required: true, options: ["Mild", "Medium", "Hot", "Extra Hot"] }
+    ] 
+  },
+  { 
+    id: 14, 
+    name: "Miso Ramen", 
+    category: "Main", 
+    price: 12.50, 
+    desc: "Savory miso broth with vegetables and noodles", 
+    emoji: "🍜", 
+    restaurant: 3, 
+    customizations: [] 
+  },
+  { 
+    id: 15, 
+    name: "Gyoza", 
+    category: "Sides", 
+    price: 6.99, 
+    desc: "Pan-fried pork dumplings (6 pieces)", 
+    emoji: "🥟", 
+    restaurant: 3, 
+    customizations: [] 
+  },
+  { 
+    id: 16, 
+    name: "Green Tea", 
+    category: "Drinks", 
+    price: 3.99, 
+    desc: "Hot or iced Japanese green tea", 
+    emoji: "🍵", 
+    restaurant: 3, 
+    customizations: [
+      { name: "Temperature", required: true, options: ["Hot", "Iced"] }
+    ] 
+  },
+
+  // Salad Stop Items
+  { 
+    id: 6, 
+    name: "Avocado Bowl", 
+    category: "Popular", 
+    price: 12.50, 
+    desc: "Fresh greens with avocado, seeds and lemon dressing", 
+    emoji: "🥗", 
+    restaurant: 4, 
+    customizations: [] 
+  },
+  { 
+    id: 17, 
+    name: "Caesar Salad", 
+    category: "Main", 
+    price: 10.99, 
+    desc: "Romaine lettuce with parmesan and croutons", 
+    emoji: "🥗", 
+    restaurant: 4, 
+    customizations: [
+      { name: "Protein", required: false, options: ["Chicken", "Salmon", "Tofu"] }
+    ] 
+  },
+  { 
+    id: 18, 
+    name: "Smoothie Bowl", 
+    category: "Desserts", 
+    price: 8.99, 
+    desc: "Acai bowl with fresh fruits and granola", 
+    emoji: "🍓", 
+    restaurant: 4, 
+    customizations: [] 
+  },
+  { 
+    id: 19, 
+    name: "Fresh Juice", 
+    category: "Drinks", 
+    price: 5.99, 
+    desc: "Freshly squeezed orange or apple juice", 
+    emoji: "🧃", 
+    restaurant: 4, 
+    customizations: [
+      { name: "Flavor", required: true, options: ["Orange", "Apple", "Mixed Berry"] }
+    ] 
+  },
+
+  // Sushi Palace Items
+  { 
+    id: 20, 
+    name: "Salmon Sashimi", 
+    category: "Popular", 
+    price: 15.99, 
+    desc: "Fresh salmon slices (8 pieces)", 
+    emoji: "🍣", 
+    restaurant: 5, 
+    customizations: [] 
+  },
+  { 
+    id: 21, 
+    name: "California Roll", 
+    category: "Main", 
+    price: 9.99, 
+    desc: "Crab, avocado and cucumber roll", 
+    emoji: "🍣", 
+    restaurant: 5, 
+    customizations: [] 
+  },
+  { 
+    id: 22, 
+    name: "Miso Soup", 
+    category: "Sides", 
+    price: 3.99, 
+    desc: "Traditional soybean paste soup", 
+    emoji: "🍲", 
+    restaurant: 5, 
+    customizations: [] 
+  },
+  { 
+    id: 23, 
+    name: "Sake", 
+    category: "Drinks", 
+    price: 8.99, 
+    desc: "Premium Japanese rice wine", 
+    emoji: "🍶", 
+    restaurant: 5, 
+    customizations: [
+      { name: "Temperature", required: true, options: ["Hot", "Cold"] }
+    ] 
+  },
+  { 
+    id: 24, 
+    name: "Mochi Ice Cream", 
+    category: "Desserts", 
+    price: 6.99, 
+    desc: "Sweet rice cake with ice cream filling", 
+    emoji: "🍡", 
+    restaurant: 5, 
+    customizations: [
+      { name: "Flavor", required: true, options: ["Vanilla", "Green Tea", "Red Bean"] }
+    ] 
   },
 ];
 
