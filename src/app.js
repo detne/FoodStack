@@ -16,6 +16,7 @@ const { UserRepository } = require('./repository/user');
 const { RestaurantRepository } = require('./repository/restaurant');
 const { BranchRepository } = require('./repository/branch');
 const { CategoryRepository } = require('./repository/category');
+const { AreaRepository } = require('./repository/area');
 const { MenuItemRepository } = require('./repository/menu-item');
 const { CustomizationRepository } = require('./repository/customization');
 
@@ -47,6 +48,11 @@ const { ListBranchesUseCase } = require('./use-cases/branch/list');
 const { DeleteBranchUseCase } = require('./use-cases/branch/delete');
 const { GetBranchDetailsUseCase } = require('./use-cases/branch/get-details');
 
+const { CreateAreaUseCase } = require('./use-cases/area/create-area');
+const { GetListAreaUseCase } = require('./use-cases/area/list-by-branch');
+const { UpdateAreaUseCase } = require('./use-cases/area/update-area');
+const { DeleteAreaUseCase } = require('./use-cases/area/delete-area');
+
 const { CreateMenuItemUseCase } = require('./use-cases/menu-item/create-menu-item');
 const { UpdateMenuItemUseCase } = require('./use-cases/menu-item/update-menu-item');
 const { DeleteMenuItemUseCase } = require('./use-cases/menu-item/delete-menu-item');
@@ -67,6 +73,7 @@ const { StaffController } = require('./controller/staff');
 const { RestaurantController } = require('./controller/restaurant');
 const { BranchController } = require('./controller/branch');
 const { CategoryController } = require('./controller/category');
+const { AreaController } = require('./controller/area');
 const { MenuItemController } = require('./controller/menu-item');
 const { CustomizationController } = require('./controller/customization');
 
@@ -80,7 +87,8 @@ const { createCustomizationRoutes } = require('./routes/v1/customization');
 const { createStaffRoutes } = require('./routes/v1/staff');
 const { createPublicRoutes } = require('./routes/v1/public');
 const { createCustomerOrderRoutes } = require('./routes/v1/customer-orders');
-const { createBranchRoutes: createPublicBranchRoutes } = require('./routes/v1/branch');
+
+const { createAreaRoutes } = require('./routes/v1/areas');
 
 // Middleware
 const { createAuthMiddleware } = require('./middleware/auth');
@@ -129,6 +137,7 @@ function createApp() {
   const restaurantRepository = new RestaurantRepository(prisma);
   const branchRepository = new BranchRepository(prisma);
   const categoryRepository = new CategoryRepository(prisma);
+  const areaRepository = new AreaRepository(prisma);
   const menuItemRepository = new MenuItemRepository(prisma);
   const customizationRepository = new CustomizationRepository(prisma);
 
@@ -226,6 +235,36 @@ function createApp() {
     categoryRepository,
     userRepository
   );
+
+  const createAreaUseCase = new CreateAreaUseCase(
+    areaRepository,
+    branchRepository,
+    restaurantRepository,
+    userRepository,
+    prisma
+  );
+
+  const getListAreaUseCase = new GetListAreaUseCase(
+    areaRepository,
+    branchRepository,
+    restaurantRepository,
+    userRepository
+  );
+
+  const updateAreaUseCase = new UpdateAreaUseCase(
+    areaRepository,
+    branchRepository,
+    restaurantRepository,
+    userRepository
+  );
+
+  const deleteAreaUseCase = new DeleteAreaUseCase(
+    areaRepository,
+    branchRepository,
+    restaurantRepository,
+    userRepository
+  );
+
 
   // ✅ Category controller
   const categoryController = new CategoryController({
@@ -332,6 +371,13 @@ function createApp() {
     deleteStaffUseCase
   );
 
+  const areaController = new AreaController(
+    createAreaUseCase,
+    getListAreaUseCase,
+    updateAreaUseCase,
+    deleteAreaUseCase
+  );
+
   // Routes
   app.get('/', (req, res) => {
     res.json({
@@ -359,16 +405,16 @@ function createApp() {
 
   app.use('/api/v1/auth', createAuthRoutes(authController, authMiddleware));
   app.use('/api/v1/restaurants', createRestaurantRoutes(restaurantController, authMiddleware));
-  app.use('/api/v1/branches', createBranchRoutes(branchController, authMiddleware));
+
+  app.use('/api/v1/branches', createBranchRoutes(branchController, areaController, authMiddleware));
+  app.use('/api/v1/areas', createAreaRoutes(areaController, authMiddleware));
+  // ✅ Category routes
   app.use('/api/v1/categories', createCategoryRoutes(categoryController, authMiddleware));
   app.use('/api/v1/menu-items', createMenuItemRoutes(menuItemController, authMiddleware));
   app.use('/api/v1/customizations', createCustomizationRoutes(customizationController, authMiddleware));
   app.use('/api/v1/staff', createStaffRoutes(staffController, authMiddleware));
   app.use('/api/v1/public', createPublicRoutes(prisma));
   app.use('/api/v1/customer-orders', createCustomerOrderRoutes(prisma));
-
-  // Public branch menu endpoint (no auth required)
-  app.use('/api/v1/branches', createPublicBranchRoutes(branchController));
 
   // 404
   app.use((req, res) => {
