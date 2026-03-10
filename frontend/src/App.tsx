@@ -20,6 +20,7 @@ import Categories from "./pages/Categories";
 import CreateCategory from "./pages/CreateCategory";
 import EditCategory from "./pages/EditCategory";
 import MenuItems from "./pages/MenuItems";
+import OwnerMenuManagement from "./pages/OwnerMenuManagement";
 import CreateMenuItem from "./pages/CreateMenuItem";
 import EditMenuItem from "./pages/EditMenuItem";
 import Areas from "./pages/Areas";
@@ -41,6 +42,7 @@ import QRAnalytics from "./pages/QRAnalytics";
 import ApiTest from "./pages/ApiTest";
 import Register from "./pages/Register";
 import VerifyEmail from "./pages/VerifyEmail";
+import RestaurantInformation from "./pages/RestaurantInformation";
 
 const queryClient = new QueryClient();
 
@@ -76,7 +78,7 @@ const App = () => (
             <Route path="/categories/create" element={<CreateCategory />} />
             <Route path="/categories/:id/edit" element={<EditCategory />} />
             
-            {/* Menu Items Management */}
+            {/* Menu Items Management - Keep for backward compatibility */}
             <Route path="/menu-items" element={<MenuItems />} />
             <Route path="/menu-items/create" element={<CreateMenuItem />} />
             <Route path="/menu-items/:id/edit" element={<EditMenuItem />} />
@@ -112,7 +114,8 @@ const App = () => (
             {/* Owner Dashboard */}
             <Route path="/owner" element={<OwnerDashboard />} />
             <Route path="/owner/overview" element={<OwnerDashboard />} />
-            <Route path="/owner/restaurant" element={<Settings />} />
+            <Route path="/owner/restaurant" element={<OwnerDashboard />} />
+            <Route path="/owner/menu" element={<OwnerDashboard />} />
             <Route path="/owner/branding" element={<Settings />} />
             
             {/* Reviews */}

@@ -154,6 +154,36 @@ class RestaurantController {
       next(err);
     }
   }
+
+  /**
+   * GET /api/v1/restaurants/me
+   * Get current user's restaurant(s)
+   */
+  async getMyRestaurants(req, res, next) {
+    try {
+      const userId = req.user.userId;
+      const role = req.user.role;
+
+      let restaurants = [];
+
+      if (role === 'OWNER') {
+        // For owners, get all owned restaurants
+        restaurants = await this.getRestaurantDetailsUseCase.getOwnedRestaurants(userId);
+      } else if (req.user.restaurantId) {
+        // For staff/managers, get their assigned restaurant
+        const restaurant = await this.getRestaurantDetailsUseCase.execute(req.user.restaurantId);
+        restaurants = restaurant ? [restaurant] : [];
+      }
+
+      res.status(200).json({
+        success: true,
+        message: 'User restaurants',
+        data: restaurants,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
 }
 
 module.exports = { RestaurantController };

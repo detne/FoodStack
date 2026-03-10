@@ -27,6 +27,8 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import OwnerOverview from './OwnerOverview';
+import RestaurantInformation from './RestaurantInformation';
+import OwnerMenuManagement from './OwnerMenuManagement';
 
 interface NavItem {
   title: string;
@@ -51,7 +53,7 @@ const navItems: NavItem[] = [
   {
     title: 'Menu Management',
     subtitle: 'Manage menu items',
-    href: '/menu-items',
+    href: '/owner/menu',
     icon: UtensilsCrossed,
   },
   {
@@ -268,6 +270,10 @@ export default function OwnerDashboard() {
             {/* Show Overview by default or nested routes */}
             {location.pathname === '/owner' || location.pathname === '/owner/' ? (
               <OwnerOverview />
+            ) : location.pathname === '/owner/restaurant' ? (
+              <RestaurantInformation />
+            ) : location.pathname === '/owner/menu' ? (
+              <OwnerMenuManagement />
             ) : (
               <Outlet />
             )}

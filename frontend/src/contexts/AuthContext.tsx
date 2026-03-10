@@ -58,9 +58,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const response = await apiClient.login(email, password);
       
       if (response.success && response.data) {
-        const { accessToken, refreshToken, user: userData } = response.data;
+        const { accessToken, access_token, refreshToken, refresh_token, user: userData } = response.data;
         
-        if (!accessToken) {
+        // Handle both accessToken and access_token formats
+        const token = accessToken || access_token;
+        const refreshTokenValue = refreshToken || refresh_token;
+        
+        if (!token) {
           throw new Error('No access token received from server');
         }
         
@@ -75,9 +79,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           restaurant: userData.restaurant,
         };
         
-        apiClient.setToken(accessToken);
-        localStorage.setItem('refresh_token', refreshToken);
+        apiClient.setToken(token);
+        console.log('Token set in apiClient:', token ? 'Success' : 'Failed');
+        
+        if (refreshTokenValue) {
+          localStorage.setItem('refresh_token', refreshTokenValue);
+        }
         localStorage.setItem('user', JSON.stringify(normalizedUser));
+        console.log('User saved to localStorage:', normalizedUser);
+        
         setUser(normalizedUser);
         
         return normalizedUser;
