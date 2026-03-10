@@ -13,6 +13,23 @@ class RestaurantRepository {
     });
   }
 
+  /**
+   * Find restaurants by owner ID
+   * @param {string} ownerId - Owner user ID
+   * @returns {Promise<Array>} Array of restaurants
+   */
+  async findByOwnerId(ownerId) {
+    return await this.prisma.restaurants.findMany({
+      where: { 
+        owner_id: ownerId,
+        deleted_at: null 
+      },
+      orderBy: {
+        created_at: 'desc'
+      }
+    });
+  }
+
   async create(data, tx) {
     const client = tx || this.prisma;
     const { v4: uuidv4 } = require('uuid');

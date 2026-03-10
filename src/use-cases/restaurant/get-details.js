@@ -29,6 +29,7 @@ class GetRestaurantDetailsUseCase {
             name: restaurant.name,
             email: restaurant.email,
             phone: restaurant.phone,
+            address: restaurant.address,
             status: restaurant.status,
 
             createdAt: restaurant.created_at,
@@ -48,6 +49,30 @@ class GetRestaurantDetailsUseCase {
                 updatedAt: b.updated_at,
             })),
         };
+    }
+
+    /**
+     * Get restaurants owned by a user (for OWNER role)
+     * @param {string} ownerId - User ID who owns the restaurants
+     * @returns {Promise<Array>} Array of restaurants
+     */
+    async getOwnedRestaurants(ownerId) {
+        if (!ownerId) throw new Error('Owner ID is required');
+
+        const restaurants = await this.restaurantRepository.findByOwnerId(ownerId);
+        
+        return restaurants.map(restaurant => ({
+            id: restaurant.id,
+            name: restaurant.name,
+            email: restaurant.email,
+            phone: restaurant.phone,
+            address: restaurant.address,
+            logoUrl: restaurant.logo_url,
+            status: restaurant.status,
+            emailVerified: restaurant.email_verified,
+            createdAt: restaurant.created_at,
+            updatedAt: restaurant.updated_at,
+        }));
     }
 }
 
