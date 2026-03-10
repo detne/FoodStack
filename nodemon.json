@@ -18,5 +18,7 @@
   },
   "env": {
     "NODE_ENV": "development"
-  }
+  },
+  "signal": "SIGUSR2",
+  "restartable": "rs"
 }

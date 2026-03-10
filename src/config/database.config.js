@@ -20,14 +20,23 @@ const prismaClientSingleton = () => {
       { level: 'warn', emit: 'event' },
     ],
     errorFormat: 'minimal',
+    // Force disable prepared statements in development to avoid conflicts
+    datasources: {
+      db: {
+        url: process.env.DATABASE_URL,
+      },
+    },
   });
 };
 
+// Use globalThis for better compatibility
+const globalForPrisma = globalThis;
+
 /** @type {PrismaClient} */
-const prisma = global.prisma || prismaClientSingleton();
+const prisma = globalForPrisma.prisma ?? prismaClientSingleton();
 
 if (process.env.NODE_ENV !== 'production') {
-  global.prisma = prisma;
+  globalForPrisma.prisma = prisma;
 }
 
 // Prisma logging
@@ -45,11 +54,20 @@ prisma.$on('error', (e) => {
   logger.error('Prisma Error', { error: e });
 });
 
-// Graceful shutdown
-process.on('beforeExit', async () => {
-  await prisma.$disconnect();
-  logger.info('Prisma disconnected');
-});
+// Graceful shutdown handlers
+const disconnectPrisma = async () => {
+  try {
+    await prisma.$disconnect();
+    logger.info('Prisma disconnected');
+  } catch (error) {
+    logger.error('Error disconnecting Prisma', { error });
+  }
+};
+
+process.on('beforeExit', disconnectPrisma);
+process.on('SIGINT', disconnectPrisma);
+process.on('SIGTERM', disconnectPrisma);
+process.on('SIGUSR2', disconnectPrisma); // nodemon restart signal
 
 // =====================================================
 // MongoDB Configuration (Mongoose)

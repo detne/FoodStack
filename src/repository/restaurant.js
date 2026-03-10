@@ -1,8 +1,10 @@
 const { PrismaClient } = require('@prisma/client');
 
+const { prisma } = require('../config/database.config');
+
 class RestaurantRepository {
-  constructor(prisma) {
-    this.prisma = prisma || new PrismaClient();
+  constructor(prismaClient) {
+    this.prisma = prismaClient || prisma;
   }
 
   async findById(id) {

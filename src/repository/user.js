@@ -3,11 +3,11 @@
  * Data access layer for User entity
  */
 
-const { PrismaClient } = require('@prisma/client');
+const { prisma } = require('../config/database.config');
 
 class UserRepository {
-  constructor(prisma) {
-    this.prisma = prisma || new PrismaClient();
+  constructor(prismaClient) {
+    this.prisma = prismaClient || prisma;
   }
 
   /**
@@ -16,62 +16,30 @@ class UserRepository {
    * @returns {Promise<Object|null>} User object or null
    */
   async findByEmail(email) {
-    try {
-      const user = await this.prisma.users.findUnique({
-        where: { email },
-        include: {
-          // restaurant user đang thuộc (Staff/Manager) - nullable
-          restaurants: {
-            select: { id: true, name: true, email_verified: true },
-          },
-        },
-      });
-
-      if (!user) return null;
-
-      // If user is OWNER, fetch owned restaurants separately
-      if (user.role === 'OWNER') {
-        const ownedRestaurants = await this.prisma.restaurants.findMany({
-          where: { owner_id: user.id },
+    const user = await this.prisma.users.findUnique({
+      where: { email },
+      include: {
+        // restaurant user đang thuộc (Staff/Manager) - nullable
+        restaurants: {
           select: { id: true, name: true, email_verified: true },
-        });
-        
-        // Add owned_restaurants to user object
-        user.owned_restaurants = ownedRestaurants;
-      }
+        },
+      },
+    });
 
-      return user;
-    } catch (error) {
-      // If Prisma error, try to reconnect
-      if (error.code === '42P05') {
-        console.error('[PRISMA ERROR] Prepared statement error, reconnecting...');
-        await this.prisma.$disconnect();
-        await this.prisma.$connect();
-        
-        // Retry once
-        const user = await this.prisma.users.findUnique({
-          where: { email },
-          include: {
-            restaurants: {
-              select: { id: true, name: true, email_verified: true },
-            },
-          },
-        });
+    if (!user) return null;
 
-        if (!user) return null;
-
-        if (user.role === 'OWNER') {
-          const ownedRestaurants = await this.prisma.restaurants.findMany({
-            where: { owner_id: user.id },
-            select: { id: true, name: true, email_verified: true },
-          });
-          user.owned_restaurants = ownedRestaurants;
-        }
-
-        return user;
-      }
-      throw error;
+    // If user is OWNER, fetch owned restaurants separately
+    if (user.role === 'OWNER') {
+      const ownedRestaurants = await this.prisma.restaurants.findMany({
+        where: { owner_id: user.id },
+        select: { id: true, name: true, email_verified: true },
+      });
+      
+      // Add owned_restaurants to user object
+      user.owned_restaurants = ownedRestaurants;
     }
+
+    return user;
   }
 
   async findById(id) {
