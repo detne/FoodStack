@@ -152,6 +152,13 @@ class ApiClient {
     });
   }
 
+  async verifyEmailOtp(email: string, otp: string) {
+    return this.request('/auth/verify-email-otp', {
+      method: 'POST',
+      body: JSON.stringify({ email, otp }),
+    });
+  }
+
   // Restaurant endpoints
   async getRestaurant(id: string) {
     return this.request(`/restaurants/${id}`);

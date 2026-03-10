@@ -1,0 +1,22 @@
+{
+  "watch": ["src"],
+  "ext": "js,json",
+  "ignore": [
+    "src/**/*.test.js",
+    "node_modules",
+    "logs",
+    "uploads"
+  ],
+  "delay": "2000",
+  "verbose": false,
+  "execMap": {
+    "js": "node"
+  },
+  "events": {
+    "restart": "echo '\n🔄 Backend restarting due to file changes...\n'",
+    "crash": "echo '\n❌ Backend crashed - waiting for changes...\n'"
+  },
+  "env": {
+    "NODE_ENV": "development"
+  }
+}

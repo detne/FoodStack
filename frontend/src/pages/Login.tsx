@@ -25,12 +25,18 @@ const Login = () => {
     setIsLoading(true);
     
     try {
-      await login(email, password);
+      const userData = await login(email, password);
       toast({
         title: "Login successful",
         description: "Welcome back!",
       });
-      navigate("/dashboard");
+      
+      // Redirect based on user role
+      if (userData?.role === 'OWNER') {
+        navigate("/owner");
+      } else {
+        navigate("/dashboard");
+      }
     } catch (error: any) {
       toast({
         title: "Login failed",
@@ -70,7 +76,7 @@ const Login = () => {
         </div>
         <div className="flex items-center gap-2">
           <span className="text-sm text-gray-600">Don't have an account?</span>
-          <Link to="/onboarding">
+          <Link to="/register">
             <Button variant="link" className="text-indigo-600 font-medium p-0">
               Sign Up
             </Button>

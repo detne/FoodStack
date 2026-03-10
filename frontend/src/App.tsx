@@ -36,6 +36,11 @@ import ServiceRequests from "./pages/ServiceRequests";
 import KitchenDisplay from "./pages/KitchenDisplay";
 import UIShowcase from "./pages/UIShowcase";
 import NotFound from "./pages/NotFound";
+import OwnerDashboard from "./pages/OwnerDashboard";
+import QRAnalytics from "./pages/QRAnalytics";
+import ApiTest from "./pages/ApiTest";
+import Register from "./pages/Register";
+import VerifyEmail from "./pages/VerifyEmail";
 
 const queryClient = new QueryClient();
 
@@ -49,8 +54,11 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/ui-showcase" element={<UIShowcase />} />
+            <Route path="/api-test" element={<ApiTest />} />
             <Route path="/pricing" element={<Pricing />} />
             <Route path="/onboarding" element={<Onboarding />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/login" element={<Login />} />
             <Route path="/restaurant-selector" element={<RestaurantSelector />} />
             <Route path="/branch-selector" element={<BranchSelector />} />
@@ -99,6 +107,13 @@ const App = () => (
             
             {/* Analytics */}
             <Route path="/analytics" element={<Analytics />} />
+            <Route path="/qr-analytics" element={<QRAnalytics />} />
+            
+            {/* Owner Dashboard */}
+            <Route path="/owner" element={<OwnerDashboard />} />
+            <Route path="/owner/overview" element={<OwnerDashboard />} />
+            <Route path="/owner/restaurant" element={<Settings />} />
+            <Route path="/owner/branding" element={<Settings />} />
             
             {/* Reviews */}
             <Route path="/reviews" element={<Reviews />} />

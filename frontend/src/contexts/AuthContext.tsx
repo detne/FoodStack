@@ -10,15 +10,22 @@ import { useNavigate } from 'react-router-dom';
 interface User {
   id: string;
   email: string;
-  full_name: string;
-  role?: string;
+  fullName: string;
+  full_name?: string; // For backward compatibility
+  role: string;
+  restaurantId?: string;
+  restaurant?: {
+    id: string;
+    name: string;
+    email_verified: boolean;
+  };
 }
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<User | undefined>;
   logout: () => Promise<void>;
   register: (data: any) => Promise<void>;
 }
@@ -51,20 +58,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const response = await apiClient.login(email, password);
       
       if (response.success && response.data) {
-        // Backend returns accessToken (camelCase), not access_token
-        const accessToken = response.data.accessToken || response.data.access_token;
-        const refreshToken = response.data.refreshToken || response.data.refresh_token;
+        const { accessToken, refreshToken, user: userData } = response.data;
         
         if (!accessToken) {
           throw new Error('No access token received from server');
         }
         
+        // Normalize user data
+        const normalizedUser: User = {
+          id: userData.id,
+          email: userData.email,
+          fullName: userData.fullName,
+          full_name: userData.fullName, // For backward compatibility
+          role: userData.role,
+          restaurantId: userData.restaurantId,
+          restaurant: userData.restaurant,
+        };
+        
         apiClient.setToken(accessToken);
         localStorage.setItem('refresh_token', refreshToken);
-        localStorage.setItem('user', JSON.stringify(response.data.user));
-        setUser(response.data.user);
+        localStorage.setItem('user', JSON.stringify(normalizedUser));
+        setUser(normalizedUser);
+        
+        return normalizedUser;
       }
     } catch (error: any) {
+      console.error('Login error:', error);
       throw new Error(error.message || 'Login failed');
     }
   };
