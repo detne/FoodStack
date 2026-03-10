@@ -1,6 +1,4 @@
-const { v4: uuidv4 } = require('uuid');
-
-class CreateAreaUseCase {
+class DeleteAreaUseCase {
   constructor(areaRepository, branchRepository, restaurantRepository, userRepository) {
     this.areaRepository = areaRepository;
     this.branchRepository = branchRepository;
@@ -8,7 +6,7 @@ class CreateAreaUseCase {
     this.userRepository = userRepository;
   }
 
-  async execute(branchId, dto, context) {
+  async execute(areaId, context) {
     const role = (context?.role || '').toLowerCase();
     if (role !== 'owner' && role !== 'manager') {
       const err = new Error('Forbidden: Owner/Manager only');
@@ -16,22 +14,23 @@ class CreateAreaUseCase {
       throw err;
     }
 
-    const name = dto.name.trim();
-    if (!name) {
-      const err = new Error('Invalid area name');
-      err.status = 400;
+    // 1) Area tồn tại
+    const area = await this.areaRepository.findById(areaId);
+    if (!area || area.deleted_at) {
+      const err = new Error('Area not found');
+      err.status = 404;
       throw err;
     }
 
-    // 1) Branch tồn tại
-    const branch = await this.branchRepository.findById(branchId);
+    // 2) Branch tồn tại để check quyền theo restaurant
+    const branch = await this.branchRepository.findById(area.branch_id);
     if (!branch || branch.deleted_at) {
       const err = new Error('Branch not found');
       err.status = 404;
       throw err;
     }
 
-    // 2) Check quyền theo restaurant chứa branch
+    // 3) Check quyền
     if (role === 'owner') {
       const restaurant = await this.restaurantRepository.findOwnerIdById(branch.restaurant_id);
       if (!restaurant || restaurant.owner_id !== context.userId) {
@@ -48,35 +47,19 @@ class CreateAreaUseCase {
       }
     }
 
-    // 3) Không trùng tên trong cùng branch
-    const exists = await this.areaRepository.findByBranchAndName(branchId, name);
-    if (exists) {
-      const err = new Error('Area name already exists in this branch');
+    // 4) Không cho xoá nếu còn bàn đang hoạt động
+    const activeTablesCount = await this.areaRepository.countActiveTables(areaId);
+    if (activeTablesCount > 0) {
+      const err = new Error('Cannot delete area: there are active tables in this area');
       err.status = 409;
       throw err;
     }
 
-    // 4) Create
-    const now = new Date();
-    const area = await this.areaRepository.create({
-      id: uuidv4(),
-      branch_id: branchId,
-      name,
-      sort_order: dto.sortOrder ?? 0,
-      created_at: now,
-      updated_at: now,
-      deleted_at: null,
-    });
+    // 5) Xoá cứng
+    await this.areaRepository.deleteHard(areaId);
 
-    return {
-      id: area.id,
-      branch_id: area.branch_id,
-      name: area.name,
-      sort_order: area.sort_order,
-      created_at: area.created_at,
-      updated_at: area.updated_at,
-    };
+    return { message: 'Area deleted successfully' };
   }
 }
 
-module.exports = { CreateAreaUseCase };
+module.exports = { DeleteAreaUseCase };
