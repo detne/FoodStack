@@ -1,9 +1,6 @@
 // src/repository/customization.js
 
 const { prisma } = require('../config/database.config');
-
-const { prisma } = require('../config/database.config');
-
 class CustomizationRepository {
   constructor(prismaClient) {
     this.prisma = prismaClient || prisma;

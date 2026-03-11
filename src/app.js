@@ -67,6 +67,7 @@ const { CreateStaffUseCase } = require('./use-cases/staff/create-staff');
 const { UpdateStaffUseCase } = require('./use-cases/staff/update-staff');
 const { UpdateStaffRoleUseCase } = require('./use-cases/staff/update-staff-role');
 const { DeleteStaffUseCase } = require('./use-cases/staff/delete-staff');
+const { GetStaffListUseCase } = require('./use-cases/staff/get-staff-list');
 
 // Controllers
 const { AuthController } = require('./controller/auth');
@@ -360,12 +361,20 @@ function createApp() {
     tokenService
   );
 
+  const getStaffListUseCase = new GetStaffListUseCase(
+    userRepository,
+    restaurantRepository,
+    branchRepository,
+    prisma
+  );
+
   // ✅ Staff controller
   const staffController = new StaffController(
     createStaffUseCase,
     updateStaffUseCase,
     updateStaffRoleUseCase,
-    deleteStaffUseCase
+    deleteStaffUseCase,
+    getStaffListUseCase
   );
 
   const areaController = new AreaController(

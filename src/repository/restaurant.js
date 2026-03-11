@@ -5,8 +5,6 @@
 
 const { prisma } = require('../config/database.config');
 
-const { prisma } = require('../config/database.config');
-
 class RestaurantRepository {
   constructor(prismaClient) {
     this.prisma = prismaClient || prisma;
