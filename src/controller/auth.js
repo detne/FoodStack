@@ -199,6 +199,25 @@ class AuthController {
       next(err);
     }
   }
+
+  /**
+   * Get current user info
+   * GET /api/v1/auth/me
+   */
+  async getMe(req, res, next) {
+    try {
+      // User info is already available from auth middleware
+      const user = req.user;
+      
+      res.status(200).json({
+        success: true,
+        message: 'User info retrieved',
+        data: user,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 module.exports = { AuthController };

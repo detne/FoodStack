@@ -135,6 +135,17 @@ function createAuthRoutes(authController, authMiddleware) {
     (req, res, next) => authController.verifyEmailOtp(req, res, next)
   );
 
+  /**
+   * @route   GET /api/v1/auth/me
+   * @desc    Get current user info
+   * @access  Private
+   */
+  router.get(
+    '/me',
+    authMiddleware,
+    (req, res, next) => authController.getMe(req, res, next)
+  );
+
   return router;
 }
 

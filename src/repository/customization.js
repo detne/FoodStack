@@ -1,9 +1,11 @@
 // src/repository/customization.js
 const { PrismaClient } = require('@prisma/client');
 
+const { prisma } = require('../config/database.config');
+
 class CustomizationRepository {
-  constructor(prisma) {
-    this.prisma = prisma || new PrismaClient();
+  constructor(prismaClient) {
+    this.prisma = prismaClient || prisma;
   }
 
   async createGroup(data) {

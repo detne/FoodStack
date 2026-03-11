@@ -1,13 +1,32 @@
 const { PrismaClient } = require('@prisma/client');
 
+const { prisma } = require('../config/database.config');
+
 class RestaurantRepository {
-  constructor(prisma) {
-    this.prisma = prisma || new PrismaClient();
+  constructor(prismaClient) {
+    this.prisma = prismaClient || prisma;
   }
 
   async findById(id) {
     return await this.prisma.restaurants.findUnique({
       where: { id },
+    });
+  }
+
+  /**
+   * Find restaurants by owner ID
+   * @param {string} ownerId - Owner user ID
+   * @returns {Promise<Array>} Array of restaurants
+   */
+  async findByOwnerId(ownerId) {
+    return await this.prisma.restaurants.findMany({
+      where: { 
+        owner_id: ownerId,
+        deleted_at: null 
+      },
+      orderBy: {
+        created_at: 'desc'
+      }
     });
   }
 
