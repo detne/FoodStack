@@ -5,7 +5,7 @@
 
 const express = require('express');
 const { PrismaClient } = require('@prisma/client');
-
+const prisma = require("./config/prisma");
 // Services
 const { TokenService } = require('./service/token');
 const { EmailService } = require('./service/email');
@@ -65,6 +65,7 @@ const { AddCustomizationOptionUseCase } = require('./use-cases/customization/add
 
 const { CreateStaffUseCase } = require('./use-cases/staff/create-staff');
 const { UpdateStaffUseCase } = require('./use-cases/staff/update-staff');
+const { UpdateStaffRoleUseCase } = require('./use-cases/staff/update-staff-role');
 const { DeleteStaffUseCase } = require('./use-cases/staff/delete-staff');
 
 // Controllers
@@ -113,14 +114,6 @@ function createApp() {
       return res.sendStatus(200);
     }
     next();
-  });
-
-  // Prisma
-  const prisma = new PrismaClient({
-    datasources: {
-      db: { url: process.env.DATABASE_URL },
-    },
-    log: ['error', 'warn'],
   });
 
   // Handle Prisma disconnect on app shutdown
@@ -359,6 +352,11 @@ function createApp() {
     prisma
   );
 
+  const updateStaffRoleUseCase = new UpdateStaffRoleUseCase(
+    userRepository,
+    prisma
+  );
+
   const deleteStaffUseCase = new DeleteStaffUseCase(
     userRepository,
     tokenService
@@ -368,6 +366,7 @@ function createApp() {
   const staffController = new StaffController(
     createStaffUseCase,
     updateStaffUseCase,
+    updateStaffRoleUseCase,
     deleteStaffUseCase
   );
 

@@ -1,9 +1,11 @@
 // src/repository/menu-item.js
-const { PrismaClient } = require('@prisma/client');
 
 class MenuItemRepository {
   constructor(prisma) {
-    this.prisma = prisma || new PrismaClient();
+    if (!prisma) {
+      throw new Error('Prisma client instance is required');
+    }
+    this.prisma = prisma;
   }
 
   async findById(id) {

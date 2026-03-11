@@ -1,9 +1,11 @@
 // src/repository/category.js
-const { PrismaClient } = require('@prisma/client');
 
 class CategoryRepository {
   constructor(prisma) {
-    this.prisma = prisma || new PrismaClient();
+    if (!prisma) {
+      throw new Error('Prisma client instance is required');
+    }
+    this.prisma = prisma;
   }
 
   async findById(id) {
@@ -36,7 +38,7 @@ class CategoryRepository {
     const client = tx || this.prisma;
     const { v4: uuidv4 } = require('uuid');
 
-    return client.categories.create({
+    return await client.categories.create({
       data: {
         id: uuidv4(),
         branch_id: data.branchId,

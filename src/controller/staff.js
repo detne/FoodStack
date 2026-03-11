@@ -2,11 +2,18 @@
 
 const { CreateStaffSchema } = require('../dto/staff/create-staff');
 const { UpdateStaffSchema } = require('../dto/staff/update-staff');
+const { UpdateStaffRoleSchema } = require('../dto/staff/update-staff-role');
 
 class StaffController {
-  constructor(createStaffUseCase, updateStaffUseCase, deleteStaffUseCase) {
+  constructor(
+    createStaffUseCase,
+    updateStaffUseCase,
+    updateStaffRoleUseCase,
+    deleteStaffUseCase
+  ) {
     this.createStaffUseCase = createStaffUseCase;
     this.updateStaffUseCase = updateStaffUseCase;
+    this.updateStaffRoleUseCase = updateStaffRoleUseCase;
     this.deleteStaffUseCase = deleteStaffUseCase;
   }
 
@@ -61,6 +68,32 @@ class StaffController {
           restaurantId: result.restaurantId,
           status: result.status,
           updatedAt: result.updatedAt,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async updateStaffRole(req, res, next) {
+    try {
+      // Validate input
+      const dto = UpdateStaffRoleSchema.parse(req.body);
+      const staffId = req.params.id;
+
+      // Execute use case with current user context
+      const result = await this.updateStaffRoleUseCase.execute(staffId, dto, req.user);
+
+      // Return response
+      res.status(200).json({
+        success: true,
+        message: result.message,
+        data: {
+          userId: result.userId,
+          email: result.email,
+          name: result.name,
+          role: result.role,
+          status: result.status,
         },
       });
     } catch (error) {

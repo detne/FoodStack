@@ -1,8 +1,9 @@
-const { PrismaClient } = require('@prisma/client');
-
 class AreaRepository {
   constructor(prisma) {
-    this.prisma = prisma || new PrismaClient();
+    if (!prisma) {
+      throw new Error('Prisma client instance is required');
+    }
+    this.prisma = prisma;
   }
 
   async findByBranchAndName(branchId, name, tx) {
@@ -11,12 +12,11 @@ class AreaRepository {
       where: {
         branch_id: branchId,
         deleted_at: null,
-        name: { equals: name, mode: 'insensitive' }, // Postgres
+        name: { equals: name, mode: 'insensitive' },
       },
     });
   }
 
-  // ✅ NEW: find area by id
   async findById(areaId, tx) {
     const client = tx || this.prisma;
     return await client.areas.findUnique({
@@ -24,7 +24,6 @@ class AreaRepository {
     });
   }
 
-  // ✅ NEW: check duplicate name in branch excluding current area
   async findByBranchAndNameExcludeId(branchId, name, excludeAreaId, tx) {
     const client = tx || this.prisma;
     return await client.areas.findFirst({
@@ -45,7 +44,6 @@ class AreaRepository {
     });
   }
 
-  // ✅ NEW: update area
   async update(areaId, data, tx) {
     const client = tx || this.prisma;
     return await client.areas.update({
@@ -78,7 +76,7 @@ class AreaRepository {
     return await client.tables.count({
       where: {
         area_id: areaId,
-        deleted_at: null, // "đang hoạt động" = chưa bị xoá
+        deleted_at: null,
       },
     });
   }

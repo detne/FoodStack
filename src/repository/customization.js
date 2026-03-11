@@ -1,9 +1,11 @@
 // src/repository/customization.js
-const { PrismaClient } = require('@prisma/client');
 
 class CustomizationRepository {
   constructor(prisma) {
-    this.prisma = prisma || new PrismaClient();
+    if (!prisma) {
+      throw new Error('Prisma client instance is required');
+    }
+    this.prisma = prisma;
   }
 
   async createGroup(data) {
@@ -26,7 +28,7 @@ class CustomizationRepository {
   async createOptions(groupId, options) {
     const { v4: uuidv4 } = require('uuid');
 
-    const optionData = options.map(option => ({
+    const optionData = options.map((option) => ({
       id: uuidv4(),
       customization_group_id: groupId,
       name: option.name,
@@ -79,7 +81,7 @@ class CustomizationRepository {
         customization_options: {
           orderBy: { sort_order: 'asc' },
         },
-        menu_item_customizations: true, // Chỉ lấy junction table, không include menu_items
+        menu_item_customizations: true,
       },
     });
   }
