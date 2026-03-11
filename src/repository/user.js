@@ -3,12 +3,11 @@
  * Data access layer for User entity
  */
 
+const { prisma } = require('../config/database.config');
+
 class UserRepository {
-  constructor(prisma) {
-    if (!prisma) {
-      throw new Error('Prisma client instance is required');
-    }
-    this.prisma = prisma;
+  constructor(prismaClient) {
+    this.prisma = prismaClient || prisma;
   }
 
   /**
@@ -17,34 +16,56 @@ class UserRepository {
    * @returns {Promise<Object|null>} User object or null
    */
   async findByEmail(email) {
-    return await this.prisma.users.findUnique({
+    const user = await this.prisma.users.findUnique({
       where: { email },
       include: {
         // restaurant user đang thuộc (Staff/Manager) - nullable
         restaurants: {
           select: { id: true, name: true, email_verified: true },
         },
-
-        // restaurants mà Owner sở hữu (nhiều)
-        owned_restaurants: {
-          select: { id: true, name: true, email_verified: true },
-        },
       },
     });
+
+    if (!user) return null;
+
+    // If user is OWNER, fetch owned restaurants separately
+    if (user.role === 'OWNER') {
+      const ownedRestaurants = await this.prisma.restaurants.findMany({
+        where: { owner_id: user.id },
+        select: { id: true, name: true, email_verified: true },
+      });
+      
+      // Add owned_restaurants to user object
+      user.owned_restaurants = ownedRestaurants;
+    }
+
+    return user;
   }
 
   async findById(id) {
-    return await this.prisma.users.findUnique({
+    const user = await this.prisma.users.findUnique({
       where: { id },
       include: {
         restaurants: {
           select: { id: true, name: true, email_verified: true },
         },
-        owned_restaurants: {
-          select: { id: true, name: true, email_verified: true },
-        },
       },
     });
+
+    if (!user) return null;
+
+    // If user is OWNER, fetch owned restaurants separately
+    if (user.role === 'OWNER') {
+      const ownedRestaurants = await this.prisma.restaurants.findMany({
+        where: { owner_id: user.id },
+        select: { id: true, name: true, email_verified: true },
+      });
+      
+      // Add owned_restaurants to user object
+      user.owned_restaurants = ownedRestaurants;
+    }
+
+    return user;
   }
 
   /**

@@ -1,3 +1,6 @@
+const { PrismaClient } = require('@prisma/client');
+
+const { prisma } = require('../config/database.config');
 class AreaRepository {
   constructor(prisma) {
     if (!prisma) {
