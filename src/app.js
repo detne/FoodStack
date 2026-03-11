@@ -68,6 +68,7 @@ const { UpdateStaffUseCase } = require('./use-cases/staff/update-staff');
 const { UpdateStaffRoleUseCase } = require('./use-cases/staff/update-staff-role');
 const { DeleteStaffUseCase } = require('./use-cases/staff/delete-staff');
 const { GetStaffListUseCase } = require('./use-cases/staff/get-staff-list');
+const { SetStaffStatusUseCase } = require('./use-cases/staff/set-staff-status');
 
 // Controllers
 const { AuthController } = require('./controller/auth');
@@ -368,13 +369,18 @@ function createApp() {
     prisma
   );
 
+  const setStaffStatusUseCase = new SetStaffStatusUseCase(
+    userRepository
+  );
+
   // ✅ Staff controller
   const staffController = new StaffController(
     createStaffUseCase,
     updateStaffUseCase,
     updateStaffRoleUseCase,
     deleteStaffUseCase,
-    getStaffListUseCase
+    getStaffListUseCase,
+    setStaffStatusUseCase
   );
 
   const areaController = new AreaController(

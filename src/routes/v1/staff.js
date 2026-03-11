@@ -5,6 +5,7 @@ const { CreateStaffSchema } = require('../../dto/staff/create-staff');
 const { UpdateStaffSchema } = require('../../dto/staff/update-staff');
 const { UpdateStaffRoleSchema } = require('../../dto/staff/update-staff-role');
 const { GetStaffListSchema } = require('../../dto/staff/get-staff-list');
+const { SetStaffStatusSchema } = require('../../dto/staff/set-staff-status');
 
 /**
  * Validation middleware
@@ -99,6 +100,19 @@ function createStaffRoutes(staffController, authMiddleware) {
     '/:id',
     authMiddleware,
     (req, res, next) => staffController.deleteStaff(req, res, next)
+  );
+
+  /**
+   * @route   PATCH /api/v1/staff/:id/status
+   * @desc    Activate/Deactivate staff account (Owner/Manager only)
+   * @access  Private (OWNER, MANAGER)
+   * @body    status - 'ACTIVE' or 'INACTIVE'
+   */
+  router.patch(
+    '/:id/status',
+    authMiddleware,
+    validateRequest(SetStaffStatusSchema),
+    (req, res, next) => staffController.setStaffStatus(req, res, next)
   );
 
   return router;

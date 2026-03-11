@@ -4,6 +4,7 @@ const { CreateStaffSchema } = require('../dto/staff/create-staff');
 const { UpdateStaffSchema } = require('../dto/staff/update-staff');
 const { UpdateStaffRoleSchema } = require('../dto/staff/update-staff-role');
 const { GetStaffListSchema } = require('../dto/staff/get-staff-list');
+const { SetStaffStatusSchema } = require('../dto/staff/set-staff-status');
 
 class StaffController {
   constructor(
@@ -11,13 +12,15 @@ class StaffController {
     updateStaffUseCase,
     updateStaffRoleUseCase,
     deleteStaffUseCase,
-    getStaffListUseCase
+    getStaffListUseCase,
+    setStaffStatusUseCase
   ) {
     this.createStaffUseCase = createStaffUseCase;
     this.updateStaffUseCase = updateStaffUseCase;
     this.updateStaffRoleUseCase = updateStaffRoleUseCase;
     this.deleteStaffUseCase = deleteStaffUseCase;
     this.getStaffListUseCase = getStaffListUseCase;
+    this.setStaffStatusUseCase = setStaffStatusUseCase;
   }
 
   async createStaff(req, res, next) {
@@ -145,6 +148,31 @@ class StaffController {
         message: result.message,
         data: result.staff,
         pagination: result.pagination,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async setStaffStatus(req, res, next) {
+    try {
+      // Validate input
+      const dto = SetStaffStatusSchema.parse(req.body);
+      const staffId = req.params.id;
+
+      // Execute use case with current user context
+      const result = await this.setStaffStatusUseCase.execute(staffId, dto, req.user);
+
+      // Return response
+      res.status(200).json({
+        success: true,
+        message: result.message,
+        data: {
+          userId: result.userId,
+          email: result.email,
+          name: result.name,
+          status: result.status,
+        },
       });
     } catch (error) {
       next(error);
