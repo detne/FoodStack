@@ -19,6 +19,16 @@ function createRestaurantRoutes(restaurantController, authMiddleware = null) {
     throw new Error('authMiddleware is required');
   }
 
+  // GET /api/v1/restaurants/me - Get current user's restaurants (must be before /:id)
+  router.get('/me', authMiddleware, (req, res, next) =>
+    restaurantController.getMyRestaurants(req, res, next)
+  );
+
+  // GET /api/v1/restaurants/me/statistics?from=...&to=... - Get restaurant statistics
+  router.get('/me/statistics', authMiddleware, (req, res, next) =>
+    restaurantController.getMyStatistics(req, res, next)
+  );
+
   // GET /api/v1/restaurants/:id - Get restaurant details (public)
   router.get('/:id', (req, res, next) =>
     restaurantController.getDetails(req, res, next)
@@ -55,9 +65,9 @@ function createRestaurantRoutes(restaurantController, authMiddleware = null) {
     (req, res, next) => restaurantController.deleteRestaurant(req, res, next)
   );
 
-  // GET /api/v1/restaurants/me/statistics?from=...&to=... - Get restaurant statistics
-  router.get('/me/statistics', authMiddleware, (req, res, next) =>
-    restaurantController.getMyStatistics(req, res, next)
+  // GET /api/v1/restaurants/me - Get current user's restaurants
+  router.get('/me', authMiddleware, (req, res, next) =>
+    restaurantController.getMyRestaurants(req, res, next)
   );
 
   return router;

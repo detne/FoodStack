@@ -1,11 +1,10 @@
 // src/repository/menu-item.js
 
+const { prisma } = require('../config/database.config');
+
 class MenuItemRepository {
-  constructor(prisma) {
-    if (!prisma) {
-      throw new Error('Prisma client instance is required');
-    }
-    this.prisma = prisma;
+  constructor(prismaClient) {
+    this.prisma = prismaClient || prisma;
   }
 
   async findById(id) {

@@ -20,6 +20,7 @@ import Categories from "./pages/Categories";
 import CreateCategory from "./pages/CreateCategory";
 import EditCategory from "./pages/EditCategory";
 import MenuItems from "./pages/MenuItems";
+import OwnerMenuManagement from "./pages/OwnerMenuManagement";
 import CreateMenuItem from "./pages/CreateMenuItem";
 import EditMenuItem from "./pages/EditMenuItem";
 import Areas from "./pages/Areas";
@@ -36,6 +37,12 @@ import ServiceRequests from "./pages/ServiceRequests";
 import KitchenDisplay from "./pages/KitchenDisplay";
 import UIShowcase from "./pages/UIShowcase";
 import NotFound from "./pages/NotFound";
+import OwnerDashboard from "./pages/OwnerDashboard";
+import QRAnalytics from "./pages/QRAnalytics";
+import ApiTest from "./pages/ApiTest";
+import Register from "./pages/Register";
+import VerifyEmail from "./pages/VerifyEmail";
+import RestaurantInformation from "./pages/RestaurantInformation";
 
 const queryClient = new QueryClient();
 
@@ -49,8 +56,11 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/ui-showcase" element={<UIShowcase />} />
+            <Route path="/api-test" element={<ApiTest />} />
             <Route path="/pricing" element={<Pricing />} />
             <Route path="/onboarding" element={<Onboarding />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/login" element={<Login />} />
             <Route path="/restaurant-selector" element={<RestaurantSelector />} />
             <Route path="/branch-selector" element={<BranchSelector />} />
@@ -68,7 +78,7 @@ const App = () => (
             <Route path="/categories/create" element={<CreateCategory />} />
             <Route path="/categories/:id/edit" element={<EditCategory />} />
             
-            {/* Menu Items Management */}
+            {/* Menu Items Management - Keep for backward compatibility */}
             <Route path="/menu-items" element={<MenuItems />} />
             <Route path="/menu-items/create" element={<CreateMenuItem />} />
             <Route path="/menu-items/:id/edit" element={<EditMenuItem />} />
@@ -99,6 +109,14 @@ const App = () => (
             
             {/* Analytics */}
             <Route path="/analytics" element={<Analytics />} />
+            <Route path="/qr-analytics" element={<QRAnalytics />} />
+            
+            {/* Owner Dashboard */}
+            <Route path="/owner" element={<OwnerDashboard />} />
+            <Route path="/owner/overview" element={<OwnerDashboard />} />
+            <Route path="/owner/restaurant" element={<OwnerDashboard />} />
+            <Route path="/owner/menu" element={<OwnerDashboard />} />
+            <Route path="/owner/branding" element={<Settings />} />
             
             {/* Reviews */}
             <Route path="/reviews" element={<Reviews />} />

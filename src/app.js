@@ -4,8 +4,8 @@
  */
 
 const express = require('express');
-const { PrismaClient } = require('@prisma/client');
-const prisma = require("./config/prisma");
+const { prisma } = require('./config/database.config'); // Use singleton Prisma from config
+
 // Services
 const { TokenService } = require('./service/token');
 const { EmailService } = require('./service/email');
@@ -116,10 +116,8 @@ function createApp() {
     next();
   });
 
-  // Handle Prisma disconnect on app shutdown
-  process.on('beforeExit', async () => {
-    await prisma.$disconnect();
-  });
+  // Use singleton Prisma instance (no need to create new PrismaClient)
+  // const prisma = ... (removed, using imported singleton)
 
   const tokenService = new TokenService();
   const emailService = new EmailService();
