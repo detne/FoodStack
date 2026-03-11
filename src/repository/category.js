@@ -2,6 +2,8 @@
 
 const { prisma } = require('../config/database.config');
 
+const { prisma } = require('../config/database.config');
+
 class CategoryRepository {
   constructor(prismaClient) {
     this.prisma = prismaClient || prisma;
