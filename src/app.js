@@ -4,7 +4,6 @@
  */
 
 const express = require('express');
-const { PrismaClient } = require('@prisma/client');
 const prisma = require("./config/prisma");
 // Services
 const { TokenService } = require('./service/token');
@@ -114,11 +113,6 @@ function createApp() {
       return res.sendStatus(200);
     }
     next();
-  });
-
-  // Handle Prisma disconnect on app shutdown
-  process.on('beforeExit', async () => {
-    await prisma.$disconnect();
   });
 
   const tokenService = new TokenService();
