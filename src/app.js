@@ -77,6 +77,7 @@ const { UpdateStaffUseCase } = require('./use-cases/staff/update-staff');
 const { UpdateStaffRoleUseCase } = require('./use-cases/staff/update-staff-role');
 const { DeleteStaffUseCase } = require('./use-cases/staff/delete-staff');
 const { GetStaffListUseCase } = require('./use-cases/staff/get-staff-list');
+const { SetStaffStatusUseCase } = require('./use-cases/staff/set-staff-status');
 
 const { CreateReservationUseCase } = require('./use-cases/reservation/create-reservation');
 const { UpdateReservationUseCase } = require('./use-cases/reservation/update-reservation');
@@ -405,13 +406,19 @@ function createApp() {
     prisma
   );
 
+  const setStaffStatusUseCase = new SetStaffStatusUseCase(
+    userRepository
+  );
+
+  // ✅ Staff controller
   // ✅ Staff controller with all use cases
   const staffController = new StaffController(
     createStaffUseCase,
     updateStaffUseCase,
     updateStaffRoleUseCase,
     deleteStaffUseCase,
-    getStaffListUseCase
+    getStaffListUseCase,
+    setStaffStatusUseCase
   );
 
   // ✅ Initialize reservation use cases

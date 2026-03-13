@@ -61,7 +61,7 @@ class CreateStaffUseCase {
           password_hash: hashedPassword,
           full_name: dto.name,
           phone: null,
-          role: dto.role,
+          role: 'STAFF',
           status: 'ACTIVE',
           created_at: now,
           updated_at: now,
