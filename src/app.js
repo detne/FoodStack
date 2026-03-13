@@ -21,6 +21,7 @@ const { CategoryRepository } = require('./repository/category');
 const { AreaRepository } = require('./repository/area');
 const { MenuItemRepository } = require('./repository/menu-item');
 const { CustomizationRepository } = require('./repository/customization');
+const { ReservationRepository } = require('./repository/reservation');
 const { TableRepository } = require('./repository/table');
 const { OrderRepository } = require('./repository/order');
 
@@ -75,6 +76,14 @@ const { CreateStaffUseCase } = require('./use-cases/staff/create-staff');
 const { UpdateStaffUseCase } = require('./use-cases/staff/update-staff');
 const { DeleteStaffUseCase } = require('./use-cases/staff/delete-staff');
 
+const { CreateReservationUseCase } = require('./use-cases/reservation/create-reservation');
+const { UpdateReservationUseCase } = require('./use-cases/reservation/update-reservation');
+const { CancelReservationUseCase } = require('./use-cases/reservation/cancel-reservation');
+const { ConfirmReservationUseCase } = require('./use-cases/reservation/confirm-reservation');
+const { GetReservationDetailsUseCase } = require('./use-cases/reservation/get-details');
+const { ListReservationsUseCase } = require('./use-cases/reservation/list-reservations');
+const { CheckTableAvailabilityUseCase } = require('./use-cases/reservation/check-availability');
+
 // Controllers
 const { AuthController } = require('./controller/auth');
 const { StaffController } = require('./controller/staff');
@@ -84,6 +93,7 @@ const { CategoryController } = require('./controller/category');
 const { AreaController } = require('./controller/area');
 const { MenuItemController } = require('./controller/menu-item');
 const { CustomizationController } = require('./controller/customization');
+const { ReservationController } = require('./controller/reservation');
 const { TableController } = require('./controller/table');
 
 // Routes
@@ -98,6 +108,7 @@ const { createPublicRoutes } = require('./routes/v1/public');
 const { createCustomerOrderRoutes } = require('./routes/v1/customer-orders');
 
 const { createAreaRoutes } = require('./routes/v1/areas');
+const { createReservationRoutes } = require('./routes/v1/reservation');
 const { createTableRoutes } = require('./routes/v1/tables');
 
 // Middleware
@@ -157,6 +168,7 @@ function createApp() {
   const areaRepository = new AreaRepository(prisma);
   const menuItemRepository = new MenuItemRepository(prisma);
   const customizationRepository = new CustomizationRepository(prisma);
+  const reservationRepository = new ReservationRepository(prisma);
   const tableRepository = new TableRepository(prisma);
   const orderRepository = new OrderRepository(prisma);
 
@@ -391,6 +403,51 @@ const deleteTableUseCase = new DeleteTableUseCase(
 
   const tableController = new TableController(createTableUseCase, updateTableUseCase, deleteTableUseCase);
 
+  // ✅ Initialize reservation use cases
+  const createReservationUseCase = new CreateReservationUseCase(
+    reservationRepository,
+    branchRepository,
+    tableRepository
+  );
+
+  const updateReservationUseCase = new UpdateReservationUseCase(
+    reservationRepository,
+    tableRepository
+  );
+
+  const cancelReservationUseCase = new CancelReservationUseCase(
+    reservationRepository
+  );
+
+  const confirmReservationUseCase = new ConfirmReservationUseCase(
+    reservationRepository
+  );
+
+  const getReservationDetailsUseCase = new GetReservationDetailsUseCase(
+    reservationRepository
+  );
+
+  const listReservationsUseCase = new ListReservationsUseCase(
+    reservationRepository,
+    branchRepository
+  );
+
+  const checkTableAvailabilityUseCase = new CheckTableAvailabilityUseCase(
+    reservationRepository,
+    branchRepository
+  );
+
+  // ✅ Reservation controller
+  const reservationController = new ReservationController({
+    createReservationUseCase,
+    updateReservationUseCase,
+    cancelReservationUseCase,
+    confirmReservationUseCase,
+    getReservationDetailsUseCase,
+    listReservationsUseCase,
+    checkTableAvailabilityUseCase,
+  });
+
   // Routes
   app.get('/', (req, res) => {
     res.json({
@@ -406,6 +463,7 @@ const deleteTableUseCase = new DeleteTableUseCase(
         customizations: '/api/v1/customizations',
         staff: '/api/v1/staff',
         areas: '/api/v1/areas',
+        reservations: '/api/v1/reservations',
         public: '/api/v1/public',
         customerOrders: '/api/v1/customer-orders',
         health: '/health',
@@ -433,7 +491,7 @@ const deleteTableUseCase = new DeleteTableUseCase(
   app.use('/api/v1/menu-items', createMenuItemRoutes(menuItemController, authMiddleware));
   app.use('/api/v1/customizations', createCustomizationRoutes(customizationController, authMiddleware));
   app.use('/api/v1/staff', createStaffRoutes(staffController, authMiddleware));
-
+  app.use('/api/v1/reservations', createReservationRoutes(reservationController, authMiddleware));
   app.use('/api/v1/public', createPublicRoutes(prisma));
   app.use('/api/v1/customer-orders', createCustomerOrderRoutes(prisma));
 

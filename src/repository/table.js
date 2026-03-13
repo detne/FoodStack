@@ -2,7 +2,28 @@ const { PrismaClient } = require('@prisma/client');
 
 class TableRepository {
   constructor(prisma) {
-    this.prisma = prisma || new PrismaClient();
+    if (!prisma) throw new Error('TableRepository requires prisma instance');
+    this.prisma = prisma;
+  }
+
+  async findById(id, tx) {
+    const client = tx || this.prisma;
+    return await client.tables.findUnique({
+      where: { id },
+      include: {
+        areas: true,
+      },
+    });
+  }
+
+  async findByAreaId(areaId) {
+    return await this.prisma.tables.findMany({
+      where: {
+        area_id: areaId,
+        deleted_at: null,
+      },
+      orderBy: { table_number: 'asc' },
+    });
   }
 
   // Check trùng số bàn trong cùng branch (join tables -> areas -> branch)
@@ -31,13 +52,6 @@ class TableRepository {
     return await client.tables.update({
       where: { id: tableId },
       data,
-    });
-  }
-
-  async findById(tableId, tx) {
-    const client = tx || this.prisma;
-    return await client.tables.findUnique({
-      where: { id: tableId },
     });
   }
 
