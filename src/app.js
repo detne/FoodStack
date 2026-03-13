@@ -4,6 +4,7 @@
  */
 
 const express = require('express');
+const { PrismaClient } = require('@prisma/client');
 const { prisma } = require('./config/database.config'); // Use singleton Prisma from config
 
 // Services
@@ -74,6 +75,7 @@ const { AddCustomizationOptionUseCase } = require('./use-cases/customization/add
 
 const { CreateStaffUseCase } = require('./use-cases/staff/create-staff');
 const { UpdateStaffUseCase } = require('./use-cases/staff/update-staff');
+const { UpdateStaffRoleUseCase } = require('./use-cases/staff/update-staff-role');
 const { DeleteStaffUseCase } = require('./use-cases/staff/delete-staff');
 
 const { CreateReservationUseCase } = require('./use-cases/reservation/create-reservation');
@@ -139,19 +141,8 @@ function createApp() {
     next();
   });
 
-  // Prisma
-  const prisma = new PrismaClient({
-    datasources: {
-      db: { url: process.env.DATABASE_URL },
-    },
-    log: ['error', 'warn'],
-  });
-
-  process.on('beforeExit', async () => {
-    await prisma.$disconnect();
-  });
-  // Use singleton Prisma instance (no need to create new PrismaClient)
-  // const prisma = ... (removed, using imported singleton)
+  // Use singleton Prisma instance from config
+  // No need to create new PrismaClient here
 
   // Services
   const tokenService = new TokenService();
@@ -371,8 +362,6 @@ function createApp() {
   const updateStaffUseCase = new UpdateStaffUseCase(userRepository, prisma);
   const deleteStaffUseCase = new DeleteStaffUseCase(userRepository, tokenService);
 
-  const staffController = new StaffController(createStaffUseCase, updateStaffUseCase, deleteStaffUseCase);
-
   // ✅ Table use case + controller
   const createTableUseCase = new CreateTableUseCase(
     tableRepository,
@@ -385,23 +374,37 @@ function createApp() {
   );
 
   const updateTableUseCase = new UpdateTableUseCase(
-  tableRepository,
-  areaRepository,
-  branchRepository,
-  restaurantRepository,
-  userRepository
-);
+    tableRepository,
+    areaRepository,
+    branchRepository,
+    restaurantRepository,
+    userRepository
+  );
 
-const deleteTableUseCase = new DeleteTableUseCase(
-  tableRepository,
-  areaRepository,
-  branchRepository,
-  restaurantRepository,
-  userRepository,
-  orderRepository
-);
+  const deleteTableUseCase = new DeleteTableUseCase(
+    tableRepository,
+    areaRepository,
+    branchRepository,
+    restaurantRepository,
+    userRepository,
+    orderRepository
+  );
 
   const tableController = new TableController(createTableUseCase, updateTableUseCase, deleteTableUseCase);
+
+  // Staff use cases with role update
+  const updateStaffRoleUseCase = new UpdateStaffRoleUseCase(
+    userRepository,
+    prisma
+  );
+
+  // ✅ Staff controller with all use cases
+  const staffController = new StaffController(
+    createStaffUseCase,
+    updateStaffUseCase,
+    updateStaffRoleUseCase,
+    deleteStaffUseCase
+  );
 
   // ✅ Initialize reservation use cases
   const createReservationUseCase = new CreateReservationUseCase(

@@ -93,7 +93,7 @@ class UserRepository {
         full_name: data.fullName,
         phone: data.phone,
         role,
-        restaurant_id: data.restaurantId ?? null, // ✅ Owner => null
+        restaurant_id: data.restaurantId ?? null, // Owner => null
         status: data.status,
         updated_at: new Date(),
       },
@@ -117,20 +117,10 @@ class UserRepository {
    * Log authentication event
    * @param {string} userId - User ID
    * @param {string} event - Event type (LOGIN, LOGOUT, etc.)
-   * @param {string} ipAddress - IP address (optional)
+   * @param {string|null} ipAddress - IP address (optional)
    */
   async logAuthEvent(userId, event, ipAddress = null) {
-    // This would typically log to MongoDB or a separate auth_logs table
-    // For now, we'll just console.log
     console.log(`[AUTH EVENT] User: ${userId}, Event: ${event}, IP: ${ipAddress}`);
-
-    // TODO: Implement actual logging to MongoDB
-    // await this.mongoClient.collection('auth_logs').insertOne({
-    //   userId,
-    //   event,
-    //   ipAddress,
-    //   timestamp: new Date(),
-    // });
   }
 
   /**
@@ -154,7 +144,6 @@ class UserRepository {
    */
   async saveVerificationToken(userId, token, tx) {
     // TODO: Implement verification token storage
-    // For now, just return success
     console.log(`Verification token generated for user ${userId}: ${token}`);
     return { userId, token };
   }
@@ -186,7 +175,7 @@ class UserRepository {
       where: {
         reset_token: hashedToken,
         reset_token_expires_at: {
-          gte: new Date(), // Token not expired
+          gte: new Date(),
         },
       },
     });

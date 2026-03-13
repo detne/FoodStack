@@ -1,5 +1,4 @@
 // src/repository/menu-item.js
-const { PrismaClient } = require('@prisma/client');
 
 const { prisma } = require('../config/database.config');
 

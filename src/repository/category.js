@@ -1,5 +1,4 @@
 // src/repository/category.js
-const { PrismaClient } = require('@prisma/client');
 
 const { prisma } = require('../config/database.config');
 
@@ -38,7 +37,7 @@ class CategoryRepository {
     const client = tx || this.prisma;
     const { v4: uuidv4 } = require('uuid');
 
-    return client.categories.create({
+    return await client.categories.create({
       data: {
         id: uuidv4(),
         branch_id: data.branchId,

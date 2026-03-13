@@ -1,4 +1,7 @@
-const { PrismaClient } = require('@prisma/client');
+/**
+ * Restaurant Repository
+ * Data access layer for Restaurant entity
+ */
 
 const { prisma } = require('../config/database.config');
 
@@ -43,12 +46,12 @@ class RestaurantRepository {
         address: data.address,
         email_verified: false,
         updated_at: new Date(),
-      }
+      },
     });
   }
 
   async update(id, data) {
-    return this.prisma.restaurants.update({
+    return await this.prisma.restaurants.update({
       where: { id },
       data: {
         ...data,
@@ -66,7 +69,7 @@ class RestaurantRepository {
   }
 
   async softDelete(id) {
-    return this.prisma.restaurants.update({
+    return await this.prisma.restaurants.update({
       where: { id },
       data: {
         deleted_at: new Date(),
