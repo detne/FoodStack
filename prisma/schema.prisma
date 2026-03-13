@@ -3,8 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
@@ -253,30 +253,21 @@ model reservations {
 }
 
 model restaurants {
-  id                String    @id
-  owner_id          String
+  id                String         @id
   name              String
-  email             String    @unique
+  email             String         @unique
   phone             String?
   address           String?
   logo_url          String?
-  email_verified    Boolean   @default(false)
+  email_verified    Boolean        @default(false)
   email_verified_at DateTime?
   subscription_id   String?
-  created_at        DateTime  @default(now())
+  created_at        DateTime       @default(now())
   updated_at        DateTime
   deleted_at        DateTime?
-
-  // Owner: 1 user sở hữu nhiều restaurants
-  owner users @relation("RestaurantOwner", fields: [owner_id], references: [id])
-
-  // Members: staff/manager thuộc 1 restaurant (qua users.restaurant_id)
-  users users[] @relation("RestaurantMembers")
-
-  branches      branches[]
-  subscriptions subscriptions? @relation(fields: [subscription_id], references: [id])
-
-  @@index([owner_id])
+  branches          branches[]
+  subscriptions     subscriptions? @relation(fields: [subscription_id], references: [id])
+  users             users[]
 }
 
 model roles {
@@ -357,26 +348,21 @@ model user_permissions {
 }
 
 model users {
-  id                          String    @id
-  restaurant_id               String? // NULL for Owner, required for Manager/Staff (enforce in code)
-  email                       String    @unique
-  password_hash               String
-  full_name                   String
-  phone                       String?
-  role                        String    @default("STAFF") // Owner | Manager | Staff (hoặc OWNER/MANAGER/STAFF tuỳ bạn)
-  status                      String    @default("ACTIVE")
-  reset_token                 String?
-  reset_token_expires_at      DateTime?
-  last_login_at               DateTime?
-  created_at                  DateTime  @default(now())
-  updated_at                  DateTime
-  deleted_at                  DateTime?
+  id                      String      @id
+  restaurant_id           String?
+  email                   String      @unique
+  password_hash           String
+  full_name               String
+  phone                   String?
+  role                    String      @default("STAFF")
+  status                  String      @default("ACTIVE")
+  reset_token             String?
+  reset_token_expires_at  DateTime?
+  last_login_at           DateTime?
+  created_at              DateTime    @default(now())
+  updated_at              DateTime
+  deleted_at              DateTime?
+  restaurants             restaurants? @relation(fields: [restaurant_id], references: [id])
   email_verify_otp            String?
   email_verify_otp_expires_at DateTime?
-
-  // Staff/Manager belongs-to (nullable)
-  restaurants restaurants? @relation("RestaurantMembers", fields: [restaurant_id], references: [id])
-
-  // Owner has-many
-  owned_restaurants restaurants[] @relation("RestaurantOwner")
 }
