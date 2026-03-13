@@ -268,7 +268,7 @@ export default function OwnerDashboard() {
         <div className="p-8">
           <div className="max-w-7xl mx-auto">
             {/* Show Overview by default or nested routes */}
-            {location.pathname === '/owner' || location.pathname === '/owner/' ? (
+            {location.pathname === '/owner' || location.pathname === '/owner/' || location.pathname === '/owner/overview' ? (
               <OwnerOverview />
             ) : location.pathname === '/owner/restaurant' ? (
               <RestaurantInformation />
