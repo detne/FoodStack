@@ -1,5 +1,3 @@
-const { PrismaClient } = require('@prisma/client');
-
 class TableRepository {
   constructor(prisma) {
     if (!prisma) throw new Error('TableRepository requires prisma instance');

@@ -3,18 +3,21 @@
 const { CreateStaffSchema } = require('../dto/staff/create-staff');
 const { UpdateStaffSchema } = require('../dto/staff/update-staff');
 const { UpdateStaffRoleSchema } = require('../dto/staff/update-staff-role');
+const { GetStaffListSchema } = require('../dto/staff/get-staff-list');
 
 class StaffController {
   constructor(
     createStaffUseCase,
     updateStaffUseCase,
     updateStaffRoleUseCase,
-    deleteStaffUseCase
+    deleteStaffUseCase,
+    getStaffListUseCase
   ) {
     this.createStaffUseCase = createStaffUseCase;
     this.updateStaffUseCase = updateStaffUseCase;
     this.updateStaffRoleUseCase = updateStaffRoleUseCase;
     this.deleteStaffUseCase = deleteStaffUseCase;
+    this.getStaffListUseCase = getStaffListUseCase;
   }
 
   async createStaff(req, res, next) {
@@ -118,6 +121,30 @@ class StaffController {
           name: result.name,
           status: result.status,
         },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getStaffList(req, res, next) {
+    try {
+      // Validate input
+      const dto = GetStaffListSchema.parse({
+        ...req.query,
+        page: parseInt(req.query.page, 10) || 1,
+        limit: parseInt(req.query.limit, 10) || 10,
+      });
+
+      // Execute use case with current user context
+      const result = await this.getStaffListUseCase.execute(dto, req.user);
+
+      // Return response
+      res.status(200).json({
+        success: true,
+        message: result.message,
+        data: result.staff,
+        pagination: result.pagination,
       });
     } catch (error) {
       next(error);
