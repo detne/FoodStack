@@ -14,6 +14,11 @@ function createServiceRequestRoutes(serviceRequestController, authMiddleware) {
     serviceRequestController.listServiceRequests(req, res, next)
   );
 
+  // GET /api/v1/service-requests/pending - Get pending requests with pagination (auth required)
+  router.get('/pending', authMiddleware, (req, res, next) => 
+    serviceRequestController.getPendingServiceRequests(req, res, next)
+  );
+
   // PUT /api/v1/service-requests/acknowledge - Staff acknowledge request (auth required)
   router.put('/acknowledge', authMiddleware, (req, res, next) => 
     serviceRequestController.acknowledgeServiceRequest(req, res, next)

@@ -2,13 +2,15 @@
 const { CreateServiceRequestSchema } = require('../dto/service-request/create');
 const { AcknowledgeServiceRequestSchema } = require('../dto/service-request/acknowledge');
 const { ResolveServiceRequestSchema } = require('../dto/service-request/resolve');
+const { GetPendingServiceRequestsSchema } = require('../dto/service-request/get-pending');
 
 class ServiceRequestController {
-  constructor(createServiceRequestUseCase, acknowledgeServiceRequestUseCase, listServiceRequestsByBranchUseCase, resolveServiceRequestUseCase) {
+  constructor(createServiceRequestUseCase, acknowledgeServiceRequestUseCase, listServiceRequestsByBranchUseCase, resolveServiceRequestUseCase, getPendingServiceRequestsUseCase) {
     this.createServiceRequestUseCase = createServiceRequestUseCase;
     this.acknowledgeServiceRequestUseCase = acknowledgeServiceRequestUseCase;
     this.listServiceRequestsByBranchUseCase = listServiceRequestsByBranchUseCase;
     this.resolveServiceRequestUseCase = resolveServiceRequestUseCase;
+    this.getPendingServiceRequestsUseCase = getPendingServiceRequestsUseCase;
   }
 
   async createServiceRequest(req, res, next) {
@@ -54,6 +56,25 @@ class ServiceRequestController {
       next(error);
     }
   }
+  async getPendingServiceRequests(req, res, next) {
+    try {
+      const dto = GetPendingServiceRequestsSchema.parse({
+        page: parseInt(req.query.page) || 1,
+        limit: parseInt(req.query.limit) || 20,
+        branchId: req.query.branchId || undefined,
+      });
+      const staffId = req.user.userId; // From auth middleware
+      const result = await this.getPendingServiceRequestsUseCase.execute(staffId, dto);
+
+      res.status(200).json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async resolveServiceRequest(req, res, next) {
     try {
       const dto = ResolveServiceRequestSchema.parse(req.body);
