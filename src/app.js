@@ -24,6 +24,7 @@ const { CustomizationRepository } = require('./repository/customization');
 const { ReservationRepository } = require('./repository/reservation');
 const { TableRepository } = require('./repository/table');
 const { OrderRepository } = require('./repository/order');
+const { ServiceRequestRepository } = require('./repository/service-request');
 
 // Use cases
 const { LoginUseCase } = require('./use-cases/auth/login');
@@ -87,6 +88,12 @@ const { GetReservationDetailsUseCase } = require('./use-cases/reservation/get-de
 const { ListReservationsUseCase } = require('./use-cases/reservation/list-reservations');
 const { CheckTableAvailabilityUseCase } = require('./use-cases/reservation/check-availability');
 
+const { CreateServiceRequestUseCase } = require('./use-cases/service-request/create');
+const { AcknowledgeServiceRequestUseCase } = require('./use-cases/service-request/acknowledge');
+const { ListServiceRequestsByBranchUseCase } = require('./use-cases/service-request/list-by-branch');
+const { ResolveServiceRequestUseCase } = require('./use-cases/service-request/resolve');
+const { GetPendingServiceRequestsUseCase } = require('./use-cases/service-request/get-pending');
+
 // Controllers
 const { AuthController } = require('./controller/auth');
 const { StaffController } = require('./controller/staff');
@@ -98,6 +105,7 @@ const { MenuItemController } = require('./controller/menu-item');
 const { CustomizationController } = require('./controller/customization');
 const { ReservationController } = require('./controller/reservation');
 const { TableController } = require('./controller/table');
+const { ServiceRequestController } = require('./controller/service-request');
 
 // Routes
 const { createAuthRoutes } = require('./routes/v1/auth');
@@ -113,6 +121,7 @@ const { createCustomerOrderRoutes } = require('./routes/v1/customer-orders');
 const { createAreaRoutes } = require('./routes/v1/areas');
 const { createReservationRoutes } = require('./routes/v1/reservation');
 const { createTableRoutes } = require('./routes/v1/tables');
+const { createServiceRequestRoutes } = require('./routes/v1/service-request');
 
 // Middleware
 const { createAuthMiddleware } = require('./middleware/auth');
@@ -163,6 +172,7 @@ function createApp() {
   const reservationRepository = new ReservationRepository(prisma);
   const tableRepository = new TableRepository(prisma);
   const orderRepository = new OrderRepository(prisma);
+  const serviceRequestRepository = new ServiceRequestRepository(prisma);
 
   // Use cases (misc)
   const getRestaurantStatisticsUseCase = new GetRestaurantStatisticsUseCase(prisma);
@@ -466,6 +476,46 @@ function createApp() {
     checkTableAvailabilityUseCase,
   });
 
+  // ✅ Initialize service request use cases
+  const createServiceRequestUseCase = new CreateServiceRequestUseCase(
+    serviceRequestRepository,
+    tableRepository,
+    prisma
+  );
+
+  const acknowledgeServiceRequestUseCase = new AcknowledgeServiceRequestUseCase(
+    serviceRequestRepository,
+    userRepository,
+    prisma
+  );
+
+  const listServiceRequestsByBranchUseCase = new ListServiceRequestsByBranchUseCase(
+    serviceRequestRepository,
+    userRepository,
+    prisma
+  );
+
+  const resolveServiceRequestUseCase = new ResolveServiceRequestUseCase(
+    serviceRequestRepository,
+    userRepository,
+    prisma
+  );
+
+  const getPendingServiceRequestsUseCase = new GetPendingServiceRequestsUseCase(
+    serviceRequestRepository,
+    userRepository,
+    prisma
+  );
+
+  // ✅ Service request controller
+  const serviceRequestController = new ServiceRequestController(
+    createServiceRequestUseCase,
+    acknowledgeServiceRequestUseCase,
+    listServiceRequestsByBranchUseCase,
+    resolveServiceRequestUseCase,
+    getPendingServiceRequestsUseCase
+  );
+
   // Routes
   app.get('/', (req, res) => {
     res.json({
@@ -482,6 +532,7 @@ function createApp() {
         staff: '/api/v1/staff',
         areas: '/api/v1/areas',
         reservations: '/api/v1/reservations',
+        'service-requests': '/api/v1/service-requests',
         public: '/api/v1/public',
         customerOrders: '/api/v1/customer-orders',
         health: '/health',
@@ -510,6 +561,7 @@ function createApp() {
   app.use('/api/v1/customizations', createCustomizationRoutes(customizationController, authMiddleware));
   app.use('/api/v1/staff', createStaffRoutes(staffController, authMiddleware));
   app.use('/api/v1/reservations', createReservationRoutes(reservationController, authMiddleware));
+  app.use('/api/v1/service-requests', createServiceRequestRoutes(serviceRequestController, authMiddleware));
   app.use('/api/v1/public', createPublicRoutes(prisma));
   app.use('/api/v1/customer-orders', createCustomerOrderRoutes(prisma));
 
