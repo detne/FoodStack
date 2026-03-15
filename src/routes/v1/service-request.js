@@ -19,6 +19,11 @@ function createServiceRequestRoutes(serviceRequestController, authMiddleware) {
     serviceRequestController.acknowledgeServiceRequest(req, res, next)
   );
 
+  // PUT /api/v1/service-requests/resolve - Staff resolve request (auth required)
+  router.put('/resolve', authMiddleware, (req, res, next) => 
+    serviceRequestController.resolveServiceRequest(req, res, next)
+  );
+
   return router;
 }
 

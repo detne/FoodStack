@@ -98,6 +98,32 @@ class ServiceRequestRepository {
     return titles[requestType] || 'Yêu cầu dịch vụ';
   }
 
+  async resolve(id, staffId) {
+    // First get the current data
+    const currentNotification = await this.prisma.notifications.findUnique({
+      where: { id },
+    });
+
+    if (!currentNotification) {
+      throw new Error('Notification not found');
+    }
+
+    // Update with new data
+    const updatedData = {
+      ...currentNotification.data,
+      status: 'RESOLVED',
+      resolvedBy: staffId,
+      resolvedAt: new Date().toISOString(),
+    };
+
+    return this.prisma.notifications.update({
+      where: { id },
+      data: {
+        data: updatedData,
+      },
+    });
+  }
+
   getDefaultMessage(requestType) {
     const messages = {
       'CALL_STAFF': 'Khách hàng cần hỗ trợ từ nhân viên',
