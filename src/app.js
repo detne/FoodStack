@@ -93,6 +93,7 @@ const { AcknowledgeServiceRequestUseCase } = require('./use-cases/service-reques
 const { ListServiceRequestsByBranchUseCase } = require('./use-cases/service-request/list-by-branch');
 const { ResolveServiceRequestUseCase } = require('./use-cases/service-request/resolve');
 const { GetPendingServiceRequestsUseCase } = require('./use-cases/service-request/get-pending');
+const { AssignServiceRequestUseCase } = require('./use-cases/service-request/assign');
 
 // Controllers
 const { AuthController } = require('./controller/auth');
@@ -507,13 +508,20 @@ function createApp() {
     prisma
   );
 
+  const assignServiceRequestUseCase = new AssignServiceRequestUseCase(
+    serviceRequestRepository,
+    userRepository,
+    prisma
+  );
+
   // ✅ Service request controller
   const serviceRequestController = new ServiceRequestController(
     createServiceRequestUseCase,
     acknowledgeServiceRequestUseCase,
     listServiceRequestsByBranchUseCase,
     resolveServiceRequestUseCase,
-    getPendingServiceRequestsUseCase
+    getPendingServiceRequestsUseCase,
+    assignServiceRequestUseCase
   );
 
   // Routes

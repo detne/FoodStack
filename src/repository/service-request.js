@@ -98,6 +98,33 @@ class ServiceRequestRepository {
     return titles[requestType] || 'Yêu cầu dịch vụ';
   }
 
+  async assign(id, staffId, managerId) {
+    // First get the current data
+    const currentNotification = await this.prisma.notifications.findUnique({
+      where: { id },
+    });
+
+    if (!currentNotification) {
+      throw new Error('Notification not found');
+    }
+
+    // Update with new data
+    const updatedData = {
+      ...currentNotification.data,
+      status: 'ACKNOWLEDGED',
+      assignedStaffId: staffId,
+      assignedBy: managerId,
+      assignedAt: new Date().toISOString(),
+    };
+
+    return this.prisma.notifications.update({
+      where: { id },
+      data: {
+        data: updatedData,
+      },
+    });
+  }
+
   async resolve(id, staffId) {
     // First get the current data
     const currentNotification = await this.prisma.notifications.findUnique({

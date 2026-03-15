@@ -19,6 +19,11 @@ function createServiceRequestRoutes(serviceRequestController, authMiddleware) {
     serviceRequestController.getPendingServiceRequests(req, res, next)
   );
 
+  // PUT /api/v1/service-requests/assign - Manager assign request to staff (auth required)
+  router.put('/assign', authMiddleware, (req, res, next) => 
+    serviceRequestController.assignServiceRequest(req, res, next)
+  );
+
   // PUT /api/v1/service-requests/acknowledge - Staff acknowledge request (auth required)
   router.put('/acknowledge', authMiddleware, (req, res, next) => 
     serviceRequestController.acknowledgeServiceRequest(req, res, next)

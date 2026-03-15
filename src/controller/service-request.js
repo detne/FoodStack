@@ -3,14 +3,16 @@ const { CreateServiceRequestSchema } = require('../dto/service-request/create');
 const { AcknowledgeServiceRequestSchema } = require('../dto/service-request/acknowledge');
 const { ResolveServiceRequestSchema } = require('../dto/service-request/resolve');
 const { GetPendingServiceRequestsSchema } = require('../dto/service-request/get-pending');
+const { AssignServiceRequestSchema } = require('../dto/service-request/assign');
 
 class ServiceRequestController {
-  constructor(createServiceRequestUseCase, acknowledgeServiceRequestUseCase, listServiceRequestsByBranchUseCase, resolveServiceRequestUseCase, getPendingServiceRequestsUseCase) {
+  constructor(createServiceRequestUseCase, acknowledgeServiceRequestUseCase, listServiceRequestsByBranchUseCase, resolveServiceRequestUseCase, getPendingServiceRequestsUseCase, assignServiceRequestUseCase) {
     this.createServiceRequestUseCase = createServiceRequestUseCase;
     this.acknowledgeServiceRequestUseCase = acknowledgeServiceRequestUseCase;
     this.listServiceRequestsByBranchUseCase = listServiceRequestsByBranchUseCase;
     this.resolveServiceRequestUseCase = resolveServiceRequestUseCase;
     this.getPendingServiceRequestsUseCase = getPendingServiceRequestsUseCase;
+    this.assignServiceRequestUseCase = assignServiceRequestUseCase;
   }
 
   async createServiceRequest(req, res, next) {
@@ -65,6 +67,21 @@ class ServiceRequestController {
       });
       const staffId = req.user.userId; // From auth middleware
       const result = await this.getPendingServiceRequestsUseCase.execute(staffId, dto);
+
+      res.status(200).json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async assignServiceRequest(req, res, next) {
+    try {
+      const dto = AssignServiceRequestSchema.parse(req.body);
+      const managerId = req.user.userId; // From auth middleware (JWT payload has userId, not id)
+      const result = await this.assignServiceRequestUseCase.execute(dto, managerId);
 
       res.status(200).json({
         success: true,
