@@ -4,15 +4,17 @@ const { AcknowledgeServiceRequestSchema } = require('../dto/service-request/ackn
 const { ResolveServiceRequestSchema } = require('../dto/service-request/resolve');
 const { GetPendingServiceRequestsSchema } = require('../dto/service-request/get-pending');
 const { AssignServiceRequestSchema } = require('../dto/service-request/assign');
+const { ServiceRequestStatisticsSchema } = require('../dto/service-request/statistics');
 
 class ServiceRequestController {
-  constructor(createServiceRequestUseCase, acknowledgeServiceRequestUseCase, listServiceRequestsByBranchUseCase, resolveServiceRequestUseCase, getPendingServiceRequestsUseCase, assignServiceRequestUseCase) {
+  constructor(createServiceRequestUseCase, acknowledgeServiceRequestUseCase, listServiceRequestsByBranchUseCase, resolveServiceRequestUseCase, getPendingServiceRequestsUseCase, assignServiceRequestUseCase, serviceRequestStatisticsUseCase) {
     this.createServiceRequestUseCase = createServiceRequestUseCase;
     this.acknowledgeServiceRequestUseCase = acknowledgeServiceRequestUseCase;
     this.listServiceRequestsByBranchUseCase = listServiceRequestsByBranchUseCase;
     this.resolveServiceRequestUseCase = resolveServiceRequestUseCase;
     this.getPendingServiceRequestsUseCase = getPendingServiceRequestsUseCase;
     this.assignServiceRequestUseCase = assignServiceRequestUseCase;
+    this.serviceRequestStatisticsUseCase = serviceRequestStatisticsUseCase;
   }
 
   async createServiceRequest(req, res, next) {
@@ -67,6 +69,26 @@ class ServiceRequestController {
       });
       const staffId = req.user.userId; // From auth middleware
       const result = await this.getPendingServiceRequestsUseCase.execute(staffId, dto);
+
+      res.status(200).json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getServiceRequestStatistics(req, res, next) {
+    try {
+      const dto = ServiceRequestStatisticsSchema.parse({
+        period: req.query.period || 'day',
+        branchId: req.query.branchId || undefined,
+        startDate: req.query.startDate || undefined,
+        endDate: req.query.endDate || undefined,
+      });
+      const managerId = req.user.userId; // From auth middleware
+      const result = await this.serviceRequestStatisticsUseCase.execute(managerId, dto);
 
       res.status(200).json({
         success: true,

@@ -19,6 +19,11 @@ function createServiceRequestRoutes(serviceRequestController, authMiddleware) {
     serviceRequestController.getPendingServiceRequests(req, res, next)
   );
 
+  // GET /api/v1/service-requests/statistics - Get service request statistics (auth required)
+  router.get('/statistics', authMiddleware, (req, res, next) => 
+    serviceRequestController.getServiceRequestStatistics(req, res, next)
+  );
+
   // PUT /api/v1/service-requests/assign - Manager assign request to staff (auth required)
   router.put('/assign', authMiddleware, (req, res, next) => 
     serviceRequestController.assignServiceRequest(req, res, next)
