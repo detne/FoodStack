@@ -194,22 +194,24 @@ model order_items {
 }
 
 model orders {
-  id             String        @id
-  branch_id      String
-  table_id       String
-  order_number   String        @unique
-  status         String        @default("PENDING")
-  subtotal       Decimal       @db.Decimal(10, 2)
-  tax            Decimal       @db.Decimal(10, 2)
-  service_charge Decimal       @default(0) @db.Decimal(10, 2)
-  total          Decimal       @db.Decimal(10, 2)
-  payment_status String        @default("UNPAID")
-  created_at     DateTime      @default(now())
-  updated_at     DateTime
-  order_items    order_items[]
-  branches       branches      @relation(fields: [branch_id], references: [id])
-  tables         tables        @relation(fields: [table_id], references: [id])
-  payments       payments?
+  id                  String        @id
+  branch_id           String
+  table_id            String
+  order_number        String        @unique
+  status              String        @default("PENDING")
+  subtotal            Decimal       @db.Decimal(10, 2)
+  tax                 Decimal       @db.Decimal(10, 2)
+  service_charge      Decimal       @default(0) @db.Decimal(10, 2)
+  total               Decimal       @db.Decimal(10, 2)
+  payment_status      String        @default("UNPAID")
+  customer_count      Int           @default(1)
+  cancellation_reason String?
+  created_at          DateTime      @default(now())
+  updated_at          DateTime
+  order_items         order_items[]
+  branches            branches      @relation(fields: [branch_id], references: [id])
+  tables              tables        @relation(fields: [table_id], references: [id])
+  payments            payments?
 }
 
 model payments {

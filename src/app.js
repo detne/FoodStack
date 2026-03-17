@@ -24,6 +24,7 @@ const { CustomizationRepository } = require('./repository/customization');
 const { ReservationRepository } = require('./repository/reservation');
 const { TableRepository } = require('./repository/table');
 const { OrderRepository } = require('./repository/order');
+const { ActivityLogRepository } = require('./repository/activity-log');
 
 // Use cases
 const { LoginUseCase } = require('./use-cases/auth/login');
@@ -87,6 +88,18 @@ const { GetReservationDetailsUseCase } = require('./use-cases/reservation/get-de
 const { ListReservationsUseCase } = require('./use-cases/reservation/list-reservations');
 const { CheckTableAvailabilityUseCase } = require('./use-cases/reservation/check-availability');
 
+// Order use cases
+const { CreateOrderUseCase } = require('./use-cases/order/create-order');
+const { GetOrderDetailsUseCase } = require('./use-cases/order/get-order-details');
+const { UpdateOrderStatusUseCase } = require('./use-cases/order/update-order-status');
+const { AddItemsToOrderUseCase } = require('./use-cases/order/add-items-to-order');
+const { RemoveItemFromOrderUseCase } = require('./use-cases/order/remove-item-from-order');
+const { UpdateOrderItemUseCase } = require('./use-cases/order/update-order-item');
+const { CancelOrderUseCase } = require('./use-cases/order/cancel-order');
+const { GetActiveOrdersByBranchUseCase } = require('./use-cases/order/get-active-orders-by-branch');
+const { GetOrdersByTableUseCase } = require('./use-cases/order/get-orders-by-table');
+const { GetOrderLifecycleUseCase } = require('./use-cases/order/get-order-lifecycle');
+
 // Controllers
 const { AuthController } = require('./controller/auth');
 const { StaffController } = require('./controller/staff');
@@ -98,6 +111,7 @@ const { MenuItemController } = require('./controller/menu-item');
 const { CustomizationController } = require('./controller/customization');
 const { ReservationController } = require('./controller/reservation');
 const { TableController } = require('./controller/table');
+const { OrderController } = require('./controller/order');
 
 // Routes
 const { createAuthRoutes } = require('./routes/v1/auth');
@@ -113,6 +127,7 @@ const { createCustomerOrderRoutes } = require('./routes/v1/customer-orders');
 const { createAreaRoutes } = require('./routes/v1/areas');
 const { createReservationRoutes } = require('./routes/v1/reservation');
 const { createTableRoutes } = require('./routes/v1/tables');
+const { createOrderRoutes } = require('./routes/v1/orders');
 
 // Middleware
 const { createAuthMiddleware } = require('./middleware/auth');
@@ -163,6 +178,7 @@ function createApp() {
   const reservationRepository = new ReservationRepository(prisma);
   const tableRepository = new TableRepository(prisma);
   const orderRepository = new OrderRepository(prisma);
+  const activityLogRepository = new ActivityLogRepository(prisma);
 
   // Use cases (misc)
   const getRestaurantStatisticsUseCase = new GetRestaurantStatisticsUseCase(prisma);
@@ -466,6 +482,64 @@ function createApp() {
     checkTableAvailabilityUseCase,
   });
 
+  // Order use cases
+  const createOrderUseCase = new CreateOrderUseCase(
+    orderRepository,
+    tableRepository,
+    branchRepository,
+    menuItemRepository
+  );
+
+  const getOrderDetailsUseCase = new GetOrderDetailsUseCase(orderRepository);
+
+  const updateOrderStatusUseCase = new UpdateOrderStatusUseCase(
+    orderRepository,
+    activityLogRepository
+  );
+
+  const addItemsToOrderUseCase = new AddItemsToOrderUseCase(
+    orderRepository,
+    menuItemRepository
+  );
+
+  const removeItemFromOrderUseCase = new RemoveItemFromOrderUseCase(orderRepository);
+
+  const updateOrderItemUseCase = new UpdateOrderItemUseCase(orderRepository);
+
+  const cancelOrderUseCase = new CancelOrderUseCase(
+    orderRepository,
+    activityLogRepository
+  );
+
+  const getActiveOrdersByBranchUseCase = new GetActiveOrdersByBranchUseCase(
+    orderRepository,
+    branchRepository
+  );
+
+  const getOrdersByTableUseCase = new GetOrdersByTableUseCase(
+    orderRepository,
+    tableRepository
+  );
+
+  const getOrderLifecycleUseCase = new GetOrderLifecycleUseCase(
+    orderRepository,
+    activityLogRepository
+  );
+
+  // Order controller
+  const orderController = new OrderController(
+    createOrderUseCase,
+    getOrderDetailsUseCase,
+    updateOrderStatusUseCase,
+    addItemsToOrderUseCase,
+    removeItemFromOrderUseCase,
+    updateOrderItemUseCase,
+    cancelOrderUseCase,
+    getActiveOrdersByBranchUseCase,
+    getOrdersByTableUseCase,
+    getOrderLifecycleUseCase
+  );
+
   // Routes
   app.get('/', (req, res) => {
     res.json({
@@ -482,6 +556,7 @@ function createApp() {
         staff: '/api/v1/staff',
         areas: '/api/v1/areas',
         reservations: '/api/v1/reservations',
+        orders: '/api/v1/orders',
         public: '/api/v1/public',
         customerOrders: '/api/v1/customer-orders',
         health: '/health',
@@ -510,6 +585,7 @@ function createApp() {
   app.use('/api/v1/customizations', createCustomizationRoutes(customizationController, authMiddleware));
   app.use('/api/v1/staff', createStaffRoutes(staffController, authMiddleware));
   app.use('/api/v1/reservations', createReservationRoutes(reservationController, authMiddleware));
+  app.use('/api/v1/orders', createOrderRoutes(orderController, authMiddleware));
   app.use('/api/v1/public', createPublicRoutes(prisma));
   app.use('/api/v1/customer-orders', createCustomerOrderRoutes(prisma));
 
