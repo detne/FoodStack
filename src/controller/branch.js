@@ -73,7 +73,8 @@ class BranchController {
       res.status(200).json({
         success: true,
         message: 'Branches list',
-        data: result,
+        data: result.items, // Return items directly, not the whole result
+        pagination: result.pagination,
       });
     } catch (err) {
       next(err);

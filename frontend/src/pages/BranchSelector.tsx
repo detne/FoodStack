@@ -1,9 +1,22 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Users, Table, ArrowLeft } from "lucide-react";
+import { MapPin, Users, Table, ArrowLeft, Plus } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { apiClient } from "@/lib/api-client";
+import { toast } from "@/components/ui/use-toast";
+
+interface Branch {
+  id: string;
+  name: string;
+  address: string;
+  phone?: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
 
 // Mock data - replace with real API calls
 const mockBranches = [
@@ -44,15 +57,66 @@ const mockBranches = [
 
 const BranchSelector = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selectedBranch, setSelectedBranch] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (user?.restaurant?.id) {
+      fetchBranches();
+    } else {
+      navigate('/login');
+    }
+  }, [user, navigate]);
+
+  const fetchBranches = async () => {
+    try {
+      setLoading(true);
+      console.log('BranchSelector - Fetching branches for restaurant:', user?.restaurant?.id);
+      
+      const response = await apiClient.getBranches(user?.restaurant?.id);
+      console.log('BranchSelector - Branches response:', response);
+      
+      if (response.success && response.data) {
+        // Handle both formats: direct array or {items: [...], pagination: {...}}
+        let branchesData = [];
+        if (Array.isArray(response.data)) {
+          branchesData = response.data;
+        } else if (response.data.items && Array.isArray(response.data.items)) {
+          branchesData = response.data.items;
+        }
+        
+        console.log('BranchSelector - Setting branches:', branchesData);
+        setBranches(branchesData);
+      } else {
+        console.error('BranchSelector - Failed to fetch branches:', response.message);
+        setBranches([]);
+      }
+    } catch (error: any) {
+      console.error('BranchSelector - Error fetching branches:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load branches",
+        variant: "destructive",
+      });
+      setBranches([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSelectBranch = (branchId: string) => {
     setSelectedBranch(branchId);
-    // Store selected branch in localStorage or context
+    // Store selected branch in localStorage
     localStorage.setItem('selectedBranch', branchId);
     
-    // Navigate to dashboard
-    navigate('/dashboard');
+    // Navigate to owner dashboard
+    navigate('/owner/overview');
+  };
+
+  const handleCreateBranch = () => {
+    navigate('/owner/branch-setup');
   };
 
   const getStatusColor = (status: string) => {
@@ -114,119 +178,89 @@ const BranchSelector = () => {
             </p>
           </div>
 
-          {/* Branch Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {mockBranches.map((branch) => (
-              <Card 
-                key={branch.id}
-                className={`cursor-pointer transition-all hover:shadow-lg ${
-                  selectedBranch === branch.id 
-                    ? 'ring-2 ring-indigo-500 shadow-lg' 
-                    : 'hover:shadow-md'
-                }`}
-                onClick={() => handleSelectBranch(branch.id)}
-              >
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <CardTitle className="text-lg">{branch.name}</CardTitle>
-                      <p className="text-sm text-gray-500">{branch.phone}</p>
-                    </div>
-                    <Badge 
-                      variant="secondary"
-                      className={getStatusColor(branch.status)}
-                    >
-                      {branch.status}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                
-                <CardContent className="space-y-4">
-                  <div className="flex items-start gap-2 text-sm text-gray-600">
-                    <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                    <span>{branch.address}</span>
-                  </div>
-                  
-                  {/* Stats */}
-                  <div className="grid grid-cols-2 gap-4 pt-3 border-t border-gray-100">
-                    <div className="flex items-center gap-2">
-                      <Table className="w-4 h-4 text-gray-400" />
-                      <div>
-                        <div className="text-sm font-semibold text-gray-900">
-                          {branch.tables}
-                        </div>
-                        <div className="text-xs text-gray-500">Tables</div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Users className="w-4 h-4 text-gray-400" />
-                      <div>
-                        <div className="text-sm font-semibold text-gray-900">
-                          {branch.staff}
-                        </div>
-                        <div className="text-xs text-gray-500">Staff</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Performance */}
-                  <div className="pt-3 border-t border-gray-100 space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Active Orders</span>
-                      <span className="text-sm font-semibold text-gray-900">
-                        {branch.currentOrders}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Today's Revenue</span>
-                      <span className="text-sm font-semibold text-green-600">
-                        ${branch.revenue.toLocaleString()}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Action Button */}
-                  <Button 
-                    className="w-full mt-4 bg-indigo-600 hover:bg-indigo-700"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleSelectBranch(branch.id);
-                    }}
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+            </div>
+          ) : branches.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="w-20 h-20 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <Table className="h-10 w-10 text-gray-400" />
+              </div>
+              <h3 className="text-lg font-semibold mb-2">No branches yet</h3>
+              <p className="text-gray-600 mb-6">
+                Create your first branch to start managing your restaurant
+              </p>
+              <Button onClick={handleCreateBranch} className="bg-indigo-600 hover:bg-indigo-700">
+                <Plus className="w-4 h-4 mr-2" />
+                Create First Branch
+              </Button>
+            </div>
+          ) : (
+            <>
+              {/* Branch Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {branches.map((branch) => (
+                  <Card 
+                    key={branch.id}
+                    className={`cursor-pointer transition-all hover:shadow-lg ${
+                      selectedBranch === branch.id 
+                        ? 'ring-2 ring-indigo-500 shadow-lg' 
+                        : 'hover:shadow-md'
+                    }`}
+                    onClick={() => handleSelectBranch(branch.id)}
                   >
-                    Manage Branch
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                    <CardHeader className="pb-3">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <CardTitle className="text-lg">{branch.name}</CardTitle>
+                          <p className="text-sm text-gray-500">{branch.phone || 'No phone'}</p>
+                        </div>
+                        <Badge 
+                          variant="secondary"
+                          className={getStatusColor(branch.status)}
+                        >
+                          {branch.status}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    
+                    <CardContent className="space-y-4">
+                      <div className="flex items-start gap-2 text-sm text-gray-600">
+                        <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                        <span>{branch.address}</span>
+                      </div>
+                      
+                      {/* Action Button */}
+                      <Button 
+                        className="w-full mt-4 bg-indigo-600 hover:bg-indigo-700"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleSelectBranch(branch.id);
+                        }}
+                      >
+                        Manage Branch
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
 
-          {/* Quick Stats */}
-          <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card>
-              <CardContent className="p-6 text-center">
-                <div className="text-2xl font-bold text-gray-900">
-                  {mockBranches.reduce((sum, branch) => sum + branch.tables, 0)}
-                </div>
-                <div className="text-sm text-gray-600">Total Tables</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-6 text-center">
-                <div className="text-2xl font-bold text-gray-900">
-                  {mockBranches.reduce((sum, branch) => sum + branch.currentOrders, 0)}
-                </div>
-                <div className="text-sm text-gray-600">Active Orders</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-6 text-center">
-                <div className="text-2xl font-bold text-green-600">
-                  ${mockBranches.reduce((sum, branch) => sum + branch.revenue, 0).toLocaleString()}
-                </div>
-                <div className="text-sm text-gray-600">Total Revenue</div>
-              </CardContent>
-            </Card>
-          </div>
+              {/* Add Branch Button */}
+              <div className="mt-8 text-center">
+                <Button 
+                  variant="outline" 
+                  onClick={handleCreateBranch}
+                  className="border-dashed border-2"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add New Branch
+                </Button>
+              </div>
+            </>
+          )}
+
+          {/* Remove Quick Stats section since we don't have that data */}
         </div>
       </main>
     </div>

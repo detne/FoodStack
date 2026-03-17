@@ -1,48 +1,49 @@
 // src/service/upload.js
+const { v2: cloudinary } = require('cloudinary');
+const { Readable } = require('stream');
+
 class UploadService {
   constructor() {
-    // TODO: Configure Cloudinary or other cloud storage
-    this.cloudinaryConfigured = false;
+    cloudinary.config({
+      cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+      api_key: process.env.CLOUDINARY_API_KEY,
+      api_secret: process.env.CLOUDINARY_API_SECRET,
+      secure: true,
+    });
   }
 
   async uploadImage(file, options = {}) {
     try {
-      // TODO: Implement actual Cloudinary upload
-      // For now, return mock URL
+      const folder = options.folder || 'qr-service-platform';
       
-      console.log(`
-        ========================================
-        📤 FILE UPLOAD (MOCK)
-        ========================================
-        File: ${file.originalname || file.name}
-        Size: ${file.size} bytes
-        Type: ${file.mimetype}
-        Folder: ${options.folder || 'default'}
-        ========================================
-      `);
+      // Convert buffer to stream for Cloudinary
+      const stream = Readable.from(file.buffer);
 
-      // Mock URL - replace with actual Cloudinary upload
-      const mockUrl = `https://res.cloudinary.com/demo/image/upload/v1/${options.folder}/${Date.now()}.jpg`;
+      return new Promise((resolve, reject) => {
+        const uploadStream = cloudinary.uploader.upload_stream(
+          {
+            folder: folder,
+            resource_type: 'auto',
+            overwrite: true,
+          },
+          (error, result) => {
+            if (error) {
+              console.error('Cloudinary upload error:', error);
+              reject(new Error('Failed to upload file to Cloudinary'));
+            } else {
+              console.log(`✅ Image uploaded successfully: ${result.secure_url}`);
+              resolve({
+                url: result.secure_url,
+                publicId: result.public_id,
+                width: result.width,
+                height: result.height,
+              });
+            }
+          }
+        );
 
-      return {
-        url: mockUrl,
-        publicId: `${options.folder}/${Date.now()}`,
-        width: 512,
-        height: 512,
-      };
-
-      // Real implementation would be:
-      // const cloudinary = require('cloudinary').v2;
-      // const result = await cloudinary.uploader.upload(file.path, {
-      //   folder: options.folder,
-      //   transformation: options.transformation,
-      // });
-      // return {
-      //   url: result.secure_url,
-      //   publicId: result.public_id,
-      //   width: result.width,
-      //   height: result.height,
-      // };
+        stream.pipe(uploadStream);
+      });
     } catch (error) {
       console.error('Upload error:', error);
       throw new Error('Failed to upload file');
@@ -51,9 +52,9 @@ class UploadService {
 
   async deleteImage(publicId) {
     try {
-      // TODO: Implement Cloudinary delete
-      console.log(`Deleting image: ${publicId}`);
-      return true;
+      const result = await cloudinary.uploader.destroy(publicId);
+      console.log(`✅ Image deleted: ${publicId}`);
+      return result.result === 'ok';
     } catch (error) {
       console.error('Delete error:', error);
       throw new Error('Failed to delete file');

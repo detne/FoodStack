@@ -29,6 +29,10 @@ import {
 import OwnerOverview from './OwnerOverview';
 import RestaurantInformation from './RestaurantInformation';
 import OwnerMenuManagement from './OwnerMenuManagement';
+import OwnerCategories from './OwnerCategories';
+import Tables from './Tables';
+import Staff from './Staff';
+import Branding from './Branding';
 
 interface NavItem {
   title: string;
@@ -59,19 +63,19 @@ const navItems: NavItem[] = [
   {
     title: 'Manage Categories',
     subtitle: 'Manage categories, toppings',
-    href: '/categories',
+    href: '/owner/categories',
     icon: FolderTree,
   },
   {
     title: 'Table Management',
     subtitle: 'Manage tables and QR codes',
-    href: '/tables',
+    href: '/owner/tables',
     icon: Grid3x3,
   },
   {
     title: 'Staff Management',
     subtitle: 'Manage staff accounts',
-    href: '/staff',
+    href: '/owner/staff',
     icon: Users,
   },
   {
@@ -226,7 +230,6 @@ export default function OwnerDashboard() {
         <div className="p-4 border-t border-border">
           <div className="flex items-center gap-3 mb-3">
             <Avatar className="h-10 w-10">
-              <AvatarImage src={user.avatar_url} />
               <AvatarFallback className="bg-primary text-primary-foreground">
                 {userInitials}
               </AvatarFallback>
@@ -274,6 +277,14 @@ export default function OwnerDashboard() {
               <RestaurantInformation />
             ) : location.pathname === '/owner/menu' ? (
               <OwnerMenuManagement />
+            ) : location.pathname === '/owner/categories' ? (
+              <OwnerCategories />
+            ) : location.pathname === '/owner/tables' ? (
+              <Tables />
+            ) : location.pathname === '/owner/staff' ? (
+              <Staff />
+            ) : location.pathname === '/owner/branding' ? (
+              <Branding />
             ) : (
               <Outlet />
             )}

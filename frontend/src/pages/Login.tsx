@@ -33,7 +33,7 @@ const Login = () => {
       
       // Redirect based on user role
       if (userData?.role === 'OWNER') {
-        navigate("/owner");
+        navigate("/restaurant-selector");
       } else {
         navigate("/dashboard");
       }

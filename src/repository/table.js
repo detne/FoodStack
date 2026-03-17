@@ -24,6 +24,25 @@ class TableRepository {
     });
   }
 
+  async listByBranchId(branchId) {
+    return await this.prisma.tables.findMany({
+      where: {
+        deleted_at: null,
+        areas: {
+          branch_id: branchId,
+          deleted_at: null,
+        },
+      },
+      include: {
+        areas: true,
+      },
+      orderBy: [
+        { areas: { name: 'asc' } },
+        { table_number: 'asc' },
+      ],
+    });
+  }
+
   // Check trùng số bàn trong cùng branch (join tables -> areas -> branch)
   async findByBranchAndTableNumber(branchId, tableNumber, tx) {
     const client = tx || this.prisma;

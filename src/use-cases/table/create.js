@@ -102,31 +102,53 @@ class CreateTableUseCase {
     const baseUrl = process.env.CUSTOMER_APP_URL || 'https://your-customer-app.com';
     const qrContentUrl = `${baseUrl}/t/${qrToken}`;
 
-    // 7) Generate PNG buffer + upload Cloudinary
-    const pngBuffer = await this.qrService.generatePngBuffer(qrContentUrl);
+    try {
+      // 7) Generate PNG buffer + upload Cloudinary
+      console.log('Generating QR code for:', qrContentUrl);
+      const pngBuffer = await this.qrService.generatePngBuffer(qrContentUrl);
+      console.log('QR buffer generated, size:', pngBuffer.length);
 
-    const { url } = await this.cloudinaryUploadService.uploadPngBuffer(pngBuffer, {
-      folder: 'foodstack/qr/tables',
-      publicId: tableId, // dùng tableId làm publicId
-    });
+      console.log('Uploading to Cloudinary...');
+      const { url } = await this.cloudinaryUploadService.uploadPngBuffer(pngBuffer, {
+        folder: 'foodstack/qr/tables',
+        publicId: tableId, // dùng tableId làm publicId
+      });
+      console.log('Cloudinary upload successful:', url);
 
-    // 8) Update qr_code_url
-    await this.tableRepository.update(tableId, {
-      qr_code_url: url,
-      updated_at: new Date(),
-    });
+      // 8) Update qr_code_url
+      await this.tableRepository.update(tableId, {
+        qr_code_url: url,
+        updated_at: new Date(),
+      });
 
-    return {
-      id: table.id,
-      area_id: table.area_id,
-      table_number: table.table_number,
-      capacity: table.capacity,
-      qr_token: table.qr_token,
-      qr_code_url: url,
-      status: table.status,
-      created_at: table.created_at,
-      updated_at: new Date(),
-    };
+      return {
+        id: table.id,
+        area_id: table.area_id,
+        table_number: table.table_number,
+        capacity: table.capacity,
+        qr_token: table.qr_token,
+        qr_code_url: url,
+        status: table.status,
+        created_at: table.created_at,
+        updated_at: new Date(),
+      };
+    } catch (qrError) {
+      console.error('QR/Cloudinary error:', qrError);
+      
+      // Fallback: Return table without QR code
+      console.log('Returning table without QR code due to error');
+      return {
+        id: table.id,
+        area_id: table.area_id,
+        table_number: table.table_number,
+        capacity: table.capacity,
+        qr_token: table.qr_token,
+        qr_code_url: null, // No QR code due to error
+        status: table.status,
+        created_at: table.created_at,
+        updated_at: table.updated_at,
+      };
+    }
   }
 }
 

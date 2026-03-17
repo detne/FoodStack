@@ -19,6 +19,17 @@ class CategoryRepository {
         branch_id: branchId,
         deleted_at: null,
       },
+      include: {
+        _count: {
+          select: {
+            menu_items: {
+              where: {
+                deleted_at: null,
+              },
+            },
+          },
+        },
+      },
       orderBy: { sort_order: 'asc' },
     });
   }
