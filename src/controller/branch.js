@@ -2,6 +2,7 @@
 const { CreateBranchSchema } = require('../dto/branch/create-branch');
 const { UpdateBranchSchema } = require('../dto/branch/update-branch');
 const { ListBranchesSchema } = require('../dto/branch/list-branches');
+const { UpdateBrandingSchema } = require('../dto/branch/update-branding');
 
 class BranchController {
   constructor({
@@ -11,7 +12,8 @@ class BranchController {
     deleteBranchUseCase,
     getBranchDetailsUseCase,
     getFullMenuByBranchUseCase,
-    getBranchBrandingUseCase
+    getBranchBrandingUseCase,
+    updateBranchBrandingUseCase
   }) {
     this.createBranchUseCase = createBranchUseCase;
     this.updateBranchUseCase = updateBranchUseCase;
@@ -20,6 +22,7 @@ class BranchController {
     this.getBranchDetailsUseCase = getBranchDetailsUseCase;
     this.getFullMenuByBranchUseCase = getFullMenuByBranchUseCase;
     this.getBranchBrandingUseCase = getBranchBrandingUseCase;
+    this.updateBranchBrandingUseCase = updateBranchBrandingUseCase;
   }
 
   // POST /api/v1/branches
@@ -149,6 +152,28 @@ class BranchController {
 
       res.status(200).json({
         success: true,
+        data: result,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  // PUT /api/v1/owner/branches/:branchId/branding
+  async updateBranding(req, res, next) {
+    try {
+      const { branchId } = req.params;
+      const dto = UpdateBrandingSchema.parse(req.body);
+
+      const result = await this.updateBranchBrandingUseCase.execute(branchId, dto, {
+        userId: req.user?.userId,
+        role: req.user?.role,
+        restaurantId: req.user?.restaurantId,
+      });
+
+      res.status(200).json({
+        success: true,
+        message: 'Branding updated successfully',
         data: result,
       });
     } catch (err) {

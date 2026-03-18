@@ -53,6 +53,7 @@ const { ListBranchesUseCase } = require('./use-cases/branch/list');
 const { DeleteBranchUseCase } = require('./use-cases/branch/delete');
 const { GetBranchDetailsUseCase } = require('./use-cases/branch/get-details');
 const { GetBranchBrandingUseCase } = require('./use-cases/branch/get-branding');
+const { UpdateBranchBrandingUseCase } = require('./use-cases/branch/update-branding');
 
 const { CreateAreaUseCase } = require('./use-cases/area/create-area');
 const { GetListAreaUseCase } = require('./use-cases/area/list-by-branch');
@@ -190,6 +191,7 @@ function createApp() {
   const deleteBranchUseCase = new DeleteBranchUseCase(branchRepository);
   const getBranchDetailsUseCase = new GetBranchDetailsUseCase(branchRepository);
   const getBranchBrandingUseCase = new GetBranchBrandingUseCase(branchRepository, restaurantRepository, prisma);
+  const updateBranchBrandingUseCase = new UpdateBranchBrandingUseCase(branchRepository, restaurantRepository, prisma);
 
   // Auth middleware
   const authMiddleware = createAuthMiddleware(tokenService);
@@ -269,6 +271,7 @@ function createApp() {
     getBranchDetailsUseCase,
     getFullMenuByBranchUseCase,
     getBranchBrandingUseCase,
+    updateBranchBrandingUseCase,
   });
 
   // Area use cases + controller
@@ -512,6 +515,10 @@ function createApp() {
   // Owner-specific routes
   app.get('/api/v1/owner/branches/:branchId/branding', authMiddleware, (req, res, next) =>
     branchController.getBranding(req, res, next)
+  );
+  
+  app.put('/api/v1/owner/branches/:branchId/branding', authMiddleware, (req, res, next) =>
+    branchController.updateBranding(req, res, next)
   );
 
   // Areas routes (PATCH/DELETE /areas/:areaId)
