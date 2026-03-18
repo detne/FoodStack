@@ -10,7 +10,8 @@ class BranchController {
     listBranchesUseCase,
     deleteBranchUseCase,
     getBranchDetailsUseCase,
-    getFullMenuByBranchUseCase
+    getFullMenuByBranchUseCase,
+    getBranchBrandingUseCase
   }) {
     this.createBranchUseCase = createBranchUseCase;
     this.updateBranchUseCase = updateBranchUseCase;
@@ -18,6 +19,7 @@ class BranchController {
     this.deleteBranchUseCase = deleteBranchUseCase;
     this.getBranchDetailsUseCase = getBranchDetailsUseCase;
     this.getFullMenuByBranchUseCase = getFullMenuByBranchUseCase;
+    this.getBranchBrandingUseCase = getBranchBrandingUseCase;
   }
 
   // POST /api/v1/branches
@@ -128,6 +130,26 @@ class BranchController {
         success: true,
         message: 'Branch menu retrieved',
         data,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  // GET /api/v1/owner/branches/:branchId/branding
+  async getBranding(req, res, next) {
+    try {
+      const { branchId } = req.params;
+
+      const result = await this.getBranchBrandingUseCase.execute(branchId, {
+        userId: req.user?.userId,
+        role: req.user?.role,
+        restaurantId: req.user?.restaurantId,
+      });
+
+      res.status(200).json({
+        success: true,
+        data: result,
       });
     } catch (err) {
       next(err);

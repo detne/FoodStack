@@ -52,6 +52,7 @@ const { UpdateBranchUseCase } = require('./use-cases/branch/update');
 const { ListBranchesUseCase } = require('./use-cases/branch/list');
 const { DeleteBranchUseCase } = require('./use-cases/branch/delete');
 const { GetBranchDetailsUseCase } = require('./use-cases/branch/get-details');
+const { GetBranchBrandingUseCase } = require('./use-cases/branch/get-branding');
 
 const { CreateAreaUseCase } = require('./use-cases/area/create-area');
 const { GetListAreaUseCase } = require('./use-cases/area/list-by-branch');
@@ -188,6 +189,7 @@ function createApp() {
   const listBranchesUseCase = new ListBranchesUseCase(branchRepository, restaurantRepository);
   const deleteBranchUseCase = new DeleteBranchUseCase(branchRepository);
   const getBranchDetailsUseCase = new GetBranchDetailsUseCase(branchRepository);
+  const getBranchBrandingUseCase = new GetBranchBrandingUseCase(branchRepository, restaurantRepository, prisma);
 
   // Auth middleware
   const authMiddleware = createAuthMiddleware(tokenService);
@@ -266,6 +268,7 @@ function createApp() {
     deleteBranchUseCase,
     getBranchDetailsUseCase,
     getFullMenuByBranchUseCase,
+    getBranchBrandingUseCase,
   });
 
   // Area use cases + controller
@@ -505,6 +508,11 @@ function createApp() {
   app.use('/api/v1/restaurants', createRestaurantRoutes(restaurantController, authMiddleware));
 
   app.use('/api/v1/branches', createBranchRoutes(branchController, areaController, tableController, authMiddleware));
+  
+  // Owner-specific routes
+  app.get('/api/v1/owner/branches/:branchId/branding', authMiddleware, (req, res, next) =>
+    branchController.getBranding(req, res, next)
+  );
 
   // Areas routes (PATCH/DELETE /areas/:areaId)
   app.use('/api/v1/areas', createAreaRoutes(areaController, authMiddleware));
