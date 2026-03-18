@@ -164,6 +164,10 @@ class ApiClient {
     return this.request(`/restaurants/${id}`);
   }
 
+  async getUserRestaurants() {
+    return this.request('/restaurants/my-restaurants');
+  }
+
   async createRestaurant(data: any) {
     return this.request('/restaurants', {
       method: 'POST',
@@ -180,8 +184,26 @@ class ApiClient {
 
   // Branch endpoints
   async getBranches(restaurantId?: string) {
-    const query = restaurantId ? `?restaurant_id=${restaurantId}` : '';
-    return this.request(`/branches${query}`);
+    // If no restaurantId provided, try to get from localStorage
+    let finalRestaurantId = restaurantId;
+    
+    if (!finalRestaurantId) {
+      try {
+        const userData = localStorage.getItem('user');
+        if (userData) {
+          const user = JSON.parse(userData);
+          finalRestaurantId = user?.restaurant?.id;
+        }
+      } catch (error) {
+        console.error('Error getting restaurant ID from localStorage:', error);
+      }
+    }
+    
+    if (!finalRestaurantId) {
+      throw new Error('Restaurant ID is required');
+    }
+    
+    return this.request(`/branches?restaurantId=${finalRestaurantId}`);
   }
 
   async getBranch(id: string) {
@@ -265,6 +287,54 @@ class ApiClient {
   async deleteMenuItem(id: string) {
     return this.request(`/menu-items/${id}`, {
       method: 'DELETE',
+    });
+  }
+
+  async uploadMenuItemImage(menuItemId: string, file: File) {
+    const formData = new FormData();
+    formData.append('image', file);
+
+    const headers: HeadersInit = {};
+    const currentToken = this.getToken();
+    if (currentToken) {
+      headers['Authorization'] = `Bearer ${currentToken}`;
+    }
+
+    try {
+      const response = await fetch(
+        `${this.baseURL}/menu-items/${menuItemId}/image`,
+        {
+          method: 'POST',
+          headers,
+          body: formData,
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          this.setToken(null);
+          localStorage.removeItem('user');
+          localStorage.removeItem('refresh_token');
+        }
+        throw data;
+      }
+
+      return data;
+    } catch (error: any) {
+      console.error('Upload error:', {
+        endpoint: `/menu-items/${menuItemId}/image`,
+        error: error.message || error,
+      });
+      throw error;
+    }
+  }
+
+  async updateMenuItemAvailability(menuItemId: string, available: boolean) {
+    return this.request(`/menu-items/${menuItemId}/availability`, {
+      method: 'PATCH',
+      body: JSON.stringify({ available }),
     });
   }
 

@@ -43,6 +43,9 @@ import ApiTest from "./pages/ApiTest";
 import Register from "./pages/Register";
 import VerifyEmail from "./pages/VerifyEmail";
 import RestaurantInformation from "./pages/RestaurantInformation";
+import Branding from "./pages/Branding";
+import BranchSetup from "./pages/BranchSetup";
+import BranchEdit from "./pages/BranchEdit";
 
 const queryClient = new QueryClient();
 
@@ -116,7 +119,12 @@ const App = () => (
             <Route path="/owner/overview" element={<OwnerDashboard />} />
             <Route path="/owner/restaurant" element={<OwnerDashboard />} />
             <Route path="/owner/menu" element={<OwnerDashboard />} />
-            <Route path="/owner/branding" element={<Settings />} />
+            <Route path="/owner/categories" element={<OwnerDashboard />} />
+            <Route path="/owner/tables" element={<OwnerDashboard />} />
+            <Route path="/owner/staff" element={<OwnerDashboard />} />
+            <Route path="/owner/branding" element={<OwnerDashboard />} />
+            <Route path="/owner/branch-setup" element={<BranchSetup />} />
+            <Route path="/owner/branch-edit/:branchId" element={<BranchEdit />} />
             
             {/* Reviews */}
             <Route path="/reviews" element={<Reviews />} />

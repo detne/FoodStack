@@ -62,6 +62,7 @@ const { DeleteAreaUseCase } = require('./use-cases/area/delete-area');
 const { CreateTableUseCase } = require('./use-cases/table/create');
 const { UpdateTableUseCase } = require('./use-cases/table/update');
 const { DeleteTableUseCase } = require('./use-cases/table/delete');
+const { ListTablesByBranchUseCase } = require('./use-cases/table/list-by-branch');
 
 const { CreateMenuItemUseCase } = require('./use-cases/menu-item/create-menu-item');
 const { UpdateMenuItemUseCase } = require('./use-cases/menu-item/update-menu-item');
@@ -163,7 +164,7 @@ function createApp() {
   // Services
   const tokenService = new TokenService();
   const emailService = new EmailService();
-  const uploadService = new UploadService();
+  const uploadService = new UploadService(); // Now uses real Cloudinary
   const qrService = new QrService();
   const cloudinaryUploadService = new CloudinaryUploadService();
 
@@ -407,7 +408,14 @@ function createApp() {
     orderRepository
   );
 
-  const tableController = new TableController(createTableUseCase, updateTableUseCase, deleteTableUseCase);
+  const listTablesByBranchUseCase = new ListTablesByBranchUseCase(
+    tableRepository,
+    branchRepository,
+    restaurantRepository,
+    userRepository
+  );
+
+  const tableController = new TableController(createTableUseCase, updateTableUseCase, deleteTableUseCase, listTablesByBranchUseCase);
 
   // Staff use cases with role update
   const updateStaffRoleUseCase = new UpdateStaffRoleUseCase(
@@ -571,7 +579,7 @@ function createApp() {
   app.use('/api/v1/auth', createAuthRoutes(authController, authMiddleware));
   app.use('/api/v1/restaurants', createRestaurantRoutes(restaurantController, authMiddleware));
 
-  app.use('/api/v1/branches', createBranchRoutes(branchController, areaController, authMiddleware));
+  app.use('/api/v1/branches', createBranchRoutes(branchController, areaController, tableController, authMiddleware));
 
   // Areas routes (PATCH/DELETE /areas/:areaId)
   app.use('/api/v1/areas', createAreaRoutes(areaController, authMiddleware));

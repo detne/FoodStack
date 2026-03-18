@@ -2,10 +2,11 @@ const { CreateTableBodySchema } = require('../dto/table/create-table');
 const { UpdateTableBodySchema } = require('../dto/table/update-table');
 
 class TableController {
-    constructor(createTableUseCase, updateTableUseCase, deleteTableUseCase) {
+    constructor(createTableUseCase, updateTableUseCase, deleteTableUseCase, listTablesByBranchUseCase) {
         this.createTableUseCase = createTableUseCase;
         this.updateTableUseCase = updateTableUseCase;
         this.deleteTableUseCase = deleteTableUseCase;
+        this.listTablesByBranchUseCase = listTablesByBranchUseCase;
     }
 
     // POST /api/v1/areas/:areaId/tables
@@ -60,6 +61,26 @@ class TableController {
             });
 
             res.status(200).json({ success: true, message: result.message });
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    // GET /api/v1/branches/:branchId/tables
+    async listByBranch(req, res, next) {
+        try {
+            const { branchId } = req.params;
+
+            const result = await this.listTablesByBranchUseCase.execute(branchId, {
+                userId: req.user.userId,
+                role: req.user.role,
+            });
+
+            res.status(200).json({
+                success: true,
+                message: 'Tables fetched successfully',
+                data: result,
+            });
         } catch (err) {
             next(err);
         }

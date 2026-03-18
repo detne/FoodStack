@@ -3,9 +3,11 @@
  * Dashboard summary and KPIs for restaurant owners
  */
 
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import {
   Store,
   DollarSign,
@@ -17,6 +19,7 @@ import {
   AlertCircle,
   ArrowUpRight,
   Building2,
+  ExternalLink,
 } from 'lucide-react';
 import {
   AreaChart,
@@ -29,6 +32,10 @@ import {
   BarChart,
   Bar,
 } from 'recharts';
+import { useAuth } from '@/contexts/AuthContext';
+import { apiClient } from '@/lib/api-client';
+import { toast } from '@/components/ui/use-toast';
+import BranchEdit from './BranchEdit';
 
 // Mock data
 const revenueData = [
@@ -50,7 +57,109 @@ const ordersData = [
   { day: 'Sun', orders: 72 },
 ];
 
+interface Branch {
+  id: string;
+  name: string;
+  address: string;
+  phone?: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export default function OwnerOverview() {
+  const { user } = useAuth();
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editingBranch, setEditingBranch] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'active' | 'inactive'>('active');
+  const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
+
+  useEffect(() => {
+    console.log('OwnerOverview - User data:', user);
+    if (user?.restaurant?.id) {
+      fetchBranches();
+    } else {
+      console.log('No restaurant ID found in user data');
+      setLoading(false);
+    }
+  }, [user]);
+
+  const fetchBranches = async () => {
+    try {
+      setLoading(true);
+      console.log('Fetching branches for restaurant:', user?.restaurant?.id);
+      
+      const response = await apiClient.getBranches(user?.restaurant?.id);
+      console.log('Branches response:', response);
+      
+      if (response.success && response.data) {
+        // Handle both formats: direct array or {items: [...], pagination: {...}}
+        let branchesData = [];
+        if (Array.isArray(response.data)) {
+          branchesData = response.data;
+        } else if (response.data.items && Array.isArray(response.data.items)) {
+          branchesData = response.data.items;
+        }
+        
+        console.log('OwnerOverview - Set branches:', branchesData);
+        setBranches(branchesData);
+      } else {
+        console.error('Failed to fetch branches:', response.message);
+        setBranches([]); // Set empty array on error
+      }
+    } catch (error: any) {
+      console.error('Error fetching branches:', error);
+      setBranches([]); // Set empty array on error
+      toast({
+        title: "Error",
+        description: "Failed to load branches",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleToggleBranchStatus = async (branchId: string, currentStatus: string) => {
+    try {
+      setUpdatingStatus(branchId);
+      const newStatus = currentStatus === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+      
+      console.log(`Updating branch ${branchId} status from ${currentStatus} to ${newStatus}`);
+      
+      const response = await apiClient.updateBranch(branchId, { status: newStatus });
+      
+      if (response.success) {
+        // Update local state
+        setBranches(prev => prev.map(branch => 
+          branch.id === branchId 
+            ? { ...branch, status: newStatus }
+            : branch
+        ));
+        
+        toast({
+          title: "Success",
+          description: `Branch ${newStatus === 'ACTIVE' ? 'activated' : 'deactivated'} successfully`,
+        });
+      } else {
+        throw new Error(response.message || 'Failed to update branch status');
+      }
+    } catch (error: any) {
+      console.error('Error updating branch status:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update branch status",
+        variant: "destructive",
+      });
+    } finally {
+      setUpdatingStatus(null);
+    }
+  };
+
+  const activeBranches = branches.filter(b => b.status === 'ACTIVE');
+  const inactiveBranches = branches.filter(b => b.status === 'INACTIVE');
+  const displayBranches = activeTab === 'active' ? activeBranches : inactiveBranches;
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       {/* Header with Action */}
@@ -260,22 +369,191 @@ export default function OwnerOverview() {
                 </p>
               </div>
             </div>
-          </div>
-        </CardHeader>
-        <CardContent className="p-8">
-          <div className="flex flex-col items-center justify-center py-12">
-            <div className="w-20 h-20 bg-muted rounded-2xl flex items-center justify-center mb-4">
-              <Store className="h-10 w-10 text-muted-foreground" />
-            </div>
-            <h3 className="text-lg font-semibold mb-2">No branches yet</h3>
-            <p className="text-sm text-muted-foreground text-center max-w-md mb-6">
-              You don't have any branches for this brand. Create your first branch to start accepting orders.
-            </p>
-            <Button className="gap-2 shadow-sm hover:shadow-md transition-all duration-300">
+            <Button className="gap-2" onClick={() => window.location.href = '/owner/branch-setup'}>
               <Plus className="h-4 w-4" />
-              Create First Branch
+              Create Branch
             </Button>
           </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            </div>
+          ) : branches.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12">
+              <div className="w-20 h-20 bg-muted rounded-2xl flex items-center justify-center mb-4">
+                <Store className="h-10 w-10 text-muted-foreground" />
+              </div>
+              <h3 className="text-lg font-semibold mb-2">No branches yet</h3>
+              <p className="text-sm text-muted-foreground text-center max-w-md mb-6">
+                You don't have any branches for this brand. Create your first branch to start accepting orders.
+              </p>
+              <Button className="gap-2 shadow-sm hover:shadow-md transition-all duration-300" onClick={() => window.location.href = '/owner/branch-setup'}>
+                <Plus className="h-4 w-4" />
+                Create First Branch
+              </Button>
+            </div>
+          ) : (
+            <>
+              {/* Branch Tabs */}
+              <div className="border-b">
+                <div className="flex">
+                  <button 
+                    className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+                      activeTab === 'active'
+                        ? 'border-orange-500 text-orange-600 bg-orange-50'
+                        : 'border-transparent text-gray-500 hover:text-gray-700'
+                    }`}
+                    onClick={() => setActiveTab('active')}
+                  >
+                    Active ({activeBranches.length})
+                  </button>
+                  <button 
+                    className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+                      activeTab === 'inactive'
+                        ? 'border-orange-500 text-orange-600 bg-orange-50'
+                        : 'border-transparent text-gray-500 hover:text-gray-700'
+                    }`}
+                    onClick={() => setActiveTab('inactive')}
+                  >
+                    Inactive ({inactiveBranches.length})
+                  </button>
+                </div>
+              </div>
+
+              {/* Activate All Branches Banner (only show on inactive tab if there are inactive branches) */}
+              {activeTab === 'inactive' && inactiveBranches.length > 0 && (
+                <div className="p-4 bg-green-50 border-b border-green-200">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                        <Store className="w-4 h-4 text-green-600" />
+                      </div>
+                      <div>
+                        <h4 className="font-medium text-green-900">Activate All Branches</h4>
+                        <p className="text-sm text-green-700">This will make all inactive branches available again.</p>
+                      </div>
+                    </div>
+                    <Switch 
+                      checked={false}
+                      onCheckedChange={async (checked) => {
+                        if (checked) {
+                          // Activate all inactive branches
+                          for (const branch of inactiveBranches) {
+                            await handleToggleBranchStatus(branch.id, branch.status);
+                          }
+                        }
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Branch List */}
+              <div className="divide-y">
+                {displayBranches.length === 0 ? (
+                  <div className="p-8 text-center text-gray-500">
+                    <Store className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                    <p>No {activeTab} branches found</p>
+                  </div>
+                ) : (
+                  Array.isArray(displayBranches) && displayBranches.map((branch, index) => (
+                    <div
+                      key={branch.id}
+                      className="p-6 hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 bg-gradient-to-br from-orange-100 to-orange-200 rounded-xl flex items-center justify-center">
+                            <Store className="w-6 h-6 text-orange-600" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-1">
+                              <h3 className="font-semibold text-gray-900">{branch.name}</h3>
+                              <Badge 
+                                variant={branch.status === 'ACTIVE' ? 'default' : 'secondary'}
+                                className={`text-xs ${
+                                  branch.status === 'ACTIVE' 
+                                    ? 'bg-green-100 text-green-800' 
+                                    : 'bg-gray-100 text-gray-600'
+                                }`}
+                              >
+                                {branch.status.toLowerCase()}
+                              </Badge>
+                            </div>
+                            <p className="text-sm text-gray-500 mb-1">{branch.address}</p>
+                            {branch.phone && (
+                              <p className="text-xs text-gray-400">{branch.phone}</p>
+                            )}
+                            <button className="text-xs text-orange-600 hover:text-orange-700 flex items-center gap-1 mt-2">
+                              View Public Page
+                              <ExternalLink className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-6">
+                          {/* Performance Metrics */}
+                          <div className="text-center">
+                            <div className="text-lg font-bold text-gray-900">0</div>
+                            <div className="text-xs text-gray-500">Orders Today</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-lg font-bold text-green-600">VND 0</div>
+                            <div className="text-xs text-gray-500">Revenue</div>
+                          </div>
+                          
+                          {/* Status Toggle */}
+                          <div className="flex items-center gap-3">
+                            <div className="text-right">
+                              <div className="text-sm font-medium text-gray-900">
+                                {branch.status === 'ACTIVE' ? 'Active' : 'Inactive'}
+                              </div>
+                            </div>
+                            <Switch 
+                              checked={branch.status === 'ACTIVE'}
+                              disabled={updatingStatus === branch.id}
+                              onCheckedChange={() => handleToggleBranchStatus(branch.id, branch.status)}
+                            />
+                          </div>
+                          
+                          {/* Actions */}
+                          <div className="flex items-center gap-2">
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingBranch(branch.id);
+                              }}
+                            >
+                              Edit
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Branch Performance Section */}
+              <div className="p-6 border-t bg-gray-50">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-semibold text-gray-900">Branch Performance</h3>
+                  <select className="text-sm border rounded-md px-3 py-1">
+                    <option>Monthly</option>
+                    <option>Weekly</option>
+                    <option>Daily</option>
+                  </select>
+                </div>
+                <div className="text-center py-8 text-gray-500">
+                  <p>No branch performance data available</p>
+                </div>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 
@@ -365,6 +643,19 @@ export default function OwnerOverview() {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Branch Edit Dialog */}
+      {editingBranch && (
+        <BranchEdit
+          branchId={editingBranch}
+          isOpen={!!editingBranch}
+          onClose={() => setEditingBranch(null)}
+          onSuccess={() => {
+            setEditingBranch(null);
+            fetchBranches(); // Refresh the list
+          }}
+        />
       )}
     </div>
   );

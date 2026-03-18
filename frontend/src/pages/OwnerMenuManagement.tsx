@@ -1,43 +1,17 @@
 /**
- * Owner Menu Management Component
- * Manage menu items and categories within owner dashboard
+ * Owner Menu Management
+ * Manage menu items and categories with backend integration
  */
 
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
-import { useToast } from '@/hooks/use-toast';
-import {
-  Plus,
-  Search,
-  Edit,
-  Trash2,
-  Eye,
-  Settings,
-  UtensilsCrossed,
-  ChevronRight,
-  Image as ImageIcon,
-  Loader2,
-} from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Plus, Eye, Edit, Trash2, ChevronRight, Sparkles, Loader2, Upload } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { toast } from '@/components/ui/use-toast';
+import { apiClient } from '@/lib/api-client';
+import AddMenuItemDialog from '@/components/AddMenuItemDialog';
 
 interface MenuItem {
   id: string;
@@ -47,6 +21,7 @@ interface MenuItem {
   image_url?: string;
   available: boolean;
   category_id: string;
+  bestSeller?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -56,120 +31,160 @@ interface Category {
   name: string;
   description?: string;
   sort_order: number;
-  itemCount?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+interface GroupedCategory extends Category {
+  items: MenuItem[];
 }
 
 export default function OwnerMenuManagement() {
-  const navigate = useNavigate();
-  const { toast } = useToast();
-  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
-  const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [addFormData, setAddFormData] = useState({
-    name: '',
-    description: '',
-    price: '',
-    category_id: '',
-  });
-  const [editFormData, setEditFormData] = useState({
-    name: '',
-    description: '',
-    price: '',
-    category_id: '',
-  });
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeCategory, setActiveCategory] = useState<string>('');
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [uploadingItemId, setUploadingItemId] = useState<string | null>(null);
 
-  const handleAddClick = () => {
-    setAddFormData({
-      name: '',
-      description: '',
-      price: '',
-      category_id: categories.length > 0 ? categories[0].id : '',
-    });
-    setIsAddDialogOpen(true);
-  };
-
-  const handleAddSave = async () => {
-    try {
-      const token = localStorage.getItem('access_token');
-      const response = await fetch('http://localhost:3000/api/v1/menu-items', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          name: addFormData.name,
-          description: addFormData.description,
-          price: parseFloat(addFormData.price),
-          categoryId: addFormData.category_id,
-          available: true,
-        }),
-      });
-
-      if (response.ok) {
-        toast({
-          title: 'Success',
-          description: 'Menu item created successfully',
-        });
-        setIsAddDialogOpen(false);
-        fetchMenuItems();
-      }
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to create menu item',
-        variant: 'destructive',
-      });
-    }
-  };
-
+  // Fetch data from backend
   useEffect(() => {
     fetchData();
   }, []);
 
   const fetchData = async () => {
     try {
-      setIsLoading(true);
+      setLoading(true);
+      
+      // Check if user is logged in
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        console.log('No token found, redirecting to login');
+        toast({
+          title: "Error",
+          description: "Please login to manage menu",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Fetch real data from backend
       await Promise.all([fetchCategories(), fetchMenuItems()]);
     } catch (error) {
       console.error('Error fetching data:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load menu data',
+        variant: 'destructive',
+      });
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
   const fetchCategories = async () => {
     try {
       const token = localStorage.getItem('access_token');
-      if (!token) return;
+      if (!token) {
+        console.log('No access token found');
+        return;
+      }
 
-      const response = await fetch('http://localhost:3000/api/v1/categories', {
+      console.log('Fetching categories with token');
+      
+      // Get user data to find branch_id
+      const userData = localStorage.getItem('user');
+      let branchId = null;
+      
+      if (userData) {
+        try {
+          const user = JSON.parse(userData);
+          if (user?.restaurant?.id) {
+            // Fetch branches for this restaurant
+            const branchesResponse = await fetch(`http://localhost:3000/api/v1/branches?restaurantId=${user.restaurant.id}`, {
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+              },
+            });
+            
+            if (branchesResponse.ok) {
+              const branchesData = await branchesResponse.json();
+              console.log('Branches data from API:', branchesData);
+              
+              // Handle both response formats
+              let branches = [];
+              if (branchesData.success && branchesData.data) {
+                if (Array.isArray(branchesData.data)) {
+                  branches = branchesData.data;
+                } else if (branchesData.data.items && Array.isArray(branchesData.data.items)) {
+                  branches = branchesData.data.items;
+                }
+              }
+              
+              if (branches.length > 0) {
+                branchId = branches[0].id;
+                console.log('Using first branch:', branchId);
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Error parsing user data:', error);
+        }
+      }
+      
+      if (!branchId) {
+        console.log('No branch_id found');
+        return;
+      }
+      
+      const response = await fetch(`http://localhost:3000/api/v1/categories?branch_id=${branchId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.data) {
-          setCategories(data.data);
-        }
+      console.log('Categories response status:', response.status);
+
+      if (response.status === 401) {
+        console.log('Token expired or invalid, clearing token');
+        localStorage.removeItem('access_token');
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('Categories data:', data);
+      
+      if (data.success && data.data) {
+        setCategories(data.data);
+      } else {
+        console.log('No categories data in response');
+        setCategories([]);
       }
     } catch (error) {
       console.error('Error fetching categories:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load categories',
+        variant: 'destructive',
+      });
     }
   };
 
   const fetchMenuItems = async () => {
     try {
       const token = localStorage.getItem('access_token');
-      if (!token) return;
+      if (!token) {
+        console.log('No access token found');
+        return;
+      }
+
+      console.log('Fetching menu items');
 
       const response = await fetch('http://localhost:3000/api/v1/menu-items/search', {
         headers: {
@@ -178,39 +193,58 @@ export default function OwnerMenuManagement() {
         },
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.data) {
-          setMenuItems(data.data);
-        }
+      console.log('Menu items response status:', response.status);
+
+      if (response.status === 401) {
+        console.log('Token expired or invalid for menu items');
+        localStorage.removeItem('access_token');
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('Menu items data:', data);
+      console.log('Menu items count:', data.data?.length || 0);
+      
+      if (data.success && data.data) {
+        setMenuItems(data.data);
+        console.log('Set menu items:', data.data.length);
+      } else {
+        console.log('No menu items data in response');
+        setMenuItems([]);
       }
     } catch (error) {
       console.error('Error fetching menu items:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load menu items',
+        variant: 'destructive',
+      });
     }
   };
 
-  const handleToggleAvailability = async (id: string, currentStatus: boolean) => {
+  const handleToggleAvailability = async (itemId: string, currentStatus: boolean) => {
     try {
-      const token = localStorage.getItem('access_token');
-      const response = await fetch(`http://localhost:3000/api/v1/menu-items/${id}/availability`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({ available: !currentStatus }),
-      });
+      const response = await apiClient.updateMenuItemAvailability(itemId, !currentStatus);
 
-      if (response.ok) {
-        setMenuItems(menuItems.map(item => 
-          item.id === id ? { ...item, available: !currentStatus } : item
-        ));
+      if (response.success) {
+        // Update local state
+        setMenuItems(prevItems =>
+          prevItems.map(item =>
+            item.id === itemId ? { ...item, available: !currentStatus } : item
+          )
+        );
+
         toast({
           title: 'Success',
           description: 'Availability updated successfully',
         });
       }
     } catch (error) {
+      console.error('Error updating availability:', error);
       toast({
         title: 'Error',
         description: 'Failed to update availability',
@@ -219,73 +253,23 @@ export default function OwnerMenuManagement() {
     }
   };
 
-  const handleEditClick = (item: MenuItem) => {
-    setEditingItem(item);
-    setEditFormData({
-      name: item.name,
-      description: item.description || '',
-      price: item.price.toString(),
-      category_id: item.category_id,
-    });
-    setIsEditDialogOpen(true);
-  };
-
-  const handleEditSave = async () => {
-    if (!editingItem) return;
-
-    try {
-      const token = localStorage.getItem('access_token');
-      const response = await fetch(`http://localhost:3000/api/v1/menu-items/${editingItem.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          name: editFormData.name,
-          description: editFormData.description,
-          price: parseFloat(editFormData.price),
-          categoryId: editFormData.category_id,
-        }),
-      });
-
-      if (response.ok) {
-        toast({
-          title: 'Success',
-          description: 'Menu item updated successfully',
-        });
-        setIsEditDialogOpen(false);
-        fetchMenuItems();
-      }
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to update menu item',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const handleDelete = async (id: string) => {
+  const handleDeleteItem = async (itemId: string) => {
     if (!confirm('Are you sure you want to delete this menu item?')) return;
 
     try {
-      const token = localStorage.getItem('access_token');
-      const response = await fetch(`http://localhost:3000/api/v1/menu-items/${id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+      const response = await apiClient.deleteMenuItem(itemId);
 
-      if (response.ok) {
+      if (response.success) {
+        // Remove from local state
+        setMenuItems(prevItems => prevItems.filter(item => item.id !== itemId));
+
         toast({
           title: 'Success',
           description: 'Menu item deleted successfully',
         });
-        fetchMenuItems();
       }
     } catch (error) {
+      console.error('Error deleting menu item:', error);
       toast({
         title: 'Error',
         description: 'Failed to delete menu item',
@@ -294,479 +278,361 @@ export default function OwnerMenuManagement() {
     }
   };
 
-  // Filter menu items
-  const filteredMenuItems = menuItems.filter((item) => {
-    const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = selectedCategory === 'all' || item.category_id === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
+  const handleUploadImage = async (itemId: string, event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
 
-  // Group items by category for display
-  const categorizedItems = categories.map(category => ({
-    ...category,
-    items: filteredMenuItems.filter(item => item.category_id === category.id),
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: "Error",
+        description: "Please select a valid image file",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate file size (5MB max)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "Error",
+        description: "Image size must be less than 5MB",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setUploadingItemId(itemId);
+      const response = await apiClient.uploadMenuItemImage(itemId, file);
+
+      if (response.success) {
+        // Update local state with new image URL
+        setMenuItems(prevItems =>
+          prevItems.map(item =>
+            item.id === itemId ? { ...item, image_url: response.data?.imageUrl } : item
+          )
+        );
+
+        toast({
+          title: 'Success',
+          description: 'Image uploaded successfully',
+        });
+      }
+    } catch (error: any) {
+      console.error('Error uploading image:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to upload image',
+        variant: 'destructive',
+      });
+    } finally {
+      setUploadingItemId(null);
+    }
+  };
+
+  const groupedItems: GroupedCategory[] = categories.map(cat => ({
+    ...cat,
+    items: menuItems.filter(item => item.category_id === cat.id),
   }));
 
-  // Add uncategorized items
-  const uncategorizedItems = filteredMenuItems.filter(item => 
-    !categories.some(cat => cat.id === item.category_id)
-  );
+  const scrollToCategory = (categoryId: string) => {
+    setActiveCategory(categoryId);
+    const element = document.getElementById(`category-${categoryId}`);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    setTimeout(() => setActiveCategory(''), 2000);
+  };
 
-  if (uncategorizedItems.length > 0) {
-    categorizedItems.unshift({
-      id: 'uncategorized',
-      name: 'Uncategorized',
-      description: 'Items without category',
-      sort_order: -1,
-      items: uncategorizedItems,
-    });
-  }
-
-  if (isLoading) {
+  if (loading) {
     return (
-      <div className="space-y-6 animate-in fade-in duration-500">
-        <div className="animate-pulse">
-          <div className="h-8 bg-muted rounded w-1/3 mb-2"></div>
-          <div className="h-4 bg-muted rounded w-1/2"></div>
-        </div>
-        <div className="grid gap-6">
-          <div className="h-96 bg-muted rounded-lg animate-pulse"></div>
+      <div className="flex items-center justify-center min-h-[60vh] w-full">
+        <div className="flex flex-col items-center gap-4">
+          <div className="relative">
+            <div className="w-16 h-16 border-4 border-primary/20 rounded-full"></div>
+            <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin absolute top-0 left-0"></div>
+          </div>
+          <p className="text-sm text-muted-foreground animate-pulse">Loading menu...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Menu Management</h1>
-          <p className="text-muted-foreground mt-1">
+          <p className="text-muted-foreground text-sm mt-1">
             Manage your restaurant's menu items and categories
           </p>
         </div>
-        <Button className="gap-2" onClick={handleAddClick}>
-          <Plus className="h-4 w-4" />
+        <Button className="bg-orange-600 hover:bg-orange-700 gap-2 shadow-lg hover:shadow-xl transition-all duration-300" onClick={() => setShowAddDialog(true)}>
+          <Plus className="h-5 w-5" />
           Add Menu Item
         </Button>
       </div>
 
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-        <Input
-          placeholder="Search menu items..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10 max-w-md"
-        />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Menu Items - Left Side */}
-        <div className="lg:col-span-3 space-y-6">
-          {categorizedItems.map((category, categoryIndex) => (
-            <div key={category.id} className="animate-in slide-in-from-left" style={{ animationDelay: `${categoryIndex * 100}ms` }}>
-              {/* Category Header */}
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-3">
-                  <div className="w-1 h-8 bg-orange-600 rounded-full"></div>
-                  <div>
-                    <h2 className="text-2xl font-bold">{category.name}</h2>
-                    <p className="text-muted-foreground text-sm">{category.items?.length || 0} items in this category</p>
+      <div className="flex gap-6">
+        {/* Main Content */}
+        <div className="flex-1">
+          <div className="space-y-16 max-w-7xl">
+            {groupedItems.length === 0 ? (
+              <div className="text-center py-20 border-2 border-dashed rounded-2xl bg-muted/30 animate-in fade-in duration-500">
+                <div className="flex flex-col items-center gap-4">
+                  <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Sparkles className="h-8 w-8 text-primary" />
                   </div>
+                  <div className="space-y-2">
+                    <p className="font-semibold text-lg text-foreground">No menu items yet</p>
+                    <p className="text-muted-foreground text-sm max-w-sm">
+                      Get started by adding your first menu item to showcase your delicious offerings
+                    </p>
+                  </div>
+                  <Button className="mt-4 bg-orange-600 hover:bg-orange-700" onClick={() => setShowAddDialog(true)}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Your First Item
+                  </Button>
                 </div>
-                <Badge className="bg-teal-600 text-white px-3 py-1 rounded-full">
-                  {category.items?.length || 0}
-                </Badge>
               </div>
-
-              {/* Menu Items Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {category.items?.map((item, itemIndex) => (
-                  <Card 
-                    key={item.id} 
-                    className="hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 group animate-in slide-in-from-bottom"
-                    style={{ animationDelay: `${(categoryIndex * 100) + (itemIndex * 50)}ms` }}
+            ) : (
+              groupedItems.map((category, categoryIdx) => (
+              <section
+                key={category.id}
+                id={`category-${category.id}`}
+                className="scroll-mt-24 animate-in fade-in duration-500"
+                style={{ animationDelay: `${categoryIdx * 50}ms` }}
+              >
+                {/* Category Header */}
+                <div className="flex items-center justify-between mb-8 pb-4 border-b border-border/50">
+                  <div className="flex items-center gap-4">
+                    <div className="w-1.5 h-10 bg-gradient-to-b from-orange-600 to-orange-400 rounded-full"></div>
+                    <div>
+                      <h2 className="text-2xl font-bold tracking-tight">{category.name}</h2>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {category.items?.length || 0} items in this category
+                      </p>
+                    </div>
+                  </div>
+                  <Badge
+                    variant="secondary"
+                    className="text-sm font-semibold px-3 py-1 bg-teal-500/20 text-teal-600 dark:text-teal-400"
                   >
-                    <CardContent className="p-0">
-                      {/* Image */}
-                      <div className="relative h-48 bg-muted overflow-hidden">
+                    {category.items?.length || 0}
+                  </Badge>
+                </div>
+
+                {/* Menu Items Grid */}
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  {category.items?.map((item, itemIdx) => (
+                    <Card
+                      key={item.id}
+                      className={cn(
+                        "group relative overflow-hidden border border-border/40 bg-card",
+                        "hover:shadow-xl hover:shadow-primary/10 transition-all duration-500 ease-out",
+                        "hover:-translate-y-2 hover:border-primary/30",
+                        "animate-in fade-in slide-in-from-bottom-4 duration-500",
+                        "flex flex-col h-full min-h-[400px]" // Fixed minimum height
+                      )}
+                      style={{ animationDelay: `${categoryIdx * 50 + itemIdx * 30}ms` }}
+                    >
+                      {/* Image Container */}
+                      <div className="relative aspect-video bg-muted overflow-hidden">
                         {item.image_url ? (
                           <img
                             src={item.image_url}
                             alt={item.name}
-                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                            className="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-110"
+                            loading="lazy"
                           />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-muted to-muted/80">
-                            <UtensilsCrossed className="h-12 w-12 text-muted-foreground" />
+                            <Sparkles className="h-12 w-12 text-muted-foreground/30" />
                           </div>
                         )}
-                        {/* Availability Badge */}
-                        <div className="absolute top-3 left-3">
-                          <Badge 
-                            className={`${item.available ? 'bg-green-600' : 'bg-gray-500'} text-white px-3 py-1 rounded-full text-xs font-medium`}
+
+                        {/* Status Badge */}
+                        <div className="absolute top-3 left-3 z-10 animate-in fade-in duration-300">
+                          <Badge
+                            className={cn(
+                              "text-xs font-semibold px-2.5 py-1 backdrop-blur-sm",
+                              item.available
+                                ? 'bg-green-500/90 text-white'
+                                : 'bg-gray-500/90 text-white'
+                            )}
                           >
                             {item.available ? 'Available' : 'Unavailable'}
                           </Badge>
                         </div>
+
+                        {/* Best Seller Badge */}
+                        {item.bestSeller && (
+                          <div className="absolute top-3 right-3 z-10 animate-in fade-in duration-300">
+                            <Badge className="bg-yellow-500/90 text-white text-xs font-semibold px-2.5 py-1 flex items-center gap-1">
+                              <Sparkles className="h-3 w-3" />
+                              Best Seller
+                            </Badge>
+                          </div>
+                        )}
                       </div>
 
                       {/* Content */}
-                      <div className="p-6 space-y-4">
-                        <div>
-                          <h3 className="font-bold text-xl mb-2 line-clamp-1">{item.name}</h3>
-                          {item.description && (
-                            <p className="text-muted-foreground text-sm line-clamp-2 leading-relaxed">
-                              {item.description}
-                            </p>
-                          )}
+                      <CardContent className="p-5 flex flex-col h-full min-h-0">
+                        {/* Title & Description - Fixed height container */}
+                        <div className="flex-1 min-h-0 mb-4">
+                          <h3 className="font-bold text-lg leading-tight mb-2 group-hover:text-orange-600 transition-colors duration-300 line-clamp-2 break-words overflow-hidden">
+                            {item.name}
+                          </h3>
+                          <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2 break-words overflow-hidden">
+                            {item.description || 'No description available'}
+                          </p>
                         </div>
 
-                        <div className="flex items-center justify-between pt-2">
-                          <span className="text-2xl font-bold text-orange-600">
-                            {parseFloat(item.price.toString()).toFixed(2)} VND
-                          </span>
-                          <div className="flex items-center gap-2">
-                            {/* Toggle Availability */}
-                            <Switch
-                              checked={item.available}
-                              onCheckedChange={() => handleToggleAvailability(item.id, item.available)}
-                              className="data-[state=checked]:bg-green-500"
+                        {/* Price - Fixed height, no wrap */}
+                        <div className="mb-4">
+                          <p className="text-2xl font-bold text-orange-600 whitespace-nowrap overflow-hidden text-ellipsis">
+                            ${Number(item.price).toFixed(2)}
+                          </p>
+                        </div>
+
+                        {/* Divider */}
+                        <div className="h-px bg-border/30 mb-4 flex-shrink-0"></div>
+
+                        {/* Action Buttons - Fixed height */}
+                        <div className="flex items-center justify-end gap-1 flex-shrink-0">
+                          <div className="relative">
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              disabled={uploadingItemId === item.id}
+                              className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all duration-300 rounded-lg flex-shrink-0"
+                              onClick={() => document.getElementById(`upload-${item.id}`)?.click()}
+                            >
+                              {uploadingItemId === item.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Upload className="h-4 w-4" />
+                              )}
+                            </Button>
+                            <input
+                              id={`upload-${item.id}`}
+                              type="file"
+                              accept="image/jpeg,image/png,image/jpg"
+                              onChange={(e) => handleUploadImage(item.id, e)}
+                              className="hidden"
+                              disabled={uploadingItemId === item.id}
                             />
                           </div>
-                        </div>
-
-                        {/* Action Buttons */}
-                        <div className="flex items-center justify-center gap-3 pt-4 border-t">
                           <Button
-                            variant="ghost"
                             size="icon"
-                            className="hover:bg-muted text-muted-foreground hover:text-foreground rounded-full w-10 h-10"
+                            variant="ghost"
+                            onClick={() => handleToggleAvailability(item.id, item.available)}
+                            className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all duration-300 rounded-lg flex-shrink-0"
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
                           <Button
-                            variant="ghost"
                             size="icon"
-                            onClick={() => handleEditClick(item)}
-                            className="hover:bg-muted text-muted-foreground hover:text-foreground rounded-full w-10 h-10"
+                            variant="ghost"
+                            className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all duration-300 rounded-lg flex-shrink-0"
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
                           <Button
-                            variant="ghost"
                             size="icon"
-                            onClick={() => handleDelete(item.id)}
-                            className="hover:bg-destructive/10 text-muted-foreground hover:text-destructive rounded-full w-10 h-10"
+                            variant="ghost"
+                            onClick={() => handleDeleteItem(item.id)}
+                            className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all duration-300 rounded-lg flex-shrink-0"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
-          ))}
-
-          {/* Empty State */}
-          {filteredMenuItems.length === 0 && !isLoading && (
-            <Card className="animate-in slide-in-from-bottom duration-500">
-              <CardContent className="p-12 text-center">
-                <UtensilsCrossed className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No menu items found</h3>
-                <p className="text-muted-foreground mb-6">
-                  {searchQuery ? 'Try adjusting your search terms' : 'Create your first menu item to get started'}
-                </p>
-                <Button className="gap-2" onClick={handleAddClick}>
-                  <Plus className="h-4 w-4" />
-                  Add Menu Item
-                </Button>
-              </CardContent>
-            </Card>
-          )}
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </section>
+            ))
+            )}
+          </div>
         </div>
 
-        {/* Categories Sidebar - Right Side */}
-        <div className="space-y-4 animate-in slide-in-from-right duration-700">
+        {/* Sidebar - Categories */}
+        <div className="w-80 space-y-4">
           <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Categories</CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Navigate through menu categories
-              </p>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {/* All Categories */}
-              <div
-                className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition-all duration-200 ${
-                  selectedCategory === 'all' 
-                    ? 'bg-primary text-primary-foreground' 
-                    : 'hover:bg-muted'
-                }`}
-                onClick={() => setSelectedCategory('all')}
-              >
-                <div>
-                  <p className="font-medium">All Items</p>
-                  <p className="text-xs opacity-80">{menuItems.length} items</p>
-                </div>
-                <ChevronRight className="h-4 w-4" />
+            <CardContent className="p-6">
+              <div className="mb-4">
+                <h3 className="text-lg font-bold tracking-tight">Categories</h3>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Navigate through menu categories
+                </p>
               </div>
 
-              {/* Category List */}
-              {categories.map((category) => {
-                const itemCount = menuItems.filter(item => item.category_id === category.id).length;
-                const isSelected = selectedCategory === category.id;
-                
-                return (
-                  <div
-                    key={category.id}
-                    className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition-all duration-200 ${
-                      isSelected 
-                        ? 'bg-primary text-primary-foreground' 
-                        : 'hover:bg-muted'
-                    }`}
-                    onClick={() => setSelectedCategory(category.id)}
-                  >
-                    <div>
-                      <p className="font-medium">{category.name}</p>
-                      <p className="text-xs opacity-80">{itemCount} items</p>
-                    </div>
-                    <ChevronRight className="h-4 w-4" />
-                  </div>
-                );
-              })}
+              <div className="space-y-2">
+                {categories.map((cat, idx) => {
+                  const itemCount = menuItems.filter(item => item.category_id === cat.id).length;
+                  const isActive = activeCategory === cat.id;
+
+                  return (
+                    <button
+                      key={cat.id}
+                      onClick={() => {
+                        scrollToCategory(cat.id);
+                      }}
+                      className={cn(
+                        "w-full text-left px-4 py-3 rounded-lg transition-all duration-300 ease-out",
+                        "flex items-center justify-between cursor-pointer group",
+                        "border border-transparent",
+                        isActive
+                          ? 'bg-orange-600 text-white shadow-lg scale-105 border-orange-500'
+                          : 'hover:bg-muted/50 hover:border-border hover:shadow-md hover:translate-x-1'
+                      )}
+                      style={{
+                        animationDelay: `${idx * 30}ms`,
+                      }}
+                    >
+                      <div className="flex flex-col gap-0.5 flex-1 min-w-0">
+                        <span className={cn(
+                          'font-semibold text-sm truncate transition-colors',
+                          isActive ? 'text-white' : 'text-foreground'
+                        )}>
+                          {cat.name}
+                        </span>
+                        <span className={cn(
+                          'text-xs font-medium',
+                          isActive ? 'text-white/80' : 'text-muted-foreground'
+                        )}>
+                          {itemCount} {itemCount === 1 ? 'item' : 'items'}
+                        </span>
+                      </div>
+                      <ChevronRight
+                        className={cn(
+                          'h-4 w-4 flex-shrink-0 transition-all duration-300',
+                          isActive
+                            ? 'text-white translate-x-1'
+                            : 'text-muted-foreground group-hover:text-foreground group-hover:translate-x-1'
+                        )}
+                      />
+                    </button>
+                  );
+                })}
+              </div>
             </CardContent>
           </Card>
-
-          {/* Quick Stats */}
-          <div className="space-y-3">
-            {categories.slice(0, 5).map((category, index) => {
-              const itemCount = menuItems.filter(item => item.category_id === category.id).length;
-              const colors = ['green', 'blue', 'purple', 'orange', 'cyan'];
-              const color = colors[index % colors.length];
-              
-              return (
-                <Card key={category.id}>
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 bg-${color}-100 rounded-lg flex items-center justify-center`}>
-                        <UtensilsCrossed className={`h-5 w-5 text-${color}-600`} />
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">{category.name}</p>
-                        <p className="font-semibold">{itemCount} items</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
         </div>
       </div>
 
-      {/* Edit Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>Edit Menu Item</DialogTitle>
-            <p className="text-sm text-muted-foreground">Update item details</p>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="edit-name">Name *</Label>
-              <Input
-                id="edit-name"
-                value={editFormData.name}
-                onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
-                placeholder="Grilled Salmon"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="edit-category">Category *</Label>
-              <Select 
-                value={editFormData.category_id} 
-                onValueChange={(value) => setEditFormData({ ...editFormData, category_id: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((cat) => (
-                    <SelectItem key={cat.id} value={cat.id}>
-                      {cat.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {!editFormData.category_id && (
-                <p className="text-sm text-red-500">Please select a category</p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="edit-description">Description *</Label>
-              <Textarea
-                id="edit-description"
-                value={editFormData.description}
-                onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
-                placeholder="Fresh Atlantic salmon grilled to perfection with herbs and lemon"
-                rows={3}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="edit-price">Price *</Label>
-              <Input
-                id="edit-price"
-                type="number"
-                step="0.01"
-                value={editFormData.price}
-                onChange={(e) => setEditFormData({ ...editFormData, price: e.target.value })}
-                placeholder="24.99"
-              />
-            </div>
-
-            <div className="flex items-center gap-2">
-              <input type="checkbox" id="has-customization" />
-              <Label htmlFor="has-customization" className="flex items-center gap-2">
-                <Settings className="h-4 w-4" />
-                Has Customization
-              </Label>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Image *</Label>
-              <div className="border-2 border-dashed border-muted rounded-lg p-4 text-center">
-                <input type="file" className="hidden" id="image-upload" accept="image/*" />
-                <label htmlFor="image-upload" className="cursor-pointer">
-                  <ImageIcon className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                  <p className="text-sm text-muted-foreground">Choose file. No file chosen</p>
-                </label>
-              </div>
-              {editingItem?.image_url && (
-                <div className="mt-2">
-                  <p className="text-sm text-muted-foreground mb-2">Current Image:</p>
-                  <img 
-                    src={editingItem.image_url} 
-                    alt="Current" 
-                    className="w-20 h-20 object-cover rounded-lg"
-                  />
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-3">
-            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleEditSave} className="bg-orange-600 hover:bg-orange-700">
-              Update
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Add Dialog */}
-      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>Add Menu Item</DialogTitle>
-            <p className="text-sm text-muted-foreground">Create a new menu item</p>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="add-name">Name *</Label>
-              <Input
-                id="add-name"
-                value={addFormData.name}
-                onChange={(e) => setAddFormData({ ...addFormData, name: e.target.value })}
-                placeholder="Grilled Salmon"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="add-category">Category *</Label>
-              <Select 
-                value={addFormData.category_id} 
-                onValueChange={(value) => setAddFormData({ ...addFormData, category_id: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((cat) => (
-                    <SelectItem key={cat.id} value={cat.id}>
-                      {cat.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {!addFormData.category_id && (
-                <p className="text-sm text-red-500">Please select a category</p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="add-description">Description *</Label>
-              <Textarea
-                id="add-description"
-                value={addFormData.description}
-                onChange={(e) => setAddFormData({ ...addFormData, description: e.target.value })}
-                placeholder="Fresh Atlantic salmon grilled to perfection with herbs and lemon"
-                rows={3}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="add-price">Price *</Label>
-              <Input
-                id="add-price"
-                type="number"
-                step="0.01"
-                value={addFormData.price}
-                onChange={(e) => setAddFormData({ ...addFormData, price: e.target.value })}
-                placeholder="24.99"
-              />
-            </div>
-
-            <div className="flex items-center gap-2">
-              <input type="checkbox" id="add-has-customization" />
-              <Label htmlFor="add-has-customization" className="flex items-center gap-2">
-                <Settings className="h-4 w-4" />
-                Has Customization
-              </Label>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Image</Label>
-              <div className="border-2 border-dashed border-muted rounded-lg p-4 text-center">
-                <input type="file" className="hidden" id="add-image-upload" accept="image/*" />
-                <label htmlFor="add-image-upload" className="cursor-pointer">
-                  <ImageIcon className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                  <p className="text-sm text-muted-foreground">Choose file. No file chosen</p>
-                </label>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-3">
-            <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleAddSave} className="bg-orange-600 hover:bg-orange-700">
-              Create
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Add Menu Item Dialog */}
+      <AddMenuItemDialog
+        isOpen={showAddDialog}
+        onClose={() => setShowAddDialog(false)}
+        onSuccess={() => {
+          fetchData(); // Refresh data after adding item
+        }}
+        categories={categories}
+      />
     </div>
   );
 }

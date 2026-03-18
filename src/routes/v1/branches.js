@@ -1,6 +1,6 @@
 const express = require('express');
 
-function createBranchRoutes(branchController, areaController, authMiddleware) {
+function createBranchRoutes(branchController, areaController, tableController, authMiddleware) {
   const router = express.Router();
 
   // Public endpoint
@@ -35,6 +35,10 @@ function createBranchRoutes(branchController, areaController, authMiddleware) {
 
   router.get('/:branchId/areas', authMiddleware, (req, res, next) =>
     areaController.listByBranch(req, res, next)
+  );
+
+  router.get('/:branchId/tables', authMiddleware, (req, res, next) =>
+    tableController.listByBranch(req, res, next)
   );
 
   return router;
