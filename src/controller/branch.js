@@ -5,6 +5,7 @@ const { ListBranchesSchema } = require('../dto/branch/list-branches');
 const { UpdateBrandingSchema } = require('../dto/branch/update-branding');
 const { UploadBrandingImageSchema, validateFile } = require('../dto/branch/upload-branding-image');
 const { DeleteBrandingImageSchema } = require('../dto/branch/delete-branding-image');
+const { PublishBranchSchema } = require('../dto/branch/publish-branch');
 
 class BranchController {
   constructor({
@@ -17,7 +18,8 @@ class BranchController {
     getBranchBrandingUseCase,
     updateBranchBrandingUseCase,
     uploadBrandingImageUseCase,
-    deleteBrandingImageUseCase
+    deleteBrandingImageUseCase,
+    publishBranchUseCase
   }) {
     this.createBranchUseCase = createBranchUseCase;
     this.updateBranchUseCase = updateBranchUseCase;
@@ -29,6 +31,7 @@ class BranchController {
     this.updateBranchBrandingUseCase = updateBranchBrandingUseCase;
     this.uploadBrandingImageUseCase = uploadBrandingImageUseCase;
     this.deleteBrandingImageUseCase = deleteBrandingImageUseCase;
+    this.publishBranchUseCase = publishBranchUseCase;
   }
 
   // POST /api/v1/branches
@@ -248,6 +251,36 @@ class BranchController {
       res.status(200).json({
         success: true,
         message: result.message,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  // POST /api/v1/owner/branches/:branchId/publish
+  async publishBranch(req, res, next) {
+    try {
+      const { branchId } = req.params;
+      const dto = PublishBranchSchema.parse(req.body);
+
+      const result = await this.publishBranchUseCase.execute(
+        branchId,
+        dto.isPublished,
+        {
+          userId: req.user?.userId,
+          role: req.user?.role,
+          restaurantId: req.user?.restaurantId,
+        }
+      );
+
+      const message = dto.isPublished 
+        ? 'Branch published successfully' 
+        : 'Branch unpublished successfully';
+
+      res.status(200).json({
+        success: true,
+        message,
+        data: result,
       });
     } catch (err) {
       next(err);

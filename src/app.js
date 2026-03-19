@@ -56,6 +56,7 @@ const { GetBranchBrandingUseCase } = require('./use-cases/branch/get-branding');
 const { UpdateBranchBrandingUseCase } = require('./use-cases/branch/update-branding');
 const { UploadBrandingImageUseCase } = require('./use-cases/branch/upload-branding-image');
 const { DeleteBrandingImageUseCase } = require('./use-cases/branch/delete-branding-image');
+const { PublishBranchUseCase } = require('./use-cases/branch/publish-branch');
 
 const { CreateAreaUseCase } = require('./use-cases/area/create-area');
 const { GetListAreaUseCase } = require('./use-cases/area/list-by-branch');
@@ -197,6 +198,7 @@ function createApp() {
   const updateBranchBrandingUseCase = new UpdateBranchBrandingUseCase(branchRepository, restaurantRepository, prisma);
   const uploadBrandingImageUseCase = new UploadBrandingImageUseCase(branchRepository, restaurantRepository, uploadService, prisma);
   const deleteBrandingImageUseCase = new DeleteBrandingImageUseCase(branchRepository, restaurantRepository, uploadService, prisma);
+  const publishBranchUseCase = new PublishBranchUseCase(branchRepository, restaurantRepository, menuItemRepository, prisma);
 
   // Auth middleware
   const authMiddleware = createAuthMiddleware(tokenService);
@@ -280,6 +282,7 @@ function createApp() {
     updateBranchBrandingUseCase,
     uploadBrandingImageUseCase,
     deleteBrandingImageUseCase,
+    publishBranchUseCase,
   });
 
   // Area use cases + controller
@@ -535,6 +538,10 @@ function createApp() {
 
   app.delete('/api/v1/owner/branches/:branchId/branding/images', authMiddleware, (req, res, next) =>
     branchController.deleteBrandingImage(req, res, next)
+  );
+
+  app.post('/api/v1/owner/branches/:branchId/publish', authMiddleware, (req, res, next) =>
+    branchController.publishBranch(req, res, next)
   );
 
   // Areas routes (PATCH/DELETE /areas/:areaId)
