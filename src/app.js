@@ -4,7 +4,6 @@
  */
 
 const express = require('express');
-const { PrismaClient } = require('@prisma/client');
 const { prisma } = require('./config/database.config'); // Use singleton Prisma from config
 
 // Services
@@ -13,6 +12,7 @@ const { EmailService } = require('./service/email');
 const { UploadService } = require('./service/upload');
 const { QrService } = require('./service/qr');
 const { CloudinaryUploadService } = require('./service/cloudinary-upload');
+const { PayOSService } = require('./service/payos');
 
 // Repositories
 const { UserRepository } = require('./repository/user');
@@ -25,6 +25,7 @@ const { CustomizationRepository } = require('./repository/customization');
 const { ReservationRepository } = require('./repository/reservation');
 const { TableRepository } = require('./repository/table');
 const { OrderRepository } = require('./repository/order');
+const { PaymentRepository } = require('./repository/payment');
 
 // Use cases
 const { LoginUseCase } = require('./use-cases/auth/login');
@@ -86,6 +87,9 @@ const { GetReservationDetailsUseCase } = require('./use-cases/reservation/get-de
 const { ListReservationsUseCase } = require('./use-cases/reservation/list-reservations');
 const { CheckTableAvailabilityUseCase } = require('./use-cases/reservation/check-availability');
 
+const { ProcessPaymentUseCase } = require('./use-cases/payment/process-payment');
+const { VerifyPaymentWebhookUseCase } = require('./use-cases/payment/verify-payment-webhook');
+
 // Controllers
 const { AuthController } = require('./controller/auth');
 const { StaffController } = require('./controller/staff');
@@ -97,6 +101,7 @@ const { MenuItemController } = require('./controller/menu-item');
 const { CustomizationController } = require('./controller/customization');
 const { ReservationController } = require('./controller/reservation');
 const { TableController } = require('./controller/table');
+const { PaymentController } = require('./controller/payment');
 
 // Routes
 const { createAuthRoutes } = require('./routes/v1/auth');
@@ -108,6 +113,7 @@ const { createCustomizationRoutes } = require('./routes/v1/customization');
 const { createStaffRoutes } = require('./routes/v1/staff');
 const { createPublicRoutes } = require('./routes/v1/public');
 const { createCustomerOrderRoutes } = require('./routes/v1/customer-orders');
+const { createPaymentRoutes } = require('./routes/v1/payments');
 
 const { createAreaRoutes } = require('./routes/v1/areas');
 const { createReservationRoutes } = require('./routes/v1/reservation');
@@ -141,15 +147,13 @@ function createApp() {
     next();
   });
 
-  // Use singleton Prisma instance from config
-  // No need to create new PrismaClient here
-
   // Services
   const tokenService = new TokenService();
   const emailService = new EmailService();
   const uploadService = new UploadService();
   const qrService = new QrService();
   const cloudinaryUploadService = new CloudinaryUploadService();
+  const payOSService = new PayOSService();
 
   // Repositories
   const userRepository = new UserRepository(prisma);
@@ -162,6 +166,7 @@ function createApp() {
   const reservationRepository = new ReservationRepository(prisma);
   const tableRepository = new TableRepository(prisma);
   const orderRepository = new OrderRepository(prisma);
+  const paymentRepository = new PaymentRepository(prisma);
 
   // Use cases (misc)
   const getRestaurantStatisticsUseCase = new GetRestaurantStatisticsUseCase(prisma);
@@ -362,7 +367,7 @@ function createApp() {
   const updateStaffUseCase = new UpdateStaffUseCase(userRepository, prisma);
   const deleteStaffUseCase = new DeleteStaffUseCase(userRepository, tokenService);
 
-  // ✅ Table use case + controller
+  // Table use case + controller
   const createTableUseCase = new CreateTableUseCase(
     tableRepository,
     areaRepository,
@@ -390,15 +395,16 @@ function createApp() {
     orderRepository
   );
 
-  const tableController = new TableController(createTableUseCase, updateTableUseCase, deleteTableUseCase);
-
-  // Staff use cases with role update
-  const updateStaffRoleUseCase = new UpdateStaffRoleUseCase(
-    userRepository,
-    prisma
+  const tableController = new TableController(
+    createTableUseCase,
+    updateTableUseCase,
+    deleteTableUseCase
   );
 
-  // ✅ Staff controller with all use cases
+  // Staff use cases with role update
+  const updateStaffRoleUseCase = new UpdateStaffRoleUseCase(userRepository, prisma);
+
+  // Staff controller with all use cases
   const staffController = new StaffController(
     createStaffUseCase,
     updateStaffUseCase,
@@ -406,7 +412,7 @@ function createApp() {
     deleteStaffUseCase
   );
 
-  // ✅ Initialize reservation use cases
+  // Reservation use cases
   const createReservationUseCase = new CreateReservationUseCase(
     reservationRepository,
     branchRepository,
@@ -418,17 +424,11 @@ function createApp() {
     tableRepository
   );
 
-  const cancelReservationUseCase = new CancelReservationUseCase(
-    reservationRepository
-  );
+  const cancelReservationUseCase = new CancelReservationUseCase(reservationRepository);
 
-  const confirmReservationUseCase = new ConfirmReservationUseCase(
-    reservationRepository
-  );
+  const confirmReservationUseCase = new ConfirmReservationUseCase(reservationRepository);
 
-  const getReservationDetailsUseCase = new GetReservationDetailsUseCase(
-    reservationRepository
-  );
+  const getReservationDetailsUseCase = new GetReservationDetailsUseCase(reservationRepository);
 
   const listReservationsUseCase = new ListReservationsUseCase(
     reservationRepository,
@@ -440,7 +440,7 @@ function createApp() {
     branchRepository
   );
 
-  // ✅ Reservation controller
+  // Reservation controller
   const reservationController = new ReservationController({
     createReservationUseCase,
     updateReservationUseCase,
@@ -450,6 +450,26 @@ function createApp() {
     listReservationsUseCase,
     checkTableAvailabilityUseCase,
   });
+
+  // Payment use cases + controller
+  const processPaymentUseCase = new ProcessPaymentUseCase(
+    orderRepository,
+    paymentRepository,
+    payOSService,
+    prisma
+  );
+
+  const verifyPaymentWebhookUseCase = new VerifyPaymentWebhookUseCase(
+    payOSService,
+    paymentRepository,
+    orderRepository,
+    prisma
+  );
+
+  const paymentController = new PaymentController(
+    processPaymentUseCase,
+    verifyPaymentWebhookUseCase
+  );
 
   // Routes
   app.get('/', (req, res) => {
@@ -467,6 +487,7 @@ function createApp() {
         staff: '/api/v1/staff',
         areas: '/api/v1/areas',
         reservations: '/api/v1/reservations',
+        payments: '/api/v1/payments',
         public: '/api/v1/public',
         customerOrders: '/api/v1/customer-orders',
         health: '/health',
@@ -480,21 +501,21 @@ function createApp() {
 
   app.use('/api/v1/auth', createAuthRoutes(authController, authMiddleware));
   app.use('/api/v1/restaurants', createRestaurantRoutes(restaurantController, authMiddleware));
-
   app.use('/api/v1/branches', createBranchRoutes(branchController, areaController, authMiddleware));
 
   // Areas routes (PATCH/DELETE /areas/:areaId)
   app.use('/api/v1/areas', createAreaRoutes(areaController, authMiddleware));
 
-  // ✅ Tables routes (POST /areas/:areaId/tables)
+  // Tables routes (POST /areas/:areaId/tables)
   app.use('/api/v1', createTableRoutes(tableController, authMiddleware));
 
-  // Category/menu/customization/staff
+  // Category/menu/customization/staff/reservations/payments
   app.use('/api/v1/categories', createCategoryRoutes(categoryController, authMiddleware));
   app.use('/api/v1/menu-items', createMenuItemRoutes(menuItemController, authMiddleware));
   app.use('/api/v1/customizations', createCustomizationRoutes(customizationController, authMiddleware));
   app.use('/api/v1/staff', createStaffRoutes(staffController, authMiddleware));
   app.use('/api/v1/reservations', createReservationRoutes(reservationController, authMiddleware));
+  app.use('/api/v1/payments', createPaymentRoutes(paymentController, authMiddleware));
   app.use('/api/v1/public', createPublicRoutes(prisma));
   app.use('/api/v1/customer-orders', createCustomerOrderRoutes(prisma));
 
