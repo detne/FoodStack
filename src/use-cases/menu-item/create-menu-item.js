@@ -43,6 +43,7 @@ class CreateMenuItemUseCase {
     });
 
     return {
+      id: menuItem.id,
       menuItemId: menuItem.id,
       categoryId: menuItem.category_id,
       name: menuItem.name,

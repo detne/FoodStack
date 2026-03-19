@@ -4,6 +4,8 @@ const express = require('express');
 const { CreateStaffSchema } = require('../../dto/staff/create-staff');
 const { UpdateStaffSchema } = require('../../dto/staff/update-staff');
 const { UpdateStaffRoleSchema } = require('../../dto/staff/update-staff-role');
+const { GetStaffListSchema } = require('../../dto/staff/get-staff-list');
+const { SetStaffStatusSchema } = require('../../dto/staff/set-staff-status');
 
 /**
  * Validation middleware
@@ -36,6 +38,22 @@ function createStaffRoutes(staffController, authMiddleware) {
   if (!authMiddleware) {
     throw new Error('authMiddleware is required for staff routes');
   }
+
+  /**
+   * @route   GET /api/v1/staff
+   * @desc    Get list of staff (Owner/Manager only)
+   * @access  Private (OWNER, MANAGER)
+   * @query   branchId? - Filter by branch ID
+   * @query   page? - Page number (default: 1)
+   * @query   limit? - Items per page (default: 10, max: 100)
+   * @query   search? - Search by name or email
+   * @query   status? - Filter by status (ACTIVE/INACTIVE)
+   */
+  router.get(
+    '/',
+    authMiddleware,
+    (req, res, next) => staffController.getStaffList(req, res, next)
+  );
 
   /**
    * @route   POST /api/v1/staff
@@ -82,6 +100,19 @@ function createStaffRoutes(staffController, authMiddleware) {
     '/:id',
     authMiddleware,
     (req, res, next) => staffController.deleteStaff(req, res, next)
+  );
+
+  /**
+   * @route   PATCH /api/v1/staff/:id/status
+   * @desc    Activate/Deactivate staff account (Owner/Manager only)
+   * @access  Private (OWNER, MANAGER)
+   * @body    status - 'ACTIVE' or 'INACTIVE'
+   */
+  router.patch(
+    '/:id/status',
+    authMiddleware,
+    validateRequest(SetStaffStatusSchema),
+    (req, res, next) => staffController.setStaffStatus(req, res, next)
   );
 
   return router;

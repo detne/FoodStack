@@ -32,8 +32,9 @@ class SearchMenuItemsUseCase {
         name: item.name,
         description: item.description,
         price: item.price,
-        imageUrl: item.image_url,
+        image_url: item.image_url, // Keep consistent with frontend
         available: item.available,
+        category_id: item.categories?.id || item.category_id, // Frontend expects category_id
         category: item.categories ? {
           id: item.categories.id,
           name: item.categories.name,

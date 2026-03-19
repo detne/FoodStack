@@ -1,7 +1,6 @@
 // src/repository/menu-item.js
 
 const { prisma } = require('../config/database.config');
-
 class MenuItemRepository {
   constructor(prismaClient) {
     this.prisma = prismaClient || prisma;
@@ -9,10 +8,10 @@ class MenuItemRepository {
 
   async findById(id) {
     return await this.prisma.menu_items.findUnique({
-      where: { id },
-      include: {
-        categories: true,
-      },
+      where: { 
+        id,
+        deleted_at: null
+      }
     });
   }
 

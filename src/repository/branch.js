@@ -50,6 +50,16 @@ class BranchRepository {
   async listByRestaurant(restaurantId, page = 1, limit = 10) {
     const skip = (page - 1) * limit;
 
+    console.log('BranchRepository.listByRestaurant called with:', { restaurantId, page, limit });
+
+    // First, let's check if any branches exist for this restaurant (without deleted_at filter)
+    const allBranches = await this.prisma.branches.findMany({
+      where: {
+        restaurant_id: restaurantId,
+      },
+    });
+    console.log('All branches for restaurant (including deleted):', allBranches);
+
     const [items, total] = await this.prisma.$transaction([
       this.prisma.branches.findMany({
         where: {
@@ -67,6 +77,9 @@ class BranchRepository {
         },
       }),
     ]);
+
+    console.log('BranchRepository.listByRestaurant result:', { items: items.length, total });
+    console.log('Filtered branches:', items);
 
     return { items, total };
   }

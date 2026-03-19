@@ -26,6 +26,7 @@ const { ReservationRepository } = require('./repository/reservation');
 const { TableRepository } = require('./repository/table');
 const { OrderRepository } = require('./repository/order');
 const { PaymentRepository } = require('./repository/payment');
+const { ActivityLogRepository } = require('./repository/activity-log');
 
 // Use cases
 const { LoginUseCase } = require('./use-cases/auth/login');
@@ -63,6 +64,7 @@ const { DeleteAreaUseCase } = require('./use-cases/area/delete-area');
 const { CreateTableUseCase } = require('./use-cases/table/create');
 const { UpdateTableUseCase } = require('./use-cases/table/update');
 const { DeleteTableUseCase } = require('./use-cases/table/delete');
+const { ListTablesByBranchUseCase } = require('./use-cases/table/list-by-branch');
 
 const { CreateMenuItemUseCase } = require('./use-cases/menu-item/create-menu-item');
 const { UpdateMenuItemUseCase } = require('./use-cases/menu-item/update-menu-item');
@@ -78,6 +80,8 @@ const { CreateStaffUseCase } = require('./use-cases/staff/create-staff');
 const { UpdateStaffUseCase } = require('./use-cases/staff/update-staff');
 const { UpdateStaffRoleUseCase } = require('./use-cases/staff/update-staff-role');
 const { DeleteStaffUseCase } = require('./use-cases/staff/delete-staff');
+const { GetStaffListUseCase } = require('./use-cases/staff/get-staff-list');
+const { SetStaffStatusUseCase } = require('./use-cases/staff/set-staff-status');
 
 const { CreateReservationUseCase } = require('./use-cases/reservation/create-reservation');
 const { UpdateReservationUseCase } = require('./use-cases/reservation/update-reservation');
@@ -89,6 +93,17 @@ const { CheckTableAvailabilityUseCase } = require('./use-cases/reservation/check
 
 const { ProcessPaymentUseCase } = require('./use-cases/payment/process-payment');
 const { VerifyPaymentWebhookUseCase } = require('./use-cases/payment/verify-payment-webhook');
+// Order use cases
+const { CreateOrderUseCase } = require('./use-cases/order/create-order');
+const { GetOrderDetailsUseCase } = require('./use-cases/order/get-order-details');
+const { UpdateOrderStatusUseCase } = require('./use-cases/order/update-order-status');
+const { AddItemsToOrderUseCase } = require('./use-cases/order/add-items-to-order');
+const { RemoveItemFromOrderUseCase } = require('./use-cases/order/remove-item-from-order');
+const { UpdateOrderItemUseCase } = require('./use-cases/order/update-order-item');
+const { CancelOrderUseCase } = require('./use-cases/order/cancel-order');
+const { GetActiveOrdersByBranchUseCase } = require('./use-cases/order/get-active-orders-by-branch');
+const { GetOrdersByTableUseCase } = require('./use-cases/order/get-orders-by-table');
+const { GetOrderLifecycleUseCase } = require('./use-cases/order/get-order-lifecycle');
 
 // Controllers
 const { AuthController } = require('./controller/auth');
@@ -102,6 +117,7 @@ const { CustomizationController } = require('./controller/customization');
 const { ReservationController } = require('./controller/reservation');
 const { TableController } = require('./controller/table');
 const { PaymentController } = require('./controller/payment');
+const { OrderController } = require('./controller/order');
 
 // Routes
 const { createAuthRoutes } = require('./routes/v1/auth');
@@ -118,6 +134,7 @@ const { createPaymentRoutes } = require('./routes/v1/payments');
 const { createAreaRoutes } = require('./routes/v1/areas');
 const { createReservationRoutes } = require('./routes/v1/reservation');
 const { createTableRoutes } = require('./routes/v1/tables');
+const { createOrderRoutes } = require('./routes/v1/orders');
 
 // Middleware
 const { createAuthMiddleware } = require('./middleware/auth');
@@ -150,7 +167,7 @@ function createApp() {
   // Services
   const tokenService = new TokenService();
   const emailService = new EmailService();
-  const uploadService = new UploadService();
+  const uploadService = new UploadService(); // Now uses real Cloudinary
   const qrService = new QrService();
   const cloudinaryUploadService = new CloudinaryUploadService();
   const payOSService = new PayOSService();
@@ -167,6 +184,7 @@ function createApp() {
   const tableRepository = new TableRepository(prisma);
   const orderRepository = new OrderRepository(prisma);
   const paymentRepository = new PaymentRepository(prisma);
+  const activityLogRepository = new ActivityLogRepository(prisma);
 
   // Use cases (misc)
   const getRestaurantStatisticsUseCase = new GetRestaurantStatisticsUseCase(prisma);
@@ -395,21 +413,41 @@ function createApp() {
     orderRepository
   );
 
-  const tableController = new TableController(
-    createTableUseCase,
-    updateTableUseCase,
-    deleteTableUseCase
+  // Staff controller with all use cases
+  const listTablesByBranchUseCase = new ListTablesByBranchUseCase(
+    tableRepository,
+    branchRepository,
+    restaurantRepository,
+    userRepository
   );
 
-  // Staff use cases with role update
-  const updateStaffRoleUseCase = new UpdateStaffRoleUseCase(userRepository, prisma);
+  const tableController = new TableController(createTableUseCase, updateTableUseCase, deleteTableUseCase, listTablesByBranchUseCase);
 
-  // Staff controller with all use cases
+  // Staff use cases with role update
+  const updateStaffRoleUseCase = new UpdateStaffRoleUseCase(
+    userRepository,
+    prisma
+  );
+
+  const getStaffListUseCase = new GetStaffListUseCase(
+    userRepository,
+    restaurantRepository,
+    branchRepository,
+    prisma
+  );
+
+  const setStaffStatusUseCase = new SetStaffStatusUseCase(
+    userRepository
+  );
+
+  // ✅ Staff controller with all use cases
   const staffController = new StaffController(
     createStaffUseCase,
     updateStaffUseCase,
     updateStaffRoleUseCase,
-    deleteStaffUseCase
+    deleteStaffUseCase,
+    getStaffListUseCase,
+    setStaffStatusUseCase
   );
 
   // Reservation use cases
@@ -469,6 +507,63 @@ function createApp() {
   const paymentController = new PaymentController(
     processPaymentUseCase,
     verifyPaymentWebhookUseCase
+  )
+  // Order use cases
+  const createOrderUseCase = new CreateOrderUseCase(
+    orderRepository,
+    tableRepository,
+    branchRepository,
+    menuItemRepository
+  );
+
+  const getOrderDetailsUseCase = new GetOrderDetailsUseCase(orderRepository);
+
+  const updateOrderStatusUseCase = new UpdateOrderStatusUseCase(
+    orderRepository,
+    activityLogRepository
+  );
+
+  const addItemsToOrderUseCase = new AddItemsToOrderUseCase(
+    orderRepository,
+    menuItemRepository
+  );
+
+  const removeItemFromOrderUseCase = new RemoveItemFromOrderUseCase(orderRepository);
+
+  const updateOrderItemUseCase = new UpdateOrderItemUseCase(orderRepository);
+
+  const cancelOrderUseCase = new CancelOrderUseCase(
+    orderRepository,
+    activityLogRepository
+  );
+
+  const getActiveOrdersByBranchUseCase = new GetActiveOrdersByBranchUseCase(
+    orderRepository,
+    branchRepository
+  );
+
+  const getOrdersByTableUseCase = new GetOrdersByTableUseCase(
+    orderRepository,
+    tableRepository
+  );
+
+  const getOrderLifecycleUseCase = new GetOrderLifecycleUseCase(
+    orderRepository,
+    activityLogRepository
+  );
+
+  // Order controller
+  const orderController = new OrderController(
+    createOrderUseCase,
+    getOrderDetailsUseCase,
+    updateOrderStatusUseCase,
+    addItemsToOrderUseCase,
+    removeItemFromOrderUseCase,
+    updateOrderItemUseCase,
+    cancelOrderUseCase,
+    getActiveOrdersByBranchUseCase,
+    getOrdersByTableUseCase,
+    getOrderLifecycleUseCase
   );
 
   // Routes
@@ -488,6 +583,7 @@ function createApp() {
         areas: '/api/v1/areas',
         reservations: '/api/v1/reservations',
         payments: '/api/v1/payments',
+        orders: '/api/v1/orders',
         public: '/api/v1/public',
         customerOrders: '/api/v1/customer-orders',
         health: '/health',
@@ -501,7 +597,8 @@ function createApp() {
 
   app.use('/api/v1/auth', createAuthRoutes(authController, authMiddleware));
   app.use('/api/v1/restaurants', createRestaurantRoutes(restaurantController, authMiddleware));
-  app.use('/api/v1/branches', createBranchRoutes(branchController, areaController, authMiddleware));
+
+  app.use('/api/v1/branches', createBranchRoutes(branchController, areaController, tableController, authMiddleware));
 
   // Areas routes (PATCH/DELETE /areas/:areaId)
   app.use('/api/v1/areas', createAreaRoutes(areaController, authMiddleware));
@@ -516,6 +613,7 @@ function createApp() {
   app.use('/api/v1/staff', createStaffRoutes(staffController, authMiddleware));
   app.use('/api/v1/reservations', createReservationRoutes(reservationController, authMiddleware));
   app.use('/api/v1/payments', createPaymentRoutes(paymentController, authMiddleware));
+  app.use('/api/v1/orders', createOrderRoutes(orderController, authMiddleware));
   app.use('/api/v1/public', createPublicRoutes(prisma));
   app.use('/api/v1/customer-orders', createCustomerOrderRoutes(prisma));
 
