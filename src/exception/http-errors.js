@@ -24,4 +24,12 @@ class BadRequestError extends Error {
   }
 }
 
-module.exports = { NotFoundError, ForbiddenError, BadRequestError };
+class PayloadTooLargeError extends Error {
+  constructor(message = 'Payload Too Large') {
+    super(message);
+    this.name = 'PayloadTooLargeError';
+    this.status = 413;
+  }
+}
+
+module.exports = { NotFoundError, ForbiddenError, BadRequestError, PayloadTooLargeError };

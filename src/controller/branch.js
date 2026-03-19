@@ -3,6 +3,7 @@ const { CreateBranchSchema } = require('../dto/branch/create-branch');
 const { UpdateBranchSchema } = require('../dto/branch/update-branch');
 const { ListBranchesSchema } = require('../dto/branch/list-branches');
 const { UpdateBrandingSchema } = require('../dto/branch/update-branding');
+const { UploadBrandingImageSchema, validateFile } = require('../dto/branch/upload-branding-image');
 
 class BranchController {
   constructor({
@@ -13,7 +14,8 @@ class BranchController {
     getBranchDetailsUseCase,
     getFullMenuByBranchUseCase,
     getBranchBrandingUseCase,
-    updateBranchBrandingUseCase
+    updateBranchBrandingUseCase,
+    uploadBrandingImageUseCase
   }) {
     this.createBranchUseCase = createBranchUseCase;
     this.updateBranchUseCase = updateBranchUseCase;
@@ -23,6 +25,7 @@ class BranchController {
     this.getFullMenuByBranchUseCase = getFullMenuByBranchUseCase;
     this.getBranchBrandingUseCase = getBranchBrandingUseCase;
     this.updateBranchBrandingUseCase = updateBranchBrandingUseCase;
+    this.uploadBrandingImageUseCase = uploadBrandingImageUseCase;
   }
 
   // POST /api/v1/branches
@@ -174,6 +177,47 @@ class BranchController {
       res.status(200).json({
         success: true,
         message: 'Branding updated successfully',
+        data: result,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  // POST /api/v1/owner/branches/:branchId/branding/upload
+  async uploadBrandingImage(req, res, next) {
+    try {
+      const { branchId } = req.params;
+      const { imageType, caption } = req.body;
+      const file = req.file;
+
+      // Validate request body
+      const dto = UploadBrandingImageSchema.parse({ imageType, caption });
+
+      // Validate file
+      const fileErrors = validateFile(file, dto.imageType);
+      if (fileErrors.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'File validation failed',
+          errors: fileErrors
+        });
+      }
+
+      const result = await this.uploadBrandingImageUseCase.execute(
+        branchId, 
+        file, 
+        dto.imageType, 
+        dto.caption, 
+        {
+          userId: req.user?.userId,
+          role: req.user?.role,
+          restaurantId: req.user?.restaurantId,
+        }
+      );
+
+      res.status(200).json({
+        success: true,
         data: result,
       });
     } catch (err) {

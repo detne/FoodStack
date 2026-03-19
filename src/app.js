@@ -54,6 +54,7 @@ const { DeleteBranchUseCase } = require('./use-cases/branch/delete');
 const { GetBranchDetailsUseCase } = require('./use-cases/branch/get-details');
 const { GetBranchBrandingUseCase } = require('./use-cases/branch/get-branding');
 const { UpdateBranchBrandingUseCase } = require('./use-cases/branch/update-branding');
+const { UploadBrandingImageUseCase } = require('./use-cases/branch/upload-branding-image');
 
 const { CreateAreaUseCase } = require('./use-cases/area/create-area');
 const { GetListAreaUseCase } = require('./use-cases/area/list-by-branch');
@@ -119,6 +120,7 @@ const { createTableRoutes } = require('./routes/v1/tables');
 
 // Middleware
 const { createAuthMiddleware } = require('./middleware/auth');
+const { createUploadMiddleware } = require('./middleware/upload');
 
 /**
  * Create Express application
@@ -192,9 +194,11 @@ function createApp() {
   const getBranchDetailsUseCase = new GetBranchDetailsUseCase(branchRepository);
   const getBranchBrandingUseCase = new GetBranchBrandingUseCase(branchRepository, restaurantRepository, prisma);
   const updateBranchBrandingUseCase = new UpdateBranchBrandingUseCase(branchRepository, restaurantRepository, prisma);
+  const uploadBrandingImageUseCase = new UploadBrandingImageUseCase(branchRepository, restaurantRepository, uploadService, prisma);
 
   // Auth middleware
   const authMiddleware = createAuthMiddleware(tokenService);
+  const uploadMiddleware = createUploadMiddleware();
 
   // Controllers (auth)
   const authController = new AuthController(
@@ -272,6 +276,7 @@ function createApp() {
     getFullMenuByBranchUseCase,
     getBranchBrandingUseCase,
     updateBranchBrandingUseCase,
+    uploadBrandingImageUseCase,
   });
 
   // Area use cases + controller
@@ -519,6 +524,10 @@ function createApp() {
   
   app.put('/api/v1/owner/branches/:branchId/branding', authMiddleware, (req, res, next) =>
     branchController.updateBranding(req, res, next)
+  );
+
+  app.post('/api/v1/owner/branches/:branchId/branding/upload', authMiddleware, uploadMiddleware, (req, res, next) =>
+    branchController.uploadBrandingImage(req, res, next)
   );
 
   // Areas routes (PATCH/DELETE /areas/:areaId)
