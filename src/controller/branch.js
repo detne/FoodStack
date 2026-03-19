@@ -4,6 +4,7 @@ const { UpdateBranchSchema } = require('../dto/branch/update-branch');
 const { ListBranchesSchema } = require('../dto/branch/list-branches');
 const { UpdateBrandingSchema } = require('../dto/branch/update-branding');
 const { UploadBrandingImageSchema, validateFile } = require('../dto/branch/upload-branding-image');
+const { DeleteBrandingImageSchema } = require('../dto/branch/delete-branding-image');
 
 class BranchController {
   constructor({
@@ -15,7 +16,8 @@ class BranchController {
     getFullMenuByBranchUseCase,
     getBranchBrandingUseCase,
     updateBranchBrandingUseCase,
-    uploadBrandingImageUseCase
+    uploadBrandingImageUseCase,
+    deleteBrandingImageUseCase
   }) {
     this.createBranchUseCase = createBranchUseCase;
     this.updateBranchUseCase = updateBranchUseCase;
@@ -26,6 +28,7 @@ class BranchController {
     this.getBranchBrandingUseCase = getBranchBrandingUseCase;
     this.updateBranchBrandingUseCase = updateBranchBrandingUseCase;
     this.uploadBrandingImageUseCase = uploadBrandingImageUseCase;
+    this.deleteBrandingImageUseCase = deleteBrandingImageUseCase;
   }
 
   // POST /api/v1/branches
@@ -219,6 +222,32 @@ class BranchController {
       res.status(200).json({
         success: true,
         data: result,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  // DELETE /api/v1/owner/branches/:branchId/branding/images
+  async deleteBrandingImage(req, res, next) {
+    try {
+      const { branchId } = req.params;
+      const dto = DeleteBrandingImageSchema.parse(req.body);
+
+      const result = await this.deleteBrandingImageUseCase.execute(
+        branchId,
+        dto.imageType,
+        dto.imageUrl,
+        {
+          userId: req.user?.userId,
+          role: req.user?.role,
+          restaurantId: req.user?.restaurantId,
+        }
+      );
+
+      res.status(200).json({
+        success: true,
+        message: result.message,
       });
     } catch (err) {
       next(err);
