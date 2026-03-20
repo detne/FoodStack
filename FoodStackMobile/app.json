@@ -9,7 +9,7 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#6366f1"
+      "backgroundColor": "#FF7A30"
     },
     "assetBundlePatterns": [
       "**/*"
@@ -22,7 +22,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#6366f1",
+        "backgroundColor": "#FF7A30",
         "foregroundImage": "./assets/android-icon-foreground.png"
       },
       "permissions": [
@@ -40,6 +40,7 @@
           "cameraPermission": "Allow FoodStack to access your camera to scan QR codes."
         }
       ]
-    ]
+    ],
+    "sdkVersion": "50.0.0"
   }
 }

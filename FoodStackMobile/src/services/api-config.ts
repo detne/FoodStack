@@ -1,24 +1,31 @@
+import { Platform } from 'react-native';
+import Constants from 'expo-constants';
+
 // API Configuration for different environments
 export const getApiBaseUrl = () => {
   if (__DEV__) {
     // Development URLs
     const ANDROID_EMULATOR_URL = 'http://10.0.2.2:3000/api/v1';
     const IOS_SIMULATOR_URL = 'http://localhost:3000/api/v1';
-    const PHYSICAL_DEVICE_URL = 'http://192.168.1.100:3000/api/v1'; // Replace with your computer's IP
     
-    // Auto-detect platform
-    const { Platform } = require('react-native');
+    // For Expo Go on physical device, use your computer's IP
+    // Replace with your actual IP address
+    const PHYSICAL_DEVICE_URL = 'http://192.168.5.120:3000/api/v1';
     
     if (Platform.OS === 'android') {
       // Check if running on emulator or physical device
-      const { Constants } = require('expo-constants');
       if (Constants.isDevice) {
         return PHYSICAL_DEVICE_URL;
       } else {
         return ANDROID_EMULATOR_URL;
       }
     } else if (Platform.OS === 'ios') {
-      return IOS_SIMULATOR_URL;
+      // For iOS, check if running on simulator or device
+      if (Constants.isDevice) {
+        return PHYSICAL_DEVICE_URL;
+      } else {
+        return IOS_SIMULATOR_URL;
+      }
     } else {
       return 'http://localhost:3000/api/v1'; // Web
     }
