@@ -8,10 +8,10 @@ class MenuItemRepository {
 
   async findById(id) {
     return await this.prisma.menu_items.findUnique({
-      where: { id },
-      include: {
-        categories: true,
-      },
+      where: { 
+        id,
+        deleted_at: null
+      }
     });
   }
 
