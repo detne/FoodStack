@@ -3,6 +3,14 @@ const express = require('express');
 function createPaymentRoutes(paymentController, authMiddleware) {
   const router = express.Router();
 
+  router.get('/checkout-preview', (req, res, next) =>
+    paymentController.getCheckoutPreview(req, res, next)
+  );
+
+  router.get('/:paymentId', authMiddleware, (req, res, next) =>
+    paymentController.getDetails(req, res, next)
+  );
+
   router.post('/process', (req, res, next) =>
     paymentController.process(req, res, next)
   );

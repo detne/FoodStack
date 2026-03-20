@@ -1,9 +1,49 @@
 const { CreatePaymentBodySchema } = require('../dto/payment/create-payment');
+const { GetCheckoutPreviewQuerySchema } = require('../dto/payment/get-checkout-preview');
 
 class PaymentController {
-  constructor(processPaymentUseCase, verifyPaymentWebhookUseCase) {
+  constructor(processPaymentUseCase, verifyPaymentWebhookUseCase, getCheckoutPreviewUseCase, getPaymentDetailsUseCase) {
     this.processPaymentUseCase = processPaymentUseCase;
     this.verifyPaymentWebhookUseCase = verifyPaymentWebhookUseCase;
+    this.getCheckoutPreviewUseCase = getCheckoutPreviewUseCase;
+    this.getPaymentDetailsUseCase = getPaymentDetailsUseCase;
+  }
+
+  async getDetails(req, res, next) {
+    try {
+      console.log('GET PAYMENT DETAILS req.user =', req.user);
+
+      const { paymentId } = req.params;
+
+      const result = await this.getPaymentDetailsUseCase.execute(
+        paymentId,
+        req.user
+      );
+
+      return res.status(200).json({
+        success: true,
+        message: 'Payment details fetched successfully',
+        data: result,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async getCheckoutPreview(req, res, next) {
+    try {
+      const dto = GetCheckoutPreviewQuerySchema.parse(req.query);
+
+      const result = await this.getCheckoutPreviewUseCase.execute(dto);
+
+      return res.status(200).json({
+        success: true,
+        message: 'Checkout preview fetched successfully',
+        data: result,
+      });
+    } catch (err) {
+      next(err);
+    }
   }
 
   async process(req, res, next) {

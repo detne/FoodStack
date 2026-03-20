@@ -93,6 +93,8 @@ const { CheckTableAvailabilityUseCase } = require('./use-cases/reservation/check
 
 const { ProcessPaymentUseCase } = require('./use-cases/payment/process-payment');
 const { VerifyPaymentWebhookUseCase } = require('./use-cases/payment/verify-payment-webhook');
+const { GetCheckoutPreviewUseCase } = require('./use-cases/payment/get-checkout-preview');
+const { GetPaymentDetailsUseCase } = require('./use-cases/payment/get-payment-details');
 // Order use cases
 const { CreateOrderUseCase } = require('./use-cases/order/create-order');
 const { GetOrderDetailsUseCase } = require('./use-cases/order/get-order-details');
@@ -504,9 +506,22 @@ function createApp() {
     prisma
   );
 
+  const getCheckoutPreviewUseCase = new GetCheckoutPreviewUseCase(
+    orderRepository,
+    prisma
+  );
+
+  const getPaymentDetailsUseCase = new GetPaymentDetailsUseCase(
+    paymentRepository,
+    orderRepository,
+    userRepository
+  );
+
   const paymentController = new PaymentController(
     processPaymentUseCase,
-    verifyPaymentWebhookUseCase
+    verifyPaymentWebhookUseCase,
+    getCheckoutPreviewUseCase,
+    getPaymentDetailsUseCase
   )
   // Order use cases
   const createOrderUseCase = new CreateOrderUseCase(

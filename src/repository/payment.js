@@ -46,6 +46,14 @@ class PaymentRepository {
     });
   }
 
+  async findById(paymentId, tx) {
+    const client = this.getClient(tx);
+
+    return client.payments.findUnique({
+      where: { id: paymentId },
+    });
+  }
+
   async findByPayOSOrderCode(orderCode, tx) {
     const client = this.getClient(tx);
 
