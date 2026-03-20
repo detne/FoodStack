@@ -207,6 +207,17 @@ class UserRepository {
       data: { restaurant_id: restaurantId, updated_at: new Date() },
     });
   }
+
+  /**
+   * Delete user (hard delete)
+   * @param {string} id - User ID
+   * @returns {Promise<Object>} Deleted user
+   */
+  async delete(id) {
+    return await this.prisma.users.delete({
+      where: { id },
+    });
+  }
 }
 
 module.exports = { UserRepository };

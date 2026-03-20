@@ -33,14 +33,14 @@ interface BranchEditProps {
   onSuccess?: () => void;
 }
 
-export default function BranchEdit({ branchId, isOpen = true, onClose, onSuccess }: BranchEditProps) {
+export default function BranchEdit({ branchId: propBranchId, isOpen = true, onClose, onSuccess }: BranchEditProps) {
   const navigate = useNavigate();
   const params = useParams();
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [fetchLoading, setFetchLoading] = useState(true);
   
-  const currentBranchId = branchId || params.branchId;
+  const currentBranchId = propBranchId || params.branchId;
   
   const [formData, setFormData] = useState({
     name: '',

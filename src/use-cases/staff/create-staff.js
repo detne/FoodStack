@@ -25,14 +25,16 @@ class CreateStaffUseCase {
       throw new ValidationError('Restaurant not found');
     }
 
-    // 3. Validate branch exists and belongs to restaurant
-    const branch = await this.branchRepository.findById(dto.branchId);
-    if (!branch) {
-      throw new ValidationError('Branch not found');
-    }
+    // 3. Validate branch exists and belongs to restaurant (if branch_id provided)
+    if (dto.branch_id && dto.branch_id.trim() !== '') {
+      const branch = await this.branchRepository.findById(dto.branch_id);
+      if (!branch) {
+        throw new ValidationError('Branch not found');
+      }
 
-    if (branch.restaurant_id !== currentUser.restaurantId) {
-      throw new UnauthorizedError('Branch does not belong to your restaurant');
+      if (branch.restaurant_id !== currentUser.restaurantId) {
+        throw new UnauthorizedError('Branch does not belong to your restaurant');
+      }
     }
 
     // 4. Validate email is unique
@@ -56,12 +58,12 @@ class CreateStaffUseCase {
         data: {
           id: userId,
           restaurant_id: currentUser.restaurantId,
-          // branch_id: dto.branchId, // Temporarily commented out until DB migration
+          branch_id: dto.branch_id || null, // Now we can use branch_id
           email: dto.email,
           password_hash: hashedPassword,
-          full_name: dto.name,
-          phone: null,
-          role: 'STAFF',
+          full_name: dto.full_name,
+          phone: dto.phone || null,
+          role: dto.role || 'STAFF', // Use provided role or default to STAFF
           status: 'ACTIVE',
           created_at: now,
           updated_at: now,
@@ -70,7 +72,7 @@ class CreateStaffUseCase {
 
       // 7. Send activation email with temporary password
       this.emailService
-        .sendStaffActivationEmail(dto.email, dto.name, tempPassword, restaurant.name)
+        .sendStaffActivationEmail(dto.email, dto.full_name, tempPassword, restaurant.name)
         .catch((err) => console.error('Email error:', err));
 
       return {

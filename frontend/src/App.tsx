@@ -46,6 +46,10 @@ import RestaurantInformation from "./pages/RestaurantInformation";
 import Branding from "./pages/Branding";
 import BranchSetup from "./pages/BranchSetup";
 import BranchEdit from "./pages/BranchEdit";
+import CustomerLanding from "./pages/CustomerLanding";
+import CustomerMenu from "./pages/CustomerMenu";
+import CustomerOrder from "./pages/CustomerOrder";
+import CustomerOrderStatus from "./pages/CustomerOrderStatus";
 
 const queryClient = new QueryClient();
 
@@ -131,6 +135,12 @@ const App = () => (
             
             {/* Settings */}
             <Route path="/settings" element={<Settings />} />
+            
+            {/* Customer QR Routes */}
+            <Route path="/t/:qr_token" element={<CustomerLanding />} />
+            <Route path="/customer/menu" element={<CustomerMenu />} />
+            <Route path="/customer/order" element={<CustomerOrder />} />
+            <Route path="/customer/order-status" element={<CustomerOrderStatus />} />
             
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

@@ -442,7 +442,7 @@ export default function Tables() {
   };
 
   const handleCopyQRLink = async (qrToken: string) => {
-    const baseUrl = process.env.REACT_APP_CUSTOMER_URL || 'https://your-customer-app.com';
+    const baseUrl = import.meta.env.VITE_CUSTOMER_URL || 'http://localhost:8080';
     const qrLink = `${baseUrl}/t/${qrToken}`;
     
     try {
@@ -897,7 +897,7 @@ export default function Tables() {
                   <label className="text-sm font-medium">Direct Link:</label>
                   <div className="flex gap-2">
                     <Input
-                      value={`${process.env.REACT_APP_CUSTOMER_URL || 'https://your-customer-app.com'}/t/${selectedTableForQR.qr_token}`}
+                      value={`${import.meta.env.VITE_CUSTOMER_URL || 'http://localhost:8080'}/t/${selectedTableForQR.qr_token}`}
                       readOnly
                       className="text-xs"
                     />
@@ -912,7 +912,7 @@ export default function Tables() {
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => window.open(`${process.env.REACT_APP_CUSTOMER_URL || 'https://your-customer-app.com'}/t/${selectedTableForQR.qr_token}`, '_blank')}
+                      onClick={() => window.open(`${import.meta.env.VITE_CUSTOMER_URL || 'http://localhost:8080'}/t/${selectedTableForQR.qr_token}`, '_blank')}
                       className="flex-shrink-0"
                     >
                       <ExternalLink className="h-4 w-4" />

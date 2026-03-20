@@ -3,101 +3,125 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mongodb"
   url      = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
 }
 
 model activity_logs {
-  id            String   @id
-  user_id       String?
-  restaurant_id String?
-  branch_id     String?
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  user_id       String?  @db.ObjectId
+  restaurant_id String?  @db.ObjectId
+  branch_id     String?  @db.ObjectId
   action        String
   entity_type   String
-  entity_id     String?
+  entity_id     String?  @db.ObjectId
   old_values    Json?
   new_values    Json?
   ip_address    String?
   user_agent    String?
   created_at    DateTime @default(now())
 
-  @@index([created_at])
-  @@index([restaurant_id])
-  @@index([user_id])
+  @@map("activity_logs")
 }
 
 model areas {
-  id         String    @id
-  branch_id  String
+  id         String    @id @default(auto()) @map("_id") @db.ObjectId
+  branch_id  String    @db.ObjectId
   name       String
   sort_order Int       @default(0)
   created_at DateTime  @default(now())
-  updated_at DateTime
+  updated_at DateTime  @updatedAt
   deleted_at DateTime?
   branches   branches  @relation(fields: [branch_id], references: [id])
   tables     tables[]
+
+  @@map("areas")
 }
 
 model branches {
-  id            String       @id
-  restaurant_id String
+  id            String       @id @default(auto()) @map("_id") @db.ObjectId
+  restaurant_id String       @db.ObjectId
   name          String
   address       String
   phone         String?
   status        String       @default("ACTIVE")
   created_at    DateTime     @default(now())
-  updated_at    DateTime
+  updated_at    DateTime     @updatedAt
   deleted_at    DateTime?
+  slug          String?      @unique
+  logo_url      String?
+  banner_url    String?
+  tagline       String?
+  selected_theme_id String?
+  theme_colors  Json?
+  layout_type   String?      @default("default")
+  gallery_images Json?
+  slider_images Json?
+  operating_hours Json?
+  social_links  Json?
+  is_published  Boolean?     @default(false)
+  custom_domain String?
+  seo_title     String?
+  seo_description String?
+  seo_keywords  String?
   areas         areas[]
-  restaurants   restaurants  @relation(fields: [restaurant_id], references: [id])
+  restaurants   restaurants  @relation(fields: [restaurant_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   categories    categories[]
   orders        orders[]
+  users         users[]
+
+  @@map("branches")
 }
 
 model categories {
-  id          String       @id
-  branch_id   String
+  id          String       @id @default(auto()) @map("_id") @db.ObjectId
+  branch_id   String       @db.ObjectId
   name        String
   description String?
   sort_order  Int          @default(0)
   created_at  DateTime     @default(now())
-  updated_at  DateTime
+  updated_at  DateTime     @updatedAt
   deleted_at  DateTime?
   branches    branches     @relation(fields: [branch_id], references: [id])
   menu_items  menu_items[]
+
+  @@map("categories")
 }
 
 model customization_groups {
-  id                       String                     @id
+  id                       String                     @id @default(auto()) @map("_id") @db.ObjectId
   name                     String
   description              String?
   min_select               Int                        @default(0)
   max_select               Int                        @default(1)
   is_required              Boolean                    @default(false)
   created_at               DateTime                   @default(now())
-  updated_at               DateTime
+  updated_at               DateTime                   @updatedAt
   customization_options    customization_options[]
   menu_item_customizations menu_item_customizations[]
+
+  @@map("customization_groups")
 }
 
 model customization_options {
-  id                     String               @id
-  customization_group_id String
+  id                     String               @id @default(auto()) @map("_id") @db.ObjectId
+  customization_group_id String               @db.ObjectId
   name                   String
-  price_delta            Decimal              @default(0) @db.Decimal(10, 2)
+  price_delta            Float                @default(0)
   sort_order             Int                  @default(0)
   is_available           Boolean              @default(true)
   created_at             DateTime             @default(now())
-  updated_at             DateTime
+  updated_at             DateTime             @updatedAt
   customization_groups   customization_groups @relation(fields: [customization_group_id], references: [id])
+
+  @@map("customization_options")
 }
 
 model feedbacks {
-  id              String    @id
-  order_id        String
-  restaurant_id   String
-  branch_id       String
+  id              String    @id @default(auto()) @map("_id") @db.ObjectId
+  order_id        String    @db.ObjectId
+  restaurant_id   String    @db.ObjectId
+  branch_id       String    @db.ObjectId
   customer_name   String?
   customer_email  String?
   overall_rating  Int
@@ -110,59 +134,65 @@ model feedbacks {
   is_anonymous    Boolean   @default(false)
   response        String?
   responded_at    DateTime?
-  responded_by    String?
+  responded_by    String?   @db.ObjectId
   created_at      DateTime  @default(now())
-  updated_at      DateTime
+  updated_at      DateTime  @updatedAt
+
+  @@map("feedbacks")
 }
 
 model invoices {
-  id             String    @id
-  order_id       String    @unique
+  id             String    @id @default(auto()) @map("_id") @db.ObjectId
+  order_id       String    @unique @db.ObjectId
   invoice_number String    @unique
   customer_name  String?
   customer_email String?
   customer_phone String?
-  subtotal       Decimal   @db.Decimal(10, 2)
-  tax            Decimal   @db.Decimal(10, 2)
-  service_charge Decimal   @db.Decimal(10, 2)
-  total          Decimal   @db.Decimal(10, 2)
+  subtotal       Float
+  tax            Float
+  service_charge Float
+  total          Float
   status         String    @default("UNPAID")
   issued_at      DateTime  @default(now())
   paid_at        DateTime?
   created_at     DateTime  @default(now())
-  updated_at     DateTime
+  updated_at     DateTime  @updatedAt
+
+  @@map("invoices")
 }
 
 model menu_item_customizations {
-  id                     String               @id
-  menu_item_id           String
-  customization_group_id String
+  id                     String               @id @default(auto()) @map("_id") @db.ObjectId
+  menu_item_id           String               @db.ObjectId
+  customization_group_id String               @db.ObjectId
   created_at             DateTime             @default(now())
   customization_groups   customization_groups @relation(fields: [customization_group_id], references: [id])
 
-  @@unique([menu_item_id, customization_group_id])
+  @@map("menu_item_customizations")
 }
 
 model menu_items {
-  id          String        @id
-  category_id String
+  id          String        @id @default(auto()) @map("_id") @db.ObjectId
+  category_id String        @db.ObjectId
   name        String
   description String?
-  price       Decimal       @db.Decimal(10, 2)
+  price       Float
   image_url   String?
   available   Boolean       @default(true)
   created_at  DateTime      @default(now())
-  updated_at  DateTime
+  updated_at  DateTime      @updatedAt
   deleted_at  DateTime?
   categories  categories    @relation(fields: [category_id], references: [id])
   order_items order_items[]
+
+  @@map("menu_items")
 }
 
 model notifications {
-  id            String    @id
-  user_id       String?
-  restaurant_id String?
-  branch_id     String?
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  user_id       String?   @db.ObjectId
+  restaurant_id String?   @db.ObjectId
+  branch_id     String?   @db.ObjectId
   type          String
   title         String
   message       String
@@ -170,78 +200,90 @@ model notifications {
   is_read       Boolean   @default(false)
   read_at       DateTime?
   created_at    DateTime  @default(now())
+
+  @@map("notifications")
 }
 
 model order_item_customizations {
-  id                      String   @id
-  order_item_id           String
-  customization_option_id String
-  price_delta             Decimal  @db.Decimal(10, 2)
+  id                      String   @id @default(auto()) @map("_id") @db.ObjectId
+  order_item_id           String   @db.ObjectId
+  customization_option_id String   @db.ObjectId
+  price_delta             Float
   created_at              DateTime @default(now())
+
+  @@map("order_item_customizations")
 }
 
 model order_items {
-  id           String     @id
-  order_id     String
-  menu_item_id String
+  id           String     @id @default(auto()) @map("_id") @db.ObjectId
+  order_id     String     @db.ObjectId
+  menu_item_id String     @db.ObjectId
   quantity     Int
-  price        Decimal    @db.Decimal(10, 2)
-  subtotal     Decimal    @db.Decimal(10, 2)
+  price        Float
+  subtotal     Float
   notes        String?
   created_at   DateTime   @default(now())
   menu_items   menu_items @relation(fields: [menu_item_id], references: [id])
   orders       orders     @relation(fields: [order_id], references: [id])
+
+  @@map("order_items")
 }
 
 model orders {
-  id                  String        @id
-  branch_id           String
-  table_id            String
+  id                  String        @id @default(auto()) @map("_id") @db.ObjectId
+  branch_id           String        @db.ObjectId
+  table_id            String        @db.ObjectId
   order_number        String        @unique
   status              String        @default("PENDING")
-  subtotal            Decimal       @db.Decimal(10, 2)
-  tax                 Decimal       @db.Decimal(10, 2)
-  service_charge      Decimal       @default(0) @db.Decimal(10, 2)
-  total               Decimal       @db.Decimal(10, 2)
+  subtotal            Float
+  tax                 Float
+  service_charge      Float         @default(0)
+  total               Float
   payment_status      String        @default("UNPAID")
   customer_count      Int           @default(1)
   cancellation_reason String?
   created_at          DateTime      @default(now())
-  updated_at          DateTime
+  updated_at          DateTime      @updatedAt
   order_items         order_items[]
   branches            branches      @relation(fields: [branch_id], references: [id])
   tables              tables        @relation(fields: [table_id], references: [id])
   payments            payments?
+
+  @@map("orders")
 }
 
 model payments {
-  id              String   @id
-  order_id        String   @unique
-  amount          Decimal  @db.Decimal(10, 2)
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  order_id        String   @unique @db.ObjectId
+  amount          Float
   method          String
   status          String   @default("PENDING")
   transaction_ref String?  @unique
   payos_data      Json?
   idempotency_key String   @unique
   created_at      DateTime @default(now())
-  updated_at      DateTime
+  updated_at      DateTime @updatedAt
   orders          orders   @relation(fields: [order_id], references: [id])
+
+  @@map("payments")
 }
 
 model permissions {
-  id               String             @id
+  id               String             @id @default(auto()) @map("_id") @db.ObjectId
   name             String             @unique
   description      String?
   resource         String
   action           String
   created_at       DateTime           @default(now())
   user_permissions user_permissions[]
+
+  @@map("permissions")
 }
 
 model reservations {
-  id               String   @id
-  branch_id        String
-  table_id         String
+  id               String   @id @default(auto()) @map("_id") @db.ObjectId
+  branch_id        String   @db.ObjectId
+  table_id         String   @db.ObjectId
   customer_name    String
   customer_phone   String
   customer_email   String?
@@ -251,52 +293,61 @@ model reservations {
   status           String   @default("PENDING")
   notes            String?
   created_at       DateTime @default(now())
-  updated_at       DateTime
+  updated_at       DateTime @updatedAt
+
+  @@map("reservations")
 }
 
 model restaurants {
-  id                String         @id
+  id                String              @id @default(auto()) @map("_id") @db.ObjectId
+  owner_id          String              @db.ObjectId
   name              String
-  email             String         @unique
+  email             String              @unique
   phone             String?
   address           String?
   logo_url          String?
-  email_verified    Boolean        @default(false)
+  email_verified    Boolean             @default(false)
   email_verified_at DateTime?
-  subscription_id   String?
-  created_at        DateTime       @default(now())
-  updated_at        DateTime
+  subscription_id   String?             @db.ObjectId
+  created_at        DateTime            @default(now())
+  updated_at        DateTime            @updatedAt
   deleted_at        DateTime?
   branches          branches[]
-  subscriptions     subscriptions? @relation(fields: [subscription_id], references: [id])
+  subscriptions     subscriptions?      @relation(fields: [subscription_id], references: [id])
   users             users[]
+  owner             users               @relation("RestaurantOwner", fields: [owner_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  user_restaurants  user_restaurants[]
+
+  @@map("restaurants")
 }
 
 model roles {
-  id               String             @id
+  id               String             @id @default(auto()) @map("_id") @db.ObjectId
   name             String             @unique
   description      String?
   created_at       DateTime           @default(now())
-  updated_at       DateTime
+  updated_at       DateTime           @updatedAt
   user_permissions user_permissions[]
+
+  @@map("roles")
 }
 
 model subscription_feature_limits {
-  id                   String             @id
-  subscription_plan_id String
+  id                   String             @id @default(auto()) @map("_id") @db.ObjectId
+  subscription_plan_id String             @db.ObjectId
   feature_name         String
   limit_value          Int
   created_at           DateTime           @default(now())
   subscription_plans   subscription_plans @relation(fields: [subscription_plan_id], references: [id])
 
-  @@unique([subscription_plan_id, feature_name])
+  @@map("subscription_feature_limits")
 }
 
 model subscription_plans {
-  id                          String                        @id
+  id                          String                        @id @default(auto()) @map("_id") @db.ObjectId
   name                        String                        @unique
   description                 String?
-  price                       Decimal                       @db.Decimal(10, 2)
+  price                       Float
   billing_cycle               String
   max_branches                Int                           @default(1)
   max_tables                  Int                           @default(10)
@@ -304,13 +355,16 @@ model subscription_plans {
   features                    Json?
   is_active                   Boolean                       @default(true)
   created_at                  DateTime                      @default(now())
-  updated_at                  DateTime
+  updated_at                  DateTime                      @updatedAt
+  branding_features           Json?
   subscription_feature_limits subscription_feature_limits[]
+
+  @@map("subscription_plans")
 }
 
 model subscriptions {
-  id            String        @id
-  restaurant_id String        @unique
+  id            String        @id @default(auto()) @map("_id") @db.ObjectId
+  restaurant_id String        @unique @db.ObjectId
   plan_type     String
   status        String        @default("ACTIVE")
   start_date    DateTime
@@ -318,53 +372,74 @@ model subscriptions {
   max_branches  Int           @default(1)
   max_tables    Int           @default(10)
   created_at    DateTime      @default(now())
-  updated_at    DateTime
+  updated_at    DateTime      @updatedAt
   restaurants   restaurants[]
+
+  @@map("subscriptions")
 }
 
 model tables {
-  id           String    @id
-  area_id      String
+  id           String    @id @default(auto()) @map("_id") @db.ObjectId
+  area_id      String    @db.ObjectId
   table_number String
   capacity     Int       @default(4)
   qr_token     String    @unique
   qr_code_url  String?
   status       String    @default("AVAILABLE")
   created_at   DateTime  @default(now())
-  updated_at   DateTime
+  updated_at   DateTime  @updatedAt
   deleted_at   DateTime?
   orders       orders[]
   areas        areas     @relation(fields: [area_id], references: [id])
+
+  @@map("tables")
 }
 
 model user_permissions {
-  id            String      @id
-  user_id       String
-  role_id       String
-  permission_id String
+  id            String      @id @default(auto()) @map("_id") @db.ObjectId
+  user_id       String      @db.ObjectId
+  role_id       String      @db.ObjectId
+  permission_id String      @db.ObjectId
   created_at    DateTime    @default(now())
   permissions   permissions @relation(fields: [permission_id], references: [id])
   roles         roles       @relation(fields: [role_id], references: [id])
 
-  @@unique([user_id, role_id, permission_id])
+  @@map("user_permissions")
+}
+
+model user_restaurants {
+  id            String      @id @default(auto()) @map("_id") @db.ObjectId
+  user_id       String      @db.ObjectId
+  restaurant_id String      @db.ObjectId
+  created_at    DateTime    @default(now())
+  users         users       @relation(fields: [user_id], references: [id])
+  restaurants   restaurants @relation(fields: [restaurant_id], references: [id])
+
+  @@map("user_restaurants")
 }
 
 model users {
-  id                      String      @id
-  restaurant_id           String?
-  email                   String      @unique
-  password_hash           String
-  full_name               String
-  phone                   String?
-  role                    String      @default("STAFF")
-  status                  String      @default("ACTIVE")
-  reset_token             String?
-  reset_token_expires_at  DateTime?
-  last_login_at           DateTime?
-  created_at              DateTime    @default(now())
-  updated_at              DateTime
-  deleted_at              DateTime?
-  restaurants             restaurants? @relation(fields: [restaurant_id], references: [id])
+  id                          String              @id @default(auto()) @map("_id") @db.ObjectId
+  restaurant_id               String?             @db.ObjectId
+  branch_id                   String?             @db.ObjectId
+  email                       String              @unique
+  password_hash               String
+  full_name                   String
+  phone                       String?
+  role                        String              @default("STAFF")
+  status                      String              @default("ACTIVE")
+  reset_token                 String?
+  reset_token_expires_at      DateTime?
+  last_login_at               DateTime?
+  created_at                  DateTime            @default(now())
+  updated_at                  DateTime            @updatedAt
+  deleted_at                  DateTime?
+  restaurants                 restaurants?        @relation(fields: [restaurant_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  branches                    branches?           @relation(fields: [branch_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
   email_verify_otp            String?
   email_verify_otp_expires_at DateTime?
+  owned_restaurants           restaurants[]       @relation("RestaurantOwner")
+  user_restaurants            user_restaurants[]
+
+  @@map("users")
 }

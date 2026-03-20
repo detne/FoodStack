@@ -12,6 +12,8 @@ class GetStaffListUseCase {
   }
 
   async execute(dto, currentUser) {
+    console.log('GetStaffListUseCase - Input:', { dto, currentUser });
+    
     // 1. Validate current user is OWNER or MANAGER
     if (!['OWNER', 'MANAGER'].includes(currentUser.role)) {
       throw new UnauthorizedError('Only Owner or Manager can view staff list');
@@ -19,10 +21,17 @@ class GetStaffListUseCase {
 
     const { page, limit, search, status } = dto;
 
-    const restaurantId = currentUser.restaurantId;
-if (!restaurantId) {
-  throw new ValidationError('Current user does not have a restaurantId');
-}
+    // 2. Get restaurant ID from JWT token
+    let restaurantId = currentUser.restaurantId; // JWT uses camelCase
+    
+    console.log('GetStaffListUseCase - restaurantId from token:', restaurantId);
+    
+    if (!restaurantId) {
+      console.log('GetStaffListUseCase - Error: No restaurantId found for user:', currentUser.userId || currentUser.id);
+      throw new ValidationError('Current user does not have a restaurantId');
+    }
+
+    console.log('GetStaffListUseCase - Using restaurantId:', restaurantId);
 
     // 3. Build filter conditions
     const where = {
@@ -42,7 +51,10 @@ if (!restaurantId) {
     // 6. Calculate pagination
     const skip = (page - 1) * limit;
 
-    // 7. Fetch staff list with pagination
+    console.log('GetStaffListUseCase - Query where:', where);
+
+    try {
+      // 7. Fetch staff list with pagination
     const [staffList, total] = await this.prisma.$transaction([
       this.prisma.users.findMany({
         where,
@@ -58,25 +70,49 @@ if (!restaurantId) {
           status: true,
           created_at: true,
           updated_at: true,
+          branch_id: true, // Now this should work
         },
       }),
       this.prisma.users.count({ where }),
     ]);
 
-    // 8. Map staff data
+    console.log('GetStaffListUseCase - Found staff:', staffList.length, 'Total:', total);
+
+    // 8. Get branch information separately if needed
+    const branchIds = [...new Set(staffList.map(staff => staff.branch_id).filter(Boolean))];
+    const branches = branchIds.length > 0 ? await this.prisma.branches.findMany({
+      where: { id: { in: branchIds } },
+      select: { id: true, name: true, address: true }
+    }) : [];
+
+    const branchMap = branches.reduce((map, branch) => {
+      map[branch.id] = branch;
+      return map;
+    }, {});
+
+    // 9. Map staff data to match frontend interface
     const staffWithBranch = staffList.map((staff) => ({
-      userId: staff.id,
+      id: staff.id,
       email: staff.email,
-      name: staff.full_name,
+      full_name: staff.full_name,
       phone: staff.phone,
-      role: staff.role,
+      role: staff.role, // This will be a string like 'STAFF', 'MANAGER'
       status: staff.status,
-      createdAt: staff.created_at,
-      updatedAt: staff.updated_at,
+      created_at: staff.created_at.toISOString(),
+      updated_at: staff.updated_at.toISOString(),
+      // Branch info from separate query
+      branch: staff.branch_id && branchMap[staff.branch_id] ? branchMap[staff.branch_id] : null,
     }));
 
+    console.log('GetStaffListUseCase - Final result:', { 
+      staffCount: staffWithBranch.length, 
+      pagination: { total, page, limit, totalPages: Math.ceil(total / limit) }
+    });
+
     return {
-      staff: staffWithBranch,
+      staff: {
+        items: staffWithBranch, // Wrap in items for consistency
+      },
       pagination: {
         total,
         page,
@@ -85,6 +121,10 @@ if (!restaurantId) {
       },
       message: 'Staff list retrieved successfully',
     };
+    } catch (error) {
+      console.error('GetStaffListUseCase - Error:', error);
+      throw error;
+    }
   }
 }
 
