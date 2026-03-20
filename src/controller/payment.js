@@ -10,7 +10,8 @@ class PaymentController {
     getCheckoutPreviewUseCase,
     getPaymentDetailsUseCase,
     getPaymentHistoryUseCase,
-    getPaymentStatisticsUseCase
+    getPaymentStatisticsUseCase,
+    confirmCashPaymentUseCase
   ) {
     this.processPaymentUseCase = processPaymentUseCase;
     this.verifyPaymentWebhookUseCase = verifyPaymentWebhookUseCase;
@@ -18,6 +19,7 @@ class PaymentController {
     this.getPaymentDetailsUseCase = getPaymentDetailsUseCase;
     this.getPaymentHistoryUseCase = getPaymentHistoryUseCase;
     this.getPaymentStatisticsUseCase = getPaymentStatisticsUseCase;
+    this.confirmCashPaymentUseCase = confirmCashPaymentUseCase;
   }
 
   async getDetails(req, res, next) {
@@ -50,6 +52,25 @@ class PaymentController {
       return res.status(200).json({
         success: true,
         message: 'Payment history fetched successfully',
+        data: result,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async confirmCash(req, res, next) {
+    try {
+      const { paymentId } = req.params;
+
+      const result = await this.confirmCashPaymentUseCase.execute(
+        paymentId,
+        req.user
+      );
+
+      return res.status(200).json({
+        success: true,
+        message: result.message,
         data: result,
       });
     } catch (err) {

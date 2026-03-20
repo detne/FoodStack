@@ -15,6 +15,10 @@ function createPaymentRoutes(paymentController, authMiddleware) {
     paymentController.getDetails(req, res, next)
   );
 
+  router.post('/:paymentId/confirm-cash', authMiddleware, (req, res, next) =>
+    paymentController.confirmCash(req, res, next)
+  );
+
   router.get('/', authMiddleware, (req, res, next) =>
     paymentController.getHistory(req, res, next)
   );

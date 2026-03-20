@@ -115,16 +115,14 @@ class ProcessPaymentUseCase {
         throw err;
       }
 
-      // Chỉ reuse nếu payment cũ đang chờ hoặc đã thanh toán
       if (existing.status === 'PENDING' || existing.status === 'PAID') {
         return this.mapPaymentResponse(existing);
       }
-
-      // Nếu FAILED thì tiếp tục tạo payment mới
     }
 
+    // CASH: chỉ tạo yêu cầu thanh toán tiền mặt, chưa mark PAID
     if (dto.method === 'CASH') {
-      return this.prisma.$transaction(async (tx) => {
+      const payment = await this.prisma.$transaction(async (tx) => {
         const freshOrder = await this.orderRepository.findById(dto.orderId, tx);
 
         if (!freshOrder) {
@@ -141,31 +139,26 @@ class ProcessPaymentUseCase {
           throw err;
         }
 
-        const payment = await this.paymentRepository.create(
+        return this.paymentRepository.create(
           {
             id: uuidv4(),
             orderId: freshOrder.id,
             amount: freshOrder.total,
             method: 'CASH',
-            status: 'PAID',
+            status: 'PENDING',
             transactionRef: null,
-            payosData: null,
+            payosData: {
+              qrToken: dto.qrToken,
+              tableId: freshOrder.table_id || null,
+              requestedAt: new Date().toISOString(),
+            },
             idempotencyKey,
           },
           tx
         );
-
-        await this.orderRepository.update(
-          freshOrder.id,
-          {
-            payment_status: 'PAID',
-            updated_at: new Date(),
-          },
-          tx
-        );
-
-        return this.mapPaymentResponse(payment);
       });
+
+      return this.mapPaymentResponse(payment);
     }
 
     if (dto.method === 'E_WALLET') {

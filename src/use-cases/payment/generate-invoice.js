@@ -52,6 +52,17 @@ class GenerateInvoiceUseCase {
       throw err;
     }
 
+    const restaurant = order.branches?.restaurant_id
+      ? await this.prisma.restaurants.findUnique({
+          where: { id: order.branches.restaurant_id },
+          select: {
+            id: true,
+            name: true,
+            logo_url: true,
+          },
+        })
+      : null;
+
     const invoice = await this.prisma.$transaction(async (tx) => {
       return this.invoiceRepository.create(
         {
@@ -75,7 +86,11 @@ class GenerateInvoiceUseCase {
       );
     });
 
-    const pdfResult = await this.invoicePdfService.generateInvoicePdf(invoice, order);
+    const pdfResult = await this.invoicePdfService.generateInvoicePdf(invoice, order, {
+      restaurantName: restaurant?.name || 'FoodStack',
+      restaurantLogoUrl: restaurant?.logo_url || null,
+      branchName: order.branches?.name || null,
+    });
 
     const updatedInvoice = await this.invoiceRepository.update(invoice.id, {
       pdf_url: pdfResult.pdfUrl,
