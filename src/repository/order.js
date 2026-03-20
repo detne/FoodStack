@@ -6,10 +6,14 @@ class OrderRepository {
     this.prisma = prisma || new PrismaClient();
   }
 
+  getClient(tx) {
+    return tx || this.prisma;
+  }
+
   // Dùng cho delete/disable table
   async countActiveOrdersByTableId(tableId, tx) {
-    const client = tx || this.prisma;
-    return await client.orders.count({
+    const client = this.getClient(tx);
+    return client.orders.count({
       where: {
         table_id: tableId,
         status: { in: ['PENDING', 'PREPARING', 'SERVED'] },
@@ -17,42 +21,62 @@ class OrderRepository {
     });
   }
 
-  // ✅ Dùng cho payment
+  // Dùng cho payment / QR tại bàn / đọc chi tiết order cơ bản
   async findById(orderId, tx) {
-    const client = tx || this.prisma;
-    return await client.orders.findUnique({
+    const client = this.getClient(tx);
+    return client.orders.findUnique({
       where: { id: orderId },
+      include: {
+        branches: {
+          select: {
+            id: true,
+            name: true,
+            restaurant_id: true,
+          },
+        },
+        tables: {
+          include: {
+            areas: {
+              select: {
+                id: true,
+                name: true,
+                branch_id: true,
+              },
+            },
+          },
+        },
+      },
     });
   }
 
-  // ✅ Dùng cho payment / update trạng thái order
+  // Dùng cho payment / update trạng thái order
   async update(orderId, data, tx) {
-    const client = tx || this.prisma;
-    return await client.orders.update({
+    const client = this.getClient(tx);
+    return client.orders.update({
       where: { id: orderId },
       data,
     });
   }
+
   async countOrdersToday(branchId) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    return await this.prisma.orders.count({
+    return this.prisma.orders.count({
       where: {
         branch_id: branchId,
         created_at: {
           gte: today,
-          lt: tomorrow
-        }
-      }
+          lt: tomorrow,
+        },
+      },
     });
   }
 
   async createWithItems(orderData) {
-    return await this.prisma.$transaction(async (tx) => {
-      // Create order
+    return this.prisma.$transaction(async (tx) => {
       const order = await tx.orders.create({
         data: {
           id: uuidv4(),
@@ -67,11 +91,10 @@ class OrderRepository {
           payment_status: orderData.payment_status,
           customer_count: orderData.customer_count,
           created_at: new Date(),
-          updated_at: new Date()
-        }
+          updated_at: new Date(),
+        },
       });
 
-      // Create order items if provided
       if (orderData.items && orderData.items.length > 0) {
         const orderItems = await Promise.all(
           orderData.items.map(async (item) => {
@@ -84,22 +107,21 @@ class OrderRepository {
                 price: item.price,
                 subtotal: item.subtotal,
                 notes: item.notes,
-                created_at: new Date()
-              }
+                created_at: new Date(),
+              },
             });
 
-            // Create customizations if provided
             if (item.customizations && item.customizations.length > 0) {
               await Promise.all(
-                item.customizations.map(customization =>
+                item.customizations.map((customization) =>
                   tx.order_item_customizations.create({
                     data: {
                       id: uuidv4(),
                       order_item_id: orderItem.id,
                       customization_option_id: customization.customization_option_id,
                       price_delta: customization.price_delta,
-                      created_at: new Date()
-                    }
+                      created_at: new Date(),
+                    },
                   })
                 )
               );
@@ -116,51 +138,28 @@ class OrderRepository {
     });
   }
 
-  async findById(orderId) {
-    return await this.prisma.orders.findUnique({
+  async findByIdWithDetails(orderId, tx) {
+    const client = this.getClient(tx);
+    return client.orders.findUnique({
       where: { id: orderId },
       include: {
         branches: {
           select: {
             id: true,
             name: true,
-            restaurant_id: true
-          }
+            restaurant_id: true,
+          },
         },
         tables: {
           include: {
             areas: {
               select: {
                 id: true,
-                name: true
-              }
-            }
-          }
-        }
-      }
-    });
-  }
-
-  async findByIdWithDetails(orderId) {
-    return await this.prisma.orders.findUnique({
-      where: { id: orderId },
-      include: {
-        branches: {
-          select: {
-            id: true,
-            name: true,
-            restaurant_id: true
-          }
-        },
-        tables: {
-          include: {
-            areas: {
-              select: {
-                id: true,
-                name: true
-              }
-            }
-          }
+                name: true,
+                branch_id: true,
+              },
+            },
+          },
         },
         order_items: {
           include: {
@@ -169,35 +168,36 @@ class OrderRepository {
                 id: true,
                 name: true,
                 description: true,
-                image_url: true
-              }
-            }
-          }
-        }
-      }
+                image_url: true,
+              },
+            },
+          },
+        },
+      },
     });
   }
 
-  async updateStatus(orderId, newStatus) {
-    return await this.prisma.orders.update({
+  async updateStatus(orderId, newStatus, tx) {
+    const client = this.getClient(tx);
+    return client.orders.update({
       where: { id: orderId },
       data: {
         status: newStatus,
-        updated_at: new Date()
-      }
+        updated_at: new Date(),
+      },
     });
   }
 
-  async updateTableStatus(tableId, status) {
-    return await this.prisma.tables.update({
+  async updateTableStatus(tableId, status, tx) {
+    const client = this.getClient(tx);
+    return client.tables.update({
       where: { id: tableId },
-      data: { status }
+      data: { status },
     });
   }
 
   async addItemsAndUpdateTotal(orderId, orderItems, addedAmount) {
-    return await this.prisma.$transaction(async (tx) => {
-      // Add order items
+    return this.prisma.$transaction(async (tx) => {
       const addedItems = await Promise.all(
         orderItems.map(async (item) => {
           const { customizations, ...orderItemData } = item;
@@ -205,22 +205,21 @@ class OrderRepository {
             data: {
               id: uuidv4(),
               ...orderItemData,
-              created_at: new Date()
-            }
+              created_at: new Date(),
+            },
           });
 
-          // Add customizations if provided
           if (customizations && customizations.length > 0) {
             await Promise.all(
-              customizations.map(customization =>
+              customizations.map((customization) =>
                 tx.order_item_customizations.create({
                   data: {
                     id: uuidv4(),
                     order_item_id: orderItem.id,
                     customization_option_id: customization.customization_option_id,
                     price_delta: customization.price_delta,
-                    created_at: new Date()
-                  }
+                    created_at: new Date(),
+                  },
                 })
               )
             );
@@ -230,9 +229,8 @@ class OrderRepository {
         })
       );
 
-      // Update order totals
       const currentOrder = await tx.orders.findUnique({
-        where: { id: orderId }
+        where: { id: orderId },
       });
 
       const newSubtotal = parseFloat(currentOrder.subtotal) + addedAmount;
@@ -247,8 +245,8 @@ class OrderRepository {
           tax: newTax,
           service_charge: newServiceCharge,
           total: newTotal,
-          updated_at: new Date()
-        }
+          updated_at: new Date(),
+        },
       });
 
       return { addedItems, updatedOrder };
@@ -256,33 +254,31 @@ class OrderRepository {
   }
 
   async findOrderItemById(orderItemId) {
-    return await this.prisma.order_items.findUnique({
+    return this.prisma.order_items.findUnique({
       where: { id: orderItemId },
       include: {
         menu_items: {
           select: {
             id: true,
-            name: true
-          }
-        }
-      }
+            name: true,
+          },
+        },
+      },
     });
   }
 
   async removeItemAndUpdateTotal(orderId, orderItemId, removedAmount) {
-    return await this.prisma.$transaction(async (tx) => {
-      // Remove order item and its customizations
+    return this.prisma.$transaction(async (tx) => {
       await tx.order_item_customizations.deleteMany({
-        where: { order_item_id: orderItemId }
+        where: { order_item_id: orderItemId },
       });
 
       await tx.order_items.delete({
-        where: { id: orderItemId }
+        where: { id: orderItemId },
       });
 
-      // Update order totals
       const currentOrder = await tx.orders.findUnique({
-        where: { id: orderId }
+        where: { id: orderId },
       });
 
       const newSubtotal = Math.max(0, parseFloat(currentOrder.subtotal) - removedAmount);
@@ -297,8 +293,8 @@ class OrderRepository {
           tax: newTax,
           service_charge: newServiceCharge,
           total: newTotal,
-          updated_at: new Date()
-        }
+          updated_at: new Date(),
+        },
       });
 
       return { updatedOrder };
@@ -306,19 +302,17 @@ class OrderRepository {
   }
 
   async updateOrderItemAndTotal(orderId, orderItemId, newQuantity, newSubtotal, subtotalDifference) {
-    return await this.prisma.$transaction(async (tx) => {
-      // Update order item
+    return this.prisma.$transaction(async (tx) => {
       await tx.order_items.update({
         where: { id: orderItemId },
         data: {
           quantity: newQuantity,
-          subtotal: newSubtotal
-        }
+          subtotal: newSubtotal,
+        },
       });
 
-      // Update order totals
       const currentOrder = await tx.orders.findUnique({
-        where: { id: orderId }
+        where: { id: orderId },
       });
 
       const newOrderSubtotal = parseFloat(currentOrder.subtotal) + subtotalDifference;
@@ -333,8 +327,8 @@ class OrderRepository {
           tax: newTax,
           service_charge: newServiceCharge,
           total: newTotal,
-          updated_at: new Date()
-        }
+          updated_at: new Date(),
+        },
       });
 
       return { updatedOrder };
@@ -342,22 +336,22 @@ class OrderRepository {
   }
 
   async cancelOrder(orderId, reason) {
-    return await this.prisma.orders.update({
+    return this.prisma.orders.update({
       where: { id: orderId },
       data: {
         status: 'CANCELLED',
         cancellation_reason: reason,
-        updated_at: new Date()
-      }
+        updated_at: new Date(),
+      },
     });
   }
 
   async findActiveOrdersByBranch(branchId, options = {}) {
     const { limit, offset, status, tableId } = options;
-    
+
     const where = {
       branch_id: branchId,
-      status: status ? status : { in: ['PENDING', 'PREPARING', 'SERVED'] }
+      status: status ? status : { in: ['PENDING', 'PREPARING', 'SERVED'] },
     };
 
     if (tableId) {
@@ -373,24 +367,24 @@ class OrderRepository {
               areas: {
                 select: {
                   id: true,
-                  name: true
-                }
-              }
-            }
+                  name: true,
+                },
+              },
+            },
           },
           _count: {
             select: {
-              order_items: true
-            }
-          }
+              order_items: true,
+            },
+          },
         },
         orderBy: {
-          created_at: 'desc'
+          created_at: 'desc',
         },
         take: limit,
-        skip: offset
+        skip: offset,
       }),
-      this.prisma.orders.count({ where })
+      this.prisma.orders.count({ where }),
     ]);
 
     return { orders, total };
@@ -398,9 +392,9 @@ class OrderRepository {
 
   async findOrdersByTable(tableId, options = {}) {
     const { limit, offset, startDate, endDate, status } = options;
-    
+
     const where = {
-      table_id: tableId
+      table_id: tableId,
     };
 
     if (status) {
@@ -419,17 +413,17 @@ class OrderRepository {
         include: {
           _count: {
             select: {
-              order_items: true
-            }
-          }
+              order_items: true,
+            },
+          },
         },
         orderBy: {
-          created_at: 'desc'
+          created_at: 'desc',
         },
         take: limit,
-        skip: offset
+        skip: offset,
       }),
-      this.prisma.orders.count({ where })
+      this.prisma.orders.count({ where }),
     ]);
 
     return { orders, total };

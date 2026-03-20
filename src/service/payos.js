@@ -38,6 +38,9 @@ class PayOSService {
       `&orderCode=${orderCode}` +
       `&returnUrl=${returnUrl}`;
 
+    console.log('PAYOS SIGN RAW:', raw);
+    console.log('PAYOS CHECKSUM KEY EXISTS:', Boolean(this.checksumKey));
+
     return crypto
       .createHmac('sha256', this.checksumKey)
       .update(raw)
@@ -66,15 +69,17 @@ class PayOSService {
 
   async createPaymentLink({ orderCode, amount, description, items = [] }) {
     const payload = {
-      orderCode,
-      amount,
-      description,
+      orderCode: Number(orderCode),
+      amount: Number(amount),
+      description: String(description),
       items,
-      returnUrl: this.returnUrl,
-      cancelUrl: this.cancelUrl,
+      returnUrl: String(this.returnUrl),
+      cancelUrl: String(this.cancelUrl),
     };
 
     payload.signature = this.createPaymentSignature(payload);
+
+    console.log('PAYOS CREATE PAYMENT PAYLOAD:', JSON.stringify(payload, null, 2));
 
     const response = await axios.post(
       `${this.apiBaseUrl}/v2/payment-requests`,
@@ -90,6 +95,7 @@ class PayOSService {
     );
 
     const body = response.data;
+    console.log('PAYOS CREATE PAYMENT RESPONSE:', JSON.stringify(body, null, 2));
 
     if (body.code !== '00') {
       return {
@@ -126,23 +132,6 @@ class PayOSService {
       message: `Unsupported payment method: ${method}`,
       raw: null,
     };
-  }
-
-  async confirmWebhook(webhookUrl) {
-    const response = await axios.post(
-      `${this.apiBaseUrl}/confirm-webhook`,
-      { webhookUrl },
-      {
-        headers: {
-          'x-client-id': this.clientId,
-          'x-api-key': this.apiKey,
-          'Content-Type': 'application/json',
-        },
-        timeout: 15000,
-      }
-    );
-
-    return response.data;
   }
 }
 

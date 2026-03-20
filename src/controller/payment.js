@@ -1,10 +1,9 @@
 const { CreatePaymentBodySchema } = require('../dto/payment/create-payment');
 
 class PaymentController {
-  constructor(processPaymentUseCase, verifyPaymentWebhookUseCase, payOSService) {
+  constructor(processPaymentUseCase, verifyPaymentWebhookUseCase) {
     this.processPaymentUseCase = processPaymentUseCase;
     this.verifyPaymentWebhookUseCase = verifyPaymentWebhookUseCase;
-    this.payOSService = payOSService;
   }
 
   async process(req, res, next) {
@@ -45,29 +44,6 @@ class PaymentController {
       });
     } catch (err) {
       console.error('PAYOS WEBHOOK ERROR:', err);
-      next(err);
-    }
-  }
-
-  async confirmWebhook(req, res, next) {
-    try {
-      const { webhookUrl } = req.body;
-
-      if (!webhookUrl) {
-        return res.status(400).json({
-          success: false,
-          message: 'webhookUrl is required',
-        });
-      }
-
-      const result = await this.payOSService.confirmWebhook(webhookUrl);
-
-      return res.status(200).json({
-        success: true,
-        message: 'Webhook confirmed successfully',
-        data: result,
-      });
-    } catch (err) {
       next(err);
     }
   }

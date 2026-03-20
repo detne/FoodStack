@@ -18,11 +18,13 @@ class PaymentRepository {
         id: data.id || randomUUID(),
         order_id: data.orderId,
         amount: new Prisma.Decimal(data.amount),
-        method: data.method || 'PAYOS',
+        method: data.method || 'QR_PAY',
         status: data.status || 'PENDING',
         transaction_ref: data.transactionRef || null,
         payos_data: data.payosData || {},
         idempotency_key: data.idempotencyKey || null,
+        created_at: data.createdAt || new Date(),
+        updated_at: data.updatedAt || new Date(),
       },
     });
   }
@@ -72,7 +74,10 @@ class PaymentRepository {
 
     return client.payments.update({
       where: { id: paymentId },
-      data,
+      data: {
+        ...data,
+        updated_at: data.updated_at || new Date(),
+      },
     });
   }
 
