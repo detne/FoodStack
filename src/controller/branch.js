@@ -2,6 +2,10 @@
 const { CreateBranchSchema } = require('../dto/branch/create-branch');
 const { UpdateBranchSchema } = require('../dto/branch/update-branch');
 const { ListBranchesSchema } = require('../dto/branch/list-branches');
+const { UpdateBrandingSchema } = require('../dto/branch/update-branding');
+const { UploadBrandingImageSchema, validateFile } = require('../dto/branch/upload-branding-image');
+const { DeleteBrandingImageSchema } = require('../dto/branch/delete-branding-image');
+const { PublishBranchSchema } = require('../dto/branch/publish-branch');
 
 class BranchController {
   constructor({
@@ -10,7 +14,12 @@ class BranchController {
     listBranchesUseCase,
     deleteBranchUseCase,
     getBranchDetailsUseCase,
-    getFullMenuByBranchUseCase
+    getFullMenuByBranchUseCase,
+    getBranchBrandingUseCase,
+    updateBranchBrandingUseCase,
+    uploadBrandingImageUseCase,
+    deleteBrandingImageUseCase,
+    publishBranchUseCase
   }) {
     this.createBranchUseCase = createBranchUseCase;
     this.updateBranchUseCase = updateBranchUseCase;
@@ -18,6 +27,11 @@ class BranchController {
     this.deleteBranchUseCase = deleteBranchUseCase;
     this.getBranchDetailsUseCase = getBranchDetailsUseCase;
     this.getFullMenuByBranchUseCase = getFullMenuByBranchUseCase;
+    this.getBranchBrandingUseCase = getBranchBrandingUseCase;
+    this.updateBranchBrandingUseCase = updateBranchBrandingUseCase;
+    this.uploadBrandingImageUseCase = uploadBrandingImageUseCase;
+    this.deleteBrandingImageUseCase = deleteBrandingImageUseCase;
+    this.publishBranchUseCase = publishBranchUseCase;
   }
 
   // POST /api/v1/branches
@@ -128,6 +142,145 @@ class BranchController {
         success: true,
         message: 'Branch menu retrieved',
         data,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  // GET /api/v1/owner/branches/:branchId/branding
+  async getBranding(req, res, next) {
+    try {
+      const { branchId } = req.params;
+
+      const result = await this.getBranchBrandingUseCase.execute(branchId, {
+        userId: req.user?.userId,
+        role: req.user?.role,
+        restaurantId: req.user?.restaurantId,
+      });
+
+      res.status(200).json({
+        success: true,
+        data: result,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  // PUT /api/v1/owner/branches/:branchId/branding
+  async updateBranding(req, res, next) {
+    try {
+      const { branchId } = req.params;
+      const dto = UpdateBrandingSchema.parse(req.body);
+
+      const result = await this.updateBranchBrandingUseCase.execute(branchId, dto, {
+        userId: req.user?.userId,
+        role: req.user?.role,
+        restaurantId: req.user?.restaurantId,
+      });
+
+      res.status(200).json({
+        success: true,
+        message: 'Branding updated successfully',
+        data: result,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  // POST /api/v1/owner/branches/:branchId/branding/upload
+  async uploadBrandingImage(req, res, next) {
+    try {
+      const { branchId } = req.params;
+      const { imageType, caption } = req.body;
+      const file = req.file;
+
+      // Validate request body
+      const dto = UploadBrandingImageSchema.parse({ imageType, caption });
+
+      // Validate file
+      const fileErrors = validateFile(file, dto.imageType);
+      if (fileErrors.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'File validation failed',
+          errors: fileErrors
+        });
+      }
+
+      const result = await this.uploadBrandingImageUseCase.execute(
+        branchId, 
+        file, 
+        dto.imageType, 
+        dto.caption, 
+        {
+          userId: req.user?.userId,
+          role: req.user?.role,
+          restaurantId: req.user?.restaurantId,
+        }
+      );
+
+      res.status(200).json({
+        success: true,
+        data: result,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  // DELETE /api/v1/owner/branches/:branchId/branding/images
+  async deleteBrandingImage(req, res, next) {
+    try {
+      const { branchId } = req.params;
+      const dto = DeleteBrandingImageSchema.parse(req.body);
+
+      const result = await this.deleteBrandingImageUseCase.execute(
+        branchId,
+        dto.imageType,
+        dto.imageUrl,
+        {
+          userId: req.user?.userId,
+          role: req.user?.role,
+          restaurantId: req.user?.restaurantId,
+        }
+      );
+
+      res.status(200).json({
+        success: true,
+        message: result.message,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  // POST /api/v1/owner/branches/:branchId/publish
+  async publishBranch(req, res, next) {
+    try {
+      const { branchId } = req.params;
+      const dto = PublishBranchSchema.parse(req.body);
+
+      const result = await this.publishBranchUseCase.execute(
+        branchId,
+        dto.isPublished,
+        {
+          userId: req.user?.userId,
+          role: req.user?.role,
+          restaurantId: req.user?.restaurantId,
+        }
+      );
+
+      const message = dto.isPublished 
+        ? 'Branch published successfully' 
+        : 'Branch unpublished successfully';
+
+      res.status(200).json({
+        success: true,
+        message,
+        data: result,
       });
     } catch (err) {
       next(err);

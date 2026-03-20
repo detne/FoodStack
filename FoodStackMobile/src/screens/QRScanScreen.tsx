@@ -9,7 +9,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { Camera, CameraView } from 'expo-camera';
+import { CameraView, Camera } from 'expo-camera';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { RootStackParamList } from '../types';
