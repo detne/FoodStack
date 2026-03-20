@@ -54,6 +54,104 @@ class PaymentRepository {
     });
   }
 
+  async findPaymentHistoryByRestaurant(restaurantId, options = {}, tx) {
+    const client = this.getClient(tx);
+    const { page = 1, limit = 10, startDate, endDate } = options;
+
+    const skip = (page - 1) * limit;
+
+    const where = {
+      orders: {
+        branches: {
+          restaurant_id: restaurantId,
+        },
+      },
+    };
+
+    if (startDate || endDate) {
+      where.created_at = {};
+      if (startDate) where.created_at.gte = startDate;
+      if (endDate) where.created_at.lte = endDate;
+    }
+
+    const [items, total] = await Promise.all([
+      client.payments.findMany({
+        where,
+        include: {
+          orders: {
+            select: {
+              id: true,
+              order_number: true,
+              branch_id: true,
+              branches: {
+                select: {
+                  id: true,
+                  name: true,
+                  restaurant_id: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: {
+          created_at: 'desc',
+        },
+        skip,
+        take: limit,
+      }),
+      client.payments.count({ where }),
+    ]);
+
+    return {
+      items,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  async findPaymentHistoryByRestaurantRaw(restaurantId, options = {}, tx) {
+    const client = this.getClient(tx);
+    const { page = 1, limit = 10, startDate, endDate } = options;
+
+    const skip = (page - 1) * limit;
+
+    const where = {
+      order: {
+        branch: {
+          restaurant_id: restaurantId,
+        },
+      },
+    };
+
+    if (startDate || endDate) {
+      where.created_at = {};
+      if (startDate) where.created_at.gte = startDate;
+      if (endDate) where.created_at.lte = endDate;
+    }
+
+    const [items, total] = await Promise.all([
+      client.payments.findMany({
+        where,
+        orderBy: {
+          created_at: 'desc',
+        },
+        skip,
+        take: limit,
+      }),
+      client.payments.count({ where }),
+    ]);
+
+    return {
+      items,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
   async findByPayOSOrderCode(orderCode, tx) {
     const client = this.getClient(tx);
 
@@ -166,6 +264,43 @@ class PaymentRepository {
       },
       tx
     );
+  }
+
+  async getPaymentStatisticsByRestaurant(restaurantId, options = {}, tx) {
+    const client = this.getClient(tx);
+    const { startDate, endDate } = options;
+
+    const where = {
+      status: 'PAID',
+      orders: {
+        branches: {
+          restaurant_id: restaurantId,
+        },
+      },
+    };
+
+    if (startDate || endDate) {
+      where.created_at = {};
+      if (startDate) where.created_at.gte = startDate;
+      if (endDate) where.created_at.lte = endDate;
+    }
+
+    const [aggregate, transactionCount] = await Promise.all([
+      client.payments.aggregate({
+        where,
+        _sum: {
+          amount: true,
+        },
+      }),
+      client.payments.count({
+        where,
+      }),
+    ]);
+
+    return {
+      totalRevenue: aggregate._sum.amount || 0,
+      transactionCount,
+    };
   }
 }
 

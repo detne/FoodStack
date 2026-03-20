@@ -7,8 +7,16 @@ function createPaymentRoutes(paymentController, authMiddleware) {
     paymentController.getCheckoutPreview(req, res, next)
   );
 
+  router.get('/statistics', authMiddleware, (req, res, next) =>
+    paymentController.getStatistics(req, res, next)
+  );
+
   router.get('/:paymentId', authMiddleware, (req, res, next) =>
     paymentController.getDetails(req, res, next)
+  );
+
+  router.get('/', authMiddleware, (req, res, next) =>
+    paymentController.getHistory(req, res, next)
   );
 
   router.post('/process', (req, res, next) =>

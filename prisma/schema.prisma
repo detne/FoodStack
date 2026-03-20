@@ -69,6 +69,7 @@ model branches {
   restaurants       restaurants  @relation(fields: [restaurant_id], references: [id])
   categories        categories[]
   orders            orders[]
+  users             users[]
 
   @@index([is_published], map: "idx_branches_published")
 }
@@ -149,6 +150,12 @@ model invoices {
   paid_at        DateTime?
   created_at     DateTime  @default(now())
   updated_at     DateTime
+  payment_id     String?
+  pdf_url        String?
+  payments       payments? @relation(fields: [payment_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([order_id], map: "idx_invoices_order_id")
+  @@index([payment_id], map: "idx_invoices_payment_id")
 }
 
 model menu_item_customizations {
@@ -222,10 +229,10 @@ model orders {
   service_charge      Decimal       @default(0) @db.Decimal(10, 2)
   total               Decimal       @db.Decimal(10, 2)
   payment_status      String        @default("UNPAID")
-  customer_count      Int           @default(1)
-  cancellation_reason String?
   created_at          DateTime      @default(now())
   updated_at          DateTime
+  customer_count      Int?          @default(1)
+  cancellation_reason String?
   order_items         order_items[]
   branches            branches      @relation(fields: [branch_id], references: [id])
   tables              tables        @relation(fields: [table_id], references: [id])
@@ -233,17 +240,18 @@ model orders {
 }
 
 model payments {
-  id              String   @id
-  order_id        String   @unique
-  amount          Decimal  @db.Decimal(10, 2)
+  id              String     @id
+  order_id        String     @unique
+  amount          Decimal    @db.Decimal(10, 2)
   method          String
-  status          String   @default("PENDING")
-  transaction_ref String?  @unique
+  status          String     @default("PENDING")
+  transaction_ref String?    @unique
   payos_data      Json?
-  idempotency_key String   @unique
-  created_at      DateTime @default(now())
+  idempotency_key String     @unique
+  created_at      DateTime   @default(now())
   updated_at      DateTime
-  orders          orders   @relation(fields: [order_id], references: [id])
+  invoices        invoices[]
+  orders          orders     @relation(fields: [order_id], references: [id])
 }
 
 model permissions {
@@ -390,9 +398,13 @@ model users {
   deleted_at                              DateTime?
   email_verify_otp                        String?
   email_verify_otp_expires_at             DateTime?
+  branch_id                               String?
   restaurants_restaurants_owner_idTousers restaurants[]      @relation("restaurants_owner_idTousers")
   user_restaurants                        user_restaurants[]
+  branches                                branches?          @relation(fields: [branch_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   restaurants                             restaurants?       @relation(fields: [restaurant_id], references: [id])
+
+  @@index([branch_id], map: "idx_users_branch_id")
 }
 
 model user_restaurants {

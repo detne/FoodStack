@@ -1,8 +1,15 @@
 class VerifyPaymentWebhookUseCase {
-  constructor(payOSService, paymentRepository, orderRepository, prisma) {
+  constructor(
+    payOSService,
+    paymentRepository,
+    orderRepository,
+    generateInvoiceUseCase,
+    prisma
+  ) {
     this.payOSService = payOSService;
     this.paymentRepository = paymentRepository;
     this.orderRepository = orderRepository;
+    this.generateInvoiceUseCase = generateInvoiceUseCase;
     this.prisma = prisma;
   }
 
@@ -30,13 +37,14 @@ class VerifyPaymentWebhookUseCase {
       return { message: 'Webhook received without orderCode' };
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    let paidPaymentId = null;
+
+    const result = await this.prisma.$transaction(async (tx) => {
       const payment = await this.paymentRepository.findByPayOSOrderCode(
         orderCode,
         tx
       );
 
-      // QUAN TRỌNG: không throw nữa
       if (!payment) {
         return {
           message: `Webhook received but payment not found for orderCode=${orderCode}`,
@@ -44,6 +52,7 @@ class VerifyPaymentWebhookUseCase {
       }
 
       if (payment.status === 'PAID') {
+        paidPaymentId = payment.id;
         return { message: 'Payment already confirmed' };
       }
 
@@ -51,17 +60,18 @@ class VerifyPaymentWebhookUseCase {
         webhookBody.success === true && String(data.code) === '00';
 
       if (isSuccess) {
-        await this.paymentRepository.markPaidByPayOSOrderCode(
-          orderCode,
-          {
-            paymentLinkId: data.paymentLinkId || null,
-            reference: data.reference || null,
-            transactionDateTime: data.transactionDateTime || null,
-            rawWebhook: webhookBody,
-            paidData: data,
-          },
-          tx
-        );
+        const updatedPayment =
+          await this.paymentRepository.markPaidByPayOSOrderCode(
+            orderCode,
+            {
+              paymentLinkId: data.paymentLinkId || null,
+              reference: data.reference || null,
+              transactionDateTime: data.transactionDateTime || null,
+              rawWebhook: webhookBody,
+              paidData: data,
+            },
+            tx
+          );
 
         await this.orderRepository.update(
           payment.order_id,
@@ -71,6 +81,8 @@ class VerifyPaymentWebhookUseCase {
           },
           tx
         );
+
+        paidPaymentId = updatedPayment.id;
 
         return { message: 'Payment confirmed' };
       }
@@ -95,6 +107,17 @@ class VerifyPaymentWebhookUseCase {
 
       return { message: 'Payment not successful' };
     });
+
+    // Tạo invoice sau khi transaction DB hoàn tất
+    if (paidPaymentId) {
+      try {
+        await this.generateInvoiceUseCase.execute(paidPaymentId);
+      } catch (error) {
+        console.error('GENERATE INVOICE ERROR:', error);
+      }
+    }
+
+    return result;
   }
 }
 

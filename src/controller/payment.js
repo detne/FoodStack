@@ -1,12 +1,23 @@
 const { CreatePaymentBodySchema } = require('../dto/payment/create-payment');
 const { GetCheckoutPreviewQuerySchema } = require('../dto/payment/get-checkout-preview');
+const { GetPaymentHistoryQuerySchema } = require('../dto/payment/get-payment-history');
+const { GetPaymentStatisticsQuerySchema } = require('../dto/payment/get-payment-statistics');
 
 class PaymentController {
-  constructor(processPaymentUseCase, verifyPaymentWebhookUseCase, getCheckoutPreviewUseCase, getPaymentDetailsUseCase) {
+  constructor(
+    processPaymentUseCase,
+    verifyPaymentWebhookUseCase,
+    getCheckoutPreviewUseCase,
+    getPaymentDetailsUseCase,
+    getPaymentHistoryUseCase,
+    getPaymentStatisticsUseCase
+  ) {
     this.processPaymentUseCase = processPaymentUseCase;
     this.verifyPaymentWebhookUseCase = verifyPaymentWebhookUseCase;
     this.getCheckoutPreviewUseCase = getCheckoutPreviewUseCase;
     this.getPaymentDetailsUseCase = getPaymentDetailsUseCase;
+    this.getPaymentHistoryUseCase = getPaymentHistoryUseCase;
+    this.getPaymentStatisticsUseCase = getPaymentStatisticsUseCase;
   }
 
   async getDetails(req, res, next) {
@@ -23,6 +34,22 @@ class PaymentController {
       return res.status(200).json({
         success: true,
         message: 'Payment details fetched successfully',
+        data: result,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async getHistory(req, res, next) {
+    try {
+      const dto = GetPaymentHistoryQuerySchema.parse(req.query);
+
+      const result = await this.getPaymentHistoryUseCase.execute(dto, req.user);
+
+      return res.status(200).json({
+        success: true,
+        message: 'Payment history fetched successfully',
         data: result,
       });
     } catch (err) {
@@ -84,6 +111,22 @@ class PaymentController {
       });
     } catch (err) {
       console.error('PAYOS WEBHOOK ERROR:', err);
+      next(err);
+    }
+  }
+
+  async getStatistics(req, res, next) {
+    try {
+      const dto = GetPaymentStatisticsQuerySchema.parse(req.query);
+
+      const result = await this.getPaymentStatisticsUseCase.execute(dto, req.user);
+
+      return res.status(200).json({
+        success: true,
+        message: 'Payment statistics fetched successfully',
+        data: result,
+      });
+    } catch (err) {
       next(err);
     }
   }

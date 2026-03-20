@@ -4,6 +4,7 @@
  */
 
 const express = require('express');
+const path = require('path');
 const { prisma } = require('./config/database.config'); // Use singleton Prisma from config
 
 // Services
@@ -13,6 +14,7 @@ const { UploadService } = require('./service/upload');
 const { QrService } = require('./service/qr');
 const { CloudinaryUploadService } = require('./service/cloudinary-upload');
 const { PayOSService } = require('./service/payos');
+const { InvoicePdfService } = require('./service/invoice-pdf');
 
 // Repositories
 const { UserRepository } = require('./repository/user');
@@ -27,6 +29,7 @@ const { TableRepository } = require('./repository/table');
 const { OrderRepository } = require('./repository/order');
 const { PaymentRepository } = require('./repository/payment');
 const { ActivityLogRepository } = require('./repository/activity-log');
+const { InvoiceRepository } = require('./repository/invoice');
 
 // Use cases
 const { LoginUseCase } = require('./use-cases/auth/login');
@@ -95,6 +98,9 @@ const { ProcessPaymentUseCase } = require('./use-cases/payment/process-payment')
 const { VerifyPaymentWebhookUseCase } = require('./use-cases/payment/verify-payment-webhook');
 const { GetCheckoutPreviewUseCase } = require('./use-cases/payment/get-checkout-preview');
 const { GetPaymentDetailsUseCase } = require('./use-cases/payment/get-payment-details');
+const { GetPaymentHistoryUseCase } = require('./use-cases/payment/get-payment-history');
+const { GetPaymentStatisticsUseCase } = require('./use-cases/payment/get-payment-statistics');
+const { GenerateInvoiceUseCase } = require('./use-cases/payment/generate-invoice');
 // Order use cases
 const { CreateOrderUseCase } = require('./use-cases/order/create-order');
 const { GetOrderDetailsUseCase } = require('./use-cases/order/get-order-details');
@@ -173,6 +179,7 @@ function createApp() {
   const qrService = new QrService();
   const cloudinaryUploadService = new CloudinaryUploadService();
   const payOSService = new PayOSService();
+  const invoicePdfService = new InvoicePdfService();
 
   // Repositories
   const userRepository = new UserRepository(prisma);
@@ -187,6 +194,7 @@ function createApp() {
   const orderRepository = new OrderRepository(prisma);
   const paymentRepository = new PaymentRepository(prisma);
   const activityLogRepository = new ActivityLogRepository(prisma);
+  const invoiceRepository = new InvoiceRepository(prisma);
 
   // Use cases (misc)
   const getRestaurantStatisticsUseCase = new GetRestaurantStatisticsUseCase(prisma);
@@ -499,10 +507,19 @@ function createApp() {
     prisma
   );
 
+  const generateInvoiceUseCase = new GenerateInvoiceUseCase(
+    paymentRepository,
+    orderRepository,
+    invoiceRepository,
+    invoicePdfService,
+    prisma
+  );
+
   const verifyPaymentWebhookUseCase = new VerifyPaymentWebhookUseCase(
     payOSService,
     paymentRepository,
     orderRepository,
+    generateInvoiceUseCase,
     prisma
   );
 
@@ -517,11 +534,25 @@ function createApp() {
     userRepository
   );
 
+  const getPaymentHistoryUseCase = new GetPaymentHistoryUseCase(
+    paymentRepository,
+    userRepository,
+    prisma
+  );
+
+  const getPaymentStatisticsUseCase = new GetPaymentStatisticsUseCase(
+    paymentRepository,
+    userRepository,
+    prisma
+  );
+
   const paymentController = new PaymentController(
     processPaymentUseCase,
     verifyPaymentWebhookUseCase,
     getCheckoutPreviewUseCase,
-    getPaymentDetailsUseCase
+    getPaymentDetailsUseCase,
+    getPaymentHistoryUseCase,
+    getPaymentStatisticsUseCase
   )
   // Order use cases
   const createOrderUseCase = new CreateOrderUseCase(
@@ -631,7 +662,7 @@ function createApp() {
   app.use('/api/v1/orders', createOrderRoutes(orderController, authMiddleware));
   app.use('/api/v1/public', createPublicRoutes(prisma));
   app.use('/api/v1/customer-orders', createCustomerOrderRoutes(prisma));
-
+  app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
   // 404
   app.use((req, res) => {
     res.status(404).json({ success: false, message: 'Route not found', path: req.path });
