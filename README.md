@@ -1,289 +1,189 @@
-# QRService - Restaurant Management System
+# FoodStack Mobile - Complete Project
 
-Modern restaurant management platform with QR ordering, table management, and analytics.
+Ứng dụng mobile hoàn chỉnh cho hệ thống quản lý nhà hàng FoodStack với backend API và mobile app React Native.
+
+## 📱 Tính năng chính
+
+### Mobile App (React Native + Expo)
+- **Authentication**: Đăng nhập với 5 role khác nhau
+- **QR Code Scanning**: Quét mã QR bàn ăn để xem menu
+- **Menu Display**: Hiển thị menu theo danh mục với tìm kiếm
+- **Role-based Navigation**: UI khác nhau cho từng role
+- **Dashboard**: Thống kê real-time cho admin và restaurant staff
+- **Order Management**: Quản lý đơn hàng (đang phát triển)
+
+### Backend API (Node.js + Express + Prisma)
+- **RESTful API**: Đầy đủ endpoints cho mobile app
+- **Authentication**: JWT-based với refresh tokens
+- **Database**: PostgreSQL với Prisma ORM
+- **Real-time**: Redis integration
+- **File Upload**: Cloudinary integration
+- **Role-based Access**: 5 levels (Admin, Owner, Manager, Staff, Customer)
 
 ## 🚀 Quick Start
 
-### Prerequisites
-- Node.js 18+
-- PostgreSQL
-- npm or yarn
-
-### Backend Setup
+### 1. Backend Setup
 ```bash
-# Install dependencies
+cd FoodStack-Mobile-Complete/backend
 npm install
-
-# Setup environment
 cp .env.example .env
-# Edit .env with your database credentials
-
-# Run migrations
-npx prisma migrate dev
-
-# Start backend server
-npm start
-```
-
-Backend runs on: http://localhost:3000
-
-### Frontend Setup
-```bash
-cd frontend
-
-# Install dependencies
-npm install
-
-# Setup environment
-cp .env.example .env
-# Edit .env with backend API URL
-
-# Start development server
+# Cấu hình DATABASE_URL trong .env
 npm run dev
 ```
 
-Frontend runs on: http://localhost:8081
-
-## 📁 Project Structure
-
-```
-FoodStack-new/
-├── src/                    # Backend source code
-│   ├── controller/         # API controllers
-│   ├── routes/            # API routes
-│   ├── use-cases/         # Business logic
-│   ├── repository/        # Database access
-│   ├── dto/               # Data transfer objects
-│   ├── service/           # External services
-│   └── middleware/        # Express middleware
-├── frontend/              # React frontend
-│   ├── src/
-│   │   ├── pages/        # Page components
-│   │   ├── components/   # Reusable components
-│   │   ├── contexts/     # React contexts
-│   │   └── lib/          # Utilities
-├── prisma/               # Database schema & migrations
-└── database/             # SQL scripts
+### 2. Database Setup
+- Chạy SQL script trong Supabase hoặc PostgreSQL:
+```sql
+-- File: FoodStack-Mobile-Complete/database/supabase-mobile-test-setup.sql
 ```
 
-## 🎯 Features
+### 3. Mobile App Setup
+```bash
+cd FoodStack-Mobile-Complete/mobile-app
+npm install
+# Cập nhật IP backend trong config.js
+npm start
+```
 
-### Admin Dashboard
-- ✅ Dashboard with KPIs and analytics
-- ✅ Branch management (CRUD)
-- ✅ Menu management (Categories & Items)
-- ✅ Table & area management
-- ✅ Order management
-- ✅ Staff management
-- ✅ QR code generation
-- ✅ Reservations
-- ✅ Reviews & feedback
-- ✅ Analytics & reports
-- ✅ Settings & configuration
+## 🔐 Test Credentials
 
-### Customer Features (Mobile)
-- QR code scanning
-- Digital menu browsing
-- Order placement
-- Live order tracking
-- Service requests
-- Payment integration
+| Role | Email | Password | Mô tả |
+|------|-------|----------|-------|
+| Admin | admin@mobile.test | 123456 | Quản trị hệ thống |
+| Owner | owner@mobile.test | 123456 | Chủ nhà hàng |
+| Manager | manager@mobile.test | 123456 | Quản lý nhà hàng |
+| Staff | staff@mobile.test | 123456 | Nhân viên |
+| Customer | customer@mobile.test | 123456 | Khách hàng |
 
-## 🔧 Tech Stack
+**QR Test Token**: `mobile-test-qr-123`
 
-### Backend
-- Node.js + Express
-- Prisma ORM
-- PostgreSQL
-- JWT Authentication
-- PayOS Payment Gateway
+## 📊 API Endpoints
 
-### Frontend
-- React + TypeScript
-- Vite
-- TailwindCSS
-- shadcn/ui
-- React Router
-- React Query
-
-## 📝 API Documentation
+### Public APIs
+- `GET /api/v1/public/tables/{qr_token}` - QR scan
+- `GET /api/v1/public/branches/{branch_id}/menu` - Menu
 
 ### Authentication
+- `POST /api/v1/auth/login` - Đăng nhập
+- `POST /api/v1/auth/refresh-token` - Refresh token
+
+### Restaurant Management
+- `GET /api/v1/restaurants/me` - Nhà hàng của user
+- `GET /api/v1/restaurants/me/statistics` - Thống kê
+- `GET /api/v1/branches` - Danh sách chi nhánh
+
+## 🏗️ Project Structure
+
 ```
-POST /api/v1/auth/login
-POST /api/v1/auth/register
-POST /api/v1/auth/refresh-token
+FoodStack-Mobile-Complete/
+├── backend/                 # Node.js API Server
+│   ├── src/
+│   │   ├── controller/     # API Controllers
+│   │   ├── routes/         # API Routes
+│   │   ├── service/        # Business Logic
+│   │   ├── repository/     # Data Access
+│   │   └── use-cases/      # Use Cases
+│   └── prisma/             # Database Schema
+├── mobile-app/             # React Native App
+│   ├── src/
+│   │   ├── screens/        # App Screens
+│   │   ├── components/     # Reusable Components
+│   │   ├── contexts/       # React Contexts
+│   │   ├── services/       # API Services
+│   │   └── navigation/     # Navigation Setup
+└── database/               # Database Scripts
+    ├── supabase-mobile-test-setup.sql
+    └── schema_complete.sql
 ```
 
-### Branches
-```
-GET    /api/v1/branches
-POST   /api/v1/branches
-PUT    /api/v1/branches/:id
-DELETE /api/v1/branches/:id
-```
-
-### Categories
-```
-GET    /api/v1/categories?branch_id=xxx
-POST   /api/v1/categories
-PUT    /api/v1/categories/:id
-DELETE /api/v1/categories/:id
-```
-
-### Menu Items
-```
-GET    /api/v1/menu-items?category_id=xxx
-POST   /api/v1/menu-items
-PUT    /api/v1/menu-items/:id
-DELETE /api/v1/menu-items/:id
-```
-
-## 🧪 Testing
-
-### Test Account
-```
-Email: test@example.com
-Password: Test123456
-```
-
-### Run Tests
-```bash
-# Backend tests
-npm test
-
-# Frontend tests
-cd frontend && npm test
-```
-
-## 🔐 Environment Variables
+## 🔧 Configuration
 
 ### Backend (.env)
 ```env
-DATABASE_URL="postgresql://user:password@localhost:5432/foodstack"
-JWT_SECRET="your-secret-key"
-JWT_REFRESH_SECRET="your-refresh-secret"
-PORT=3000
+DATABASE_URL="postgresql://user:pass@host:5432/db"
+DIRECT_URL="postgresql://user:pass@host:5432/db"
+JWT_SECRET="your-jwt-secret"
+REDIS_URL="redis://localhost:6379"
+CLOUDINARY_CLOUD_NAME="your-cloud"
+CLOUDINARY_API_KEY="your-key"
+CLOUDINARY_API_SECRET="your-secret"
 ```
 
-### Frontend (.env)
-```env
-VITE_API_BASE_URL=http://localhost:3000/api/v1
+### Mobile App (config.js)
+```javascript
+export const CONFIG = {
+  BACKEND_IP: '192.168.1.123', // IP máy chạy backend
+  BACKEND_PORT: '3000',
+};
 ```
 
-## 📦 Deployment
+## 📱 Mobile App Features
+
+### Role-based UI
+- **Admin**: AdminDashboard với system-wide statistics
+- **Owner/Manager/Staff**: RestaurantDashboard với restaurant statistics  
+- **Customer**: Home screen với QR scanner
+
+### Real Data Integration
+- ✅ Authentication với backend
+- ✅ QR scanning với real table data
+- ✅ Menu loading từ database
+- ✅ Statistics từ real backend APIs
+- ✅ Role-based navigation
+
+## 🧪 Testing
+
+### Backend APIs
+```bash
+# Test login
+curl -X POST http://localhost:3000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@mobile.test","password":"123456"}'
+
+# Test QR scan
+curl http://localhost:3000/api/v1/public/tables/mobile-test-qr-123
+
+# Test menu
+curl http://localhost:3000/api/v1/public/branches/mobile-test-branch/menu
+```
+
+### Mobile App
+1. Mở Expo Go trên điện thoại
+2. Scan QR code từ `npm start`
+3. Test login với các role khác nhau
+4. Test QR scanner với token `mobile-test-qr-123`
+
+## 📚 Documentation
+
+- [Backend API Status](FoodStack-Mobile-Complete/BACKEND_API_STATUS.md)
+- [Final Test Results](FoodStack-Mobile-Complete/FINAL_TEST_RESULTS.md)
+- [Quick Start Guide](FoodStack-Mobile-Complete/QUICK_START.md)
+- [Testing Guide](FoodStack-Mobile-Complete/TESTING_GUIDE.md)
+
+## 🛠️ Tech Stack
 
 ### Backend
-```bash
-npm run build
-npm run start:prod
-```
+- Node.js + Express
+- Prisma ORM + PostgreSQL
+- JWT Authentication
+- Redis Caching
+- Cloudinary File Upload
 
-### Frontend
-```bash
-cd frontend
-npm run build
-# Deploy dist/ folder to hosting
-```
+### Mobile
+- React Native + Expo SDK 54
+- React Navigation 6
+- React Query (TanStack Query)
+- AsyncStorage
+- Expo Camera (QR Scanner)
 
-## 🤝 Contributing
+## 🎯 Status
 
-1. Fork the repository
-2. Create feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit changes (`git commit -m 'Add amazing feature'`)
-4. Push to branch (`git push origin feature/amazing-feature`)
-5. Open Pull Request
-
-## 📄 License
-
-MIT License - see LICENSE file for details
-
-## 👥 Team
-
-- Backend: Node.js + Express + Prisma
-- Frontend: React + TypeScript + TailwindCSS
-- Database: PostgreSQL
-
-## 📞 Support
-
-For support, email support@qrservice.com or open an issue.
+✅ **Hoàn thành**: Authentication, QR Scanning, Menu Display, Dashboard
+🚧 **Đang phát triển**: Order Management, Payment Integration
+📋 **Kế hoạch**: Push Notifications, Offline Support
 
 ---
 
-Built with ❤️ for modern restaurants
-
-### Prerequisites
-- Node.js 20+
-- npm 10+
-- PostgreSQL
-- Redis (optional)
-
-### Setup
-```bash
-# Clone repository
-git clone <repo-url>
-cd FoodStack-new
-
-# Install backend dependencies
-npm install
-
-# Install frontend dependencies
-cd frontend
-npm install
-
-# Setup database
-cd ..
-npm run prisma:migrate
-
-# Start development
-npm run dev                    # Backend
-cd frontend && npm run dev     # Frontend
-```
-
----
-
-## 🚀 Deployment
-
-### Backend
-```bash
-npm run build
-npm run start:prod
-```
-
-### Frontend
-```bash
-cd frontend
-npm run build
-# Deploy dist/ folder
-```
-
----
-
-## 📄 License
-
-Proprietary - QR Service Platform Team
-
----
-
-## 👥 Team
-
-- Backend: Node.js + Express + Prisma
-- Frontend: React + TypeScript + shadcn/ui
-- Database: PostgreSQL + Redis + MongoDB
-
----
-
-## 📞 Support
-
-**Gặp vấn đề?**
-1. Đọc [START-HERE.md](START-HERE.md)
-2. Đọc [QUICK-FIX.md](QUICK-FIX.md)
-3. Check [FIX-LOGIN-ERROR.md](FIX-LOGIN-ERROR.md)
-4. Cung cấp:
-   - Screenshot
-   - Console logs
-   - Terminal output
-
----
-
-**Happy Coding! 🎉**
+**Developed by**: FoodStack Team  
+**Version**: 1.0.0  
+**Last Updated**: March 2026

@@ -72,3 +72,18 @@ public/uploads/
 .cache/
 .parcel-cache/
 .eslintcache
+
+# Mobile App specific
+FoodStack-Mobile-Complete/mobile-app/.expo/
+FoodStack-Mobile-Complete/mobile-app/dist/
+FoodStack-Mobile-Complete/mobile-app/web-build/
+
+# Backend specific  
+FoodStack-Mobile-Complete/backend/uploads/
+FoodStack-Mobile-Complete/backend/prisma/migrations/dev.db*
+
+# Test files (temporary)
+test-*.js
+*-test.js
+verify-*.js
+check-*.js
