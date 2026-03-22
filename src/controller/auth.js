@@ -105,7 +105,22 @@ class AuthController {
 
   async logout(req, res, next) {
     try {
-      res.status(501).json({ success: false, message: 'Not implemented yet' });
+      const userId = req.user?.userId;
+      const accessToken = req.accessToken;
+
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          message: 'Unauthorized',
+        });
+      }
+
+      await this.logoutUseCase.execute(userId, accessToken);
+
+      res.status(200).json({
+        success: true,
+        message: 'Logged out successfully',
+      });
     } catch (error) {
       next(error);
     }

@@ -7,7 +7,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { 
+import {
   Users,
   CheckCircle,
   AlertCircle,
@@ -16,7 +16,9 @@ import {
   Building2,
   QrCode,
   Copy,
-  ExternalLink
+  ExternalLink,
+  Settings,
+  Edit,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -56,12 +58,27 @@ const statusConfig = {
     color: 'bg-green-500/10 text-green-600 border-green-500/20',
     icon: CheckCircle,
   },
+  AVAILABLE: {
+    label: 'Available',
+    color: 'bg-green-500/10 text-green-600 border-green-500/20',
+    icon: CheckCircle,
+  },
   OCCUPIED: {
     label: 'Occupied',
     color: 'bg-blue-500/10 text-blue-600 border-blue-500/20',
     icon: Users,
   },
+  RESERVED: {
+    label: 'Reserved',
+    color: 'bg-amber-500/10 text-amber-600 border-amber-500/20',
+    icon: AlertCircle,
+  },
   INACTIVE: {
+    label: 'Out of Service',
+    color: 'bg-gray-500/10 text-gray-600 border-gray-500/20',
+    icon: AlertCircle,
+  },
+  OUTOFSERVICE: {
     label: 'Out of Service',
     color: 'bg-gray-500/10 text-gray-600 border-gray-500/20',
     icon: AlertCircle,
@@ -82,10 +99,16 @@ export default function Tables() {
   const canEditTables = userRole === 'manager';
   const isOwnerReadOnly = userRole === 'owner';
 
-  // Debug log
-  console.log('User role:', userRole);
-  console.log('Can edit tables:', canEditTables);
-  console.log('Is owner read-only:', isOwnerReadOnly);
+  // Debug log - log whenever userRole changes
+  useEffect(() => {
+    console.log('=== Permission Debug ===');
+    console.log('User role:', userRole);
+    console.log('Can manage tables:', canManageTables);
+    console.log('Can edit tables:', canEditTables);
+    console.log('Is owner read-only:', isOwnerReadOnly);
+    console.log('owner_viewing_branch flag:', localStorage.getItem('owner_viewing_branch'));
+    console.log('=======================');
+  }, [userRole, canManageTables, canEditTables, isOwnerReadOnly]);
   
   // UI states
   const [selectedBranch, setSelectedBranch] = useState<string>('');
@@ -108,17 +131,36 @@ export default function Tables() {
   // QR Modal states
   const [selectedTableForQR, setSelectedTableForQR] = useState<Table | null>(null);
   const [isQRModalOpen, setIsQRModalOpen] = useState(false);
+  
+  // Table Management Modal states
+  const [selectedTableForManage, setSelectedTableForManage] = useState<Table | null>(null);
+  const [isManageModalOpen, setIsManageModalOpen] = useState(false);
+  const [editingCapacity, setEditingCapacity] = useState<number>(4);
+  const [editingAreaId, setEditingAreaId] = useState<string>('');
 
   // Fetch branches on mount
   useEffect(() => {
     // Get user role from localStorage
     const userData = localStorage.getItem('user');
+    const isOwnerViewing = localStorage.getItem('owner_viewing_branch') === 'true';
+    
     if (userData) {
       try {
         const user = JSON.parse(userData);
+        const userRoleRaw = user?.role || '';
         console.log('User data from localStorage:', user);
-        console.log('User role from data:', user?.role);
-        setUserRole(user?.role?.toLowerCase() || '');
+        console.log('User role from data:', userRoleRaw);
+        console.log('Is owner viewing as manager:', isOwnerViewing);
+        
+        // If owner is viewing as manager, treat as manager
+        if (isOwnerViewing && (userRoleRaw.toUpperCase() === 'RESTAURANT_OWNER' || userRoleRaw.toLowerCase() === 'owner')) {
+          console.log('Setting role to manager (owner viewing)');
+          setUserRole('manager');
+        } else {
+          const normalizedRole = userRoleRaw.toLowerCase().replace('restaurant_', '');
+          console.log('Setting role to:', normalizedRole);
+          setUserRole(normalizedRole);
+        }
       } catch (error) {
         console.error('Error parsing user data:', error);
       }
@@ -139,6 +181,29 @@ export default function Tables() {
     try {
       setIsLoading(true);
       const token = localStorage.getItem('access_token');
+      const isOwnerViewing = localStorage.getItem('owner_viewing_branch') === 'true';
+      const selectedBranchId = localStorage.getItem('selected_branch_id');
+      
+      // If owner is viewing as manager, use the selected branch
+      if (isOwnerViewing && selectedBranchId) {
+        // Fetch only the selected branch
+        const response = await fetch(`http://localhost:3000/api/v1/branches/${selectedBranchId}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data) {
+            setBranches([data.data]);
+            setSelectedBranch(data.data.id);
+          }
+        }
+        setIsLoading(false);
+        return;
+      }
       
       // Get user data to find restaurant ID
       const userData = localStorage.getItem('user');
@@ -381,6 +446,101 @@ export default function Tables() {
     }
   };
 
+  const handleChangeTableStatus = async (tableId: string, newStatus: string) => {
+    try {
+      const token = localStorage.getItem('access_token');
+      const response = await fetch(`http://localhost:3000/api/v1/tables/${tableId}`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: newStatus }),
+      });
+
+      if (response.ok) {
+        toast({
+          title: 'Success',
+          description: 'Table status updated successfully',
+        });
+        fetchTables();
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Update status error:', errorData);
+        throw new Error(errorData.message || 'Failed to update table status');
+      }
+    } catch (error: any) {
+      console.error('Error updating table status:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: error?.message || 'Failed to update table status',
+      });
+    }
+  };
+
+  const handleOpenManageModal = (table: Table) => {
+    setSelectedTableForManage(table);
+    setEditingCapacity(table.capacity);
+    setEditingAreaId(table.area_id);
+    setIsManageModalOpen(true);
+  };
+
+  const handleCloseManageModal = async () => {
+    if (!selectedTableForManage) {
+      setIsManageModalOpen(false);
+      return;
+    }
+
+    let hasChanges = false;
+    const updates: any = {};
+
+    // Check capacity change
+    if (editingCapacity !== selectedTableForManage.capacity) {
+      updates.capacity = editingCapacity;
+      hasChanges = true;
+    }
+
+    // Check area change
+    if (editingAreaId !== selectedTableForManage.area_id) {
+      updates.area_id = editingAreaId;
+      hasChanges = true;
+    }
+
+    // If there are changes, update
+    if (hasChanges) {
+      try {
+        const token = localStorage.getItem('access_token');
+        const response = await fetch(`http://localhost:3000/api/v1/tables/${selectedTableForManage.id}`, {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(updates),
+        });
+
+        if (response.ok) {
+          toast({
+            title: 'Success',
+            description: 'Table updated successfully',
+          });
+          fetchTables();
+        } else {
+          throw new Error('Failed to update table');
+        }
+      } catch (error: any) {
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: error?.message || 'Failed to update table',
+        });
+      }
+    }
+
+    setIsManageModalOpen(false);
+  };
+
   const handleCreateArea = async () => {
     if (!areaName.trim()) {
       toast({
@@ -505,25 +665,27 @@ export default function Tables() {
         </div>
       </div>
 
-        {/* Branch Selection */}
-        <Card className="bg-card/50 backdrop-blur border-border/50">
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <Building2 className="h-5 w-5 text-primary" />
-              <div>
-                <CardTitle className="text-lg">Select Branch</CardTitle>
-                <CardDescription>Choose a branch to view its tables</CardDescription>
+        {/* Branch Selection - Hide when owner viewing as manager */}
+        {!(localStorage.getItem('owner_viewing_branch') === 'true') && (
+          <Card className="bg-card/50 backdrop-blur border-border/50">
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <Building2 className="h-5 w-5 text-primary" />
+                <div>
+                  <CardTitle className="text-lg">Select Branch</CardTitle>
+                  <CardDescription>Choose a branch to view its tables</CardDescription>
+                </div>
               </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <BranchSelector
-              branches={branches}
-              selectedBranch={selectedBranch}
-              onSelectBranch={setSelectedBranch}
-            />
-          </CardContent>
-        </Card>
+            </CardHeader>
+            <CardContent>
+              <BranchSelector
+                branches={branches}
+                selectedBranch={selectedBranch}
+                onSelectBranch={setSelectedBranch}
+              />
+            </CardContent>
+          </Card>
+        )}
 
         {/* Stats */}
         {selectedBranch && (
@@ -679,7 +841,7 @@ export default function Tables() {
                                           {config.label}
                                         </Badge>
 
-                                        {/* Capacity and QR Code */}
+                                        {/* Capacity and Actions */}
                                         <div className="flex items-center justify-between">
                                           <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                             <Users className="w-4 h-4" />
@@ -688,57 +850,37 @@ export default function Tables() {
                                             </span>
                                           </div>
                                           
-                                          {/* QR Code Button - Always show for all users */}
-                                          <Button
-                                            size="sm"
-                                            variant="ghost"
-                                            className="h-8 w-8 p-0 hover:bg-blue-500/10 hover:text-blue-600"
-                                            onClick={() => handleShowQRCode(table)}
-                                          >
-                                            <QrCode className="w-4 h-4" />
-                                          </Button>
-                                        </div>
-                                      </div>
-
-                                      {/* Action Buttons */}
-                                      <div
-                                        className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-background/95 via-background/90 to-transparent backdrop-blur-sm rounded-b-lg"
-                                        style={{
-                                          opacity: hoveredTable === table.id ? 1 : 0,
-                                          transform: hoveredTable === table.id ? 'translateY(0)' : 'translateY(10px)',
-                                          transition: 'all 0.3s ease',
-                                          pointerEvents: hoveredTable === table.id ? 'auto' : 'none',
-                                        }}
-                                      >
-                                        <div className="flex gap-2 justify-center p-2 border-t border-border/30">
-                                          {canEditTables ? (
+                                          <div className="flex items-center gap-1">
+                                            {/* QR Code Button */}
                                             <Button
                                               size="sm"
                                               variant="ghost"
-                                              className="h-9 w-9 p-0 hover:bg-destructive/10 hover:text-destructive"
-                                              onClick={() => handleDeleteTable(table.id)}
-                                              disabled={isDeleteLoading === table.id}
-                                            >
-                                              {isDeleteLoading === table.id ? (
-                                                <div className="w-4 h-4 border-2 border-destructive border-t-transparent rounded-full animate-spin" />
-                                              ) : (
-                                                <Trash2 className="w-4 h-4" />
-                                              )}
-                                            </Button>
-                                          ) : isOwnerReadOnly ? (
-                                            <Button
-                                              size="sm"
-                                              variant="ghost"
-                                              className="h-9 w-9 p-0 hover:bg-blue-500/10 hover:text-blue-600"
-                                              onClick={() => handleShowQRCode(table)}
+                                              className="h-7 w-7 p-0 hover:bg-blue-500/10 hover:text-blue-600"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleShowQRCode(table);
+                                              }}
+                                              title="View QR Code"
                                             >
                                               <QrCode className="w-4 h-4" />
                                             </Button>
-                                          ) : (
-                                            <div className="text-xs text-muted-foreground py-2">
-                                              View Only
-                                            </div>
-                                          )}
+                                            
+                                            {/* Manage Button - Only for managers */}
+                                            {canEditTables && (
+                                              <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                className="h-7 w-7 p-0 hover:bg-primary/10 hover:text-primary"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  handleOpenManageModal(table);
+                                                }}
+                                                title="Manage Table"
+                                              >
+                                                <Settings className="w-4 h-4" />
+                                              </Button>
+                                            )}
+                                          </div>
                                         </div>
                                       </div>
                                     </CardContent>
@@ -923,6 +1065,170 @@ export default function Tables() {
                   </p>
                 </div>
               )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Table Management Modal */}
+      <Dialog open={isManageModalOpen} onOpenChange={(open) => {
+        if (!open) {
+          handleCloseManageModal();
+        }
+      }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Settings className="h-5 w-5" />
+              Manage Table - {selectedTableForManage?.table_number}
+            </DialogTitle>
+            <DialogDescription>
+              Update table information and settings. Changes will be saved automatically.
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedTableForManage && (
+            <div className="space-y-6">
+              {/* Table Info - 2 columns layout */}
+              <div className="grid grid-cols-2 gap-6">
+                {/* Left Column */}
+                <div className="space-y-4">
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">Table Number</Label>
+                    <p className="text-3xl font-bold mt-1">{selectedTableForManage.table_number}</p>
+                  </div>
+
+                  {/* Area Selector */}
+                  <div>
+                    <Label className="text-sm font-medium">Area</Label>
+                    <Select
+                      value={editingAreaId}
+                      onValueChange={setEditingAreaId}
+                    >
+                      <SelectTrigger className="mt-2">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {areas.map((area) => (
+                          <SelectItem key={area.id} value={area.id}>
+                            {area.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Capacity Editor */}
+                  <div>
+                    <Label htmlFor="capacity" className="text-sm font-medium">Capacity (Seats)</Label>
+                    <div className="flex items-center gap-2 mt-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setEditingCapacity(Math.max(1, editingCapacity - 1))}
+                      >
+                        -
+                      </Button>
+                      <Input
+                        id="capacity"
+                        type="number"
+                        value={editingCapacity}
+                        onChange={(e) => setEditingCapacity(parseInt(e.target.value) || 1)}
+                        className="text-center w-20"
+                        min="1"
+                      />
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setEditingCapacity(editingCapacity + 1)}
+                      >
+                        +
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right Column */}
+                <div className="space-y-4">
+                  <div>
+                    <Label className="text-sm font-medium">Current Status</Label>
+                    <div className="mt-2">
+                      <Badge className={`${statusConfig[selectedTableForManage.status as keyof typeof statusConfig]?.color || 'bg-gray-500/10 text-gray-600 border-gray-500/20'} border text-sm py-1 px-3`}>
+                        {statusConfig[selectedTableForManage.status as keyof typeof statusConfig]?.label || selectedTableForManage.status}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  {/* Status Changer */}
+                  <div>
+                    <Label className="text-sm font-medium">Change Status</Label>
+                    <Select
+                      value={selectedTableForManage.status}
+                      onValueChange={(newStatus) => {
+                        handleChangeTableStatus(selectedTableForManage.id, newStatus);
+                        setIsManageModalOpen(false);
+                      }}
+                    >
+                      <SelectTrigger className="mt-2">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="AVAILABLE">
+                          <div className="flex items-center gap-2">
+                            <CheckCircle className="h-4 w-4 text-green-600" />
+                            Available
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="OCCUPIED">
+                          <div className="flex items-center gap-2">
+                            <Users className="h-4 w-4 text-blue-600" />
+                            Occupied
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="RESERVED">
+                          <div className="flex items-center gap-2">
+                            <AlertCircle className="h-4 w-4 text-amber-600" />
+                            Reserved
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="OUTOFSERVICE">
+                          <div className="flex items-center gap-2">
+                            <AlertCircle className="h-4 w-4 text-gray-600" />
+                            Out of Service
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Actions - Only 2 buttons */}
+              <div className="grid grid-cols-2 gap-3 pt-4 border-t">
+                <Button
+                  variant="outline"
+                  className="w-full justify-start"
+                  onClick={() => {
+                    handleShowQRCode(selectedTableForManage);
+                    setIsManageModalOpen(false);
+                  }}
+                >
+                  <QrCode className="h-4 w-4 mr-2" />
+                  View QR Code
+                </Button>
+
+                <Button
+                  variant="destructive"
+                  className="w-full justify-start"
+                  onClick={() => {
+                    handleDeleteTable(selectedTableForManage.id);
+                    setIsManageModalOpen(false);
+                  }}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete Table
+                </Button>
+              </div>
             </div>
           )}
         </DialogContent>

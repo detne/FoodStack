@@ -36,16 +36,12 @@ class LoginUseCase {
       ? user.restaurants[0]
       : user.restaurants || null;
 
-    if (restaurant && restaurant.email_verified === false) {
+    // Only check email verification for OWNER role
+    if (user.role === 'OWNER' && restaurant && restaurant.email_verified === false) {
       console.log('[DEBUG] BLOCK LOGIN - email=', user.email);
       console.log('[DEBUG] BLOCK LOGIN - user.restaurant_id=', user.restaurant_id);
       console.log('[DEBUG] BLOCK LOGIN - restaurant.id=', restaurant?.id);
       console.log('[DEBUG] BLOCK LOGIN - restaurant.email_verified=', restaurant?.email_verified);
-      throw new Error('Restaurant email not verified. Please verify your restaurant email.');
-    }
-
-    // 5. Check restaurant email verified (if applicable)
-    if (restaurant && restaurant.email_verified === false) {
       throw new Error('Restaurant email not verified. Please verify your restaurant email.');
     }
 
@@ -54,6 +50,9 @@ class LoginUseCase {
 
     // ✅ restaurant id: prefer FK on users table, fallback to relation
     const restaurantId = user.restaurant_id ?? restaurant?.id ?? null;
+    
+    // ✅ branch id: for staff/manager assigned to specific branch
+    const branchId = user.branch_id ?? null;
 
     // 6. Generate access token (15 minutes)
     const accessToken = generateAccessToken(
@@ -62,6 +61,7 @@ class LoginUseCase {
         email: user.email,
         role: user.role,
         restaurantId, // ✅ now should be present
+        branchId, // ✅ add branch id for staff
         tv: tokenVersion,
       },
       '15m'
@@ -104,6 +104,7 @@ class LoginUseCase {
         fullName: user.full_name, // ✅ snake_case field from repo/db
         role: user.role,
         restaurantId, // ✅ return normalized
+        branchId, // ✅ return branch id for staff
         restaurant: restaurant
           ? {
             id: restaurant.id,

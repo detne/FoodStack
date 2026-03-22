@@ -6,7 +6,8 @@ class MenuItemController {
     updateMenuItemUseCase, 
     deleteMenuItemUseCase, 
     uploadMenuItemImageUseCase, 
-    updateMenuItemAvailabilityUseCase, 
+    updateMenuItemAvailabilityUseCase,
+    updateBranchAvailabilityUseCase,
     searchMenuItemsUseCase 
   }) {
     this.createMenuItemUseCase = createMenuItemUseCase;
@@ -14,6 +15,7 @@ class MenuItemController {
     this.deleteMenuItemUseCase = deleteMenuItemUseCase;
     this.uploadMenuItemImageUseCase = uploadMenuItemImageUseCase;
     this.updateMenuItemAvailabilityUseCase = updateMenuItemAvailabilityUseCase;
+    this.updateBranchAvailabilityUseCase = updateBranchAvailabilityUseCase;
     this.searchMenuItemsUseCase = searchMenuItemsUseCase;
   }
 
@@ -146,6 +148,31 @@ class MenuItemController {
     }
   }
 
+  // PATCH /api/v1/menu-items/:id/branch-availability
+  async updateBranchAvailability(req, res, next) {
+    try {
+      const { UpdateBranchAvailabilityDto } = require('../dto/menu-item/update-branch-availability');
+
+      const dto = new UpdateBranchAvailabilityDto({
+        menuItemId: req.params.id,
+        available: req.body.available,
+        reason: req.body.reason,
+        userId: req.user?.userId,
+        branchId: req.body.branchId, // Accept branchId from frontend
+      });
+
+      const result = await this.updateBranchAvailabilityUseCase.execute(dto);
+
+      res.status(200).json({
+        success: true,
+        message: 'Branch-specific availability updated successfully',
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   // GET /api/v1/menu-items/search
   async search(req, res, next) {
     try {
@@ -157,6 +184,7 @@ class MenuItemController {
         page: req.query.page ? parseInt(req.query.page) : 1,
         limit: req.query.limit ? parseInt(req.query.limit) : 10,
         branchId: req.query.branchId,
+        restaurantId: req.user?.restaurantId, // Add restaurant from user
       });
 
       const result = await this.searchMenuItemsUseCase.execute(dto);

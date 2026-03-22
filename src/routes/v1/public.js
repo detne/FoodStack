@@ -15,39 +15,32 @@ async function getTableByQR(req, res) {
   try {
     const { qr_token } = req.params;
     
-    // Get table info using raw query to avoid relation issues
-    const result = await req.prisma.$queryRaw`
-      SELECT 
-        t.id as table_id,
-        t.table_number,
-        t.capacity,
-        t.status,
-        a.id as area_id,
-        a.name as area_name,
-        b.id as branch_id,
-        b.name as branch_name,
-        b.restaurant_id,
-        r.id as restaurant_id,
-        r.name as restaurant_name,
-        r.logo_url
-      FROM tables t
-      JOIN areas a ON t.area_id = a.id
-      JOIN branches b ON a.branch_id = b.id
-      JOIN restaurants r ON b.restaurant_id = r.id
-      WHERE t.qr_token = ${qr_token}
-        AND t.deleted_at IS NULL
-    `;
+    // Get table info with relations
+    const table = await req.prisma.tables.findUnique({
+      where: { 
+        qr_token: qr_token
+      },
+      include: {
+        areas: {
+          include: {
+            branches: {
+              include: {
+                restaurants: true
+              }
+            }
+          }
+        }
+      }
+    });
 
-    if (!result || result.length === 0) {
+    if (!table || table.deleted_at !== null) {
       return res.status(404).json({
         success: false,
         message: 'Invalid QR code'
       });
     }
 
-    const tableData = result[0];
-
-    if (tableData.status === 'OutOfService') {
+    if (table.status === 'OutOfService') {
       return res.status(400).json({
         success: false,
         message: 'Table is currently out of service'
@@ -58,24 +51,24 @@ async function getTableByQR(req, res) {
       success: true,
       data: {
         table: {
-          id: tableData.table_id,
-          name: tableData.table_number,
-          capacity: tableData.capacity,
-          status: tableData.status,
+          id: table.id,
+          name: table.table_number,
+          capacity: table.capacity,
+          status: table.status,
           area: {
-            id: tableData.area_id,
-            name: tableData.area_name
+            id: table.areas.id,
+            name: table.areas.name
           }
         },
         branch: {
-          id: tableData.branch_id,
-          name: tableData.branch_name,
-          restaurant_id: tableData.restaurant_id
+          id: table.areas.branches.id,
+          name: table.areas.branches.name,
+          restaurant_id: table.areas.branches.restaurant_id
         },
         restaurant: {
-          id: tableData.restaurant_id,
-          name: tableData.restaurant_name,
-          logo_url: tableData.logo_url
+          id: table.areas.branches.restaurants.id,
+          name: table.areas.branches.restaurants.name,
+          logo_url: table.areas.branches.restaurants.logo_url
         }
       }
     });
@@ -91,23 +84,37 @@ async function getTableByQR(req, res) {
 
 /**
  * @route GET /api/v1/public/branches/:branch_id/menu
- * @desc Get public menu for branch
+ * @desc Get public menu for branch (menu is restaurant-level, filtered by branch availability)
  * @access Public
  */
 async function getPublicMenu(req, res) {
   try {
     const { branch_id } = req.params;
 
-    // Get categories with menu items
+    // Get branch to find restaurant
+    const branch = await req.prisma.branches.findUnique({
+      where: { id: branch_id },
+      select: { 
+        restaurant_id: true,
+        name: true
+      }
+    });
+
+    if (!branch) {
+      return res.status(404).json({
+        success: false,
+        message: 'Branch not found'
+      });
+    }
+
+    // Get categories with menu items for this restaurant
     const categories = await req.prisma.categories.findMany({
       where: {
-        branch_id: branch_id,
-        deleted_at: null
+        restaurant_id: branch.restaurant_id
       },
       include: {
         menu_items: {
           where: {
-            deleted_at: null,
             available: true
           },
           select: {
@@ -115,16 +122,42 @@ async function getPublicMenu(req, res) {
             name: true,
             price: true,
             description: true,
-            image_url: true
+            image_url: true,
+            menu_item_availability: {
+              where: {
+                branch_id: branch_id
+              },
+              select: {
+                is_available: true
+              }
+            }
           },
-          orderBy: { id: 'asc' }
+          orderBy: { name: 'asc' }
         }
       },
       orderBy: { sort_order: 'asc' }
     });
 
-    // Filter out empty categories
-    const menuCategories = categories.filter(cat => cat.menu_items.length > 0);
+    // Filter menu items based on branch availability
+    const menuCategories = categories.map(category => {
+      const availableItems = category.menu_items.filter(item => {
+        // If no availability record exists, show the item (default available)
+        if (!item.menu_item_availability || item.menu_item_availability.length === 0) {
+          return true;
+        }
+        // If availability record exists, check is_available flag
+        return item.menu_item_availability[0].is_available;
+      }).map(item => {
+        // Remove the availability field from response
+        const { menu_item_availability, ...itemData } = item;
+        return itemData;
+      });
+
+      return {
+        ...category,
+        menu_items: availableItems
+      };
+    }).filter(cat => cat.menu_items.length > 0); // Filter out empty categories
 
     res.json({
       success: true,

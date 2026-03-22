@@ -1,4 +1,4 @@
-const { v4: uuidv4 } = require('uuid');
+const { ObjectId } = require('mongodb');
 
 class CreateAreaUseCase {
   constructor(areaRepository, branchRepository, restaurantRepository, userRepository) {
@@ -56,10 +56,10 @@ class CreateAreaUseCase {
       throw err;
     }
 
-    // 4) Create
+    // 4) Create - Use MongoDB ObjectId instead of UUID
     const now = new Date();
     const area = await this.areaRepository.create({
-      id: uuidv4(),
+      id: new ObjectId().toString(),
       branch_id: branchId,
       name,
       sort_order: dto.sortOrder ?? 0,

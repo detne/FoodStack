@@ -25,7 +25,7 @@ class RestaurantRepository {
     return await this.prisma.restaurants.findMany({
       where: { 
         owner_id: ownerId,
-        deleted_at: null 
+        // Remove deleted_at filter since MongoDB doesn't have this field by default
       },
       orderBy: {
         created_at: 'desc'
@@ -35,11 +35,10 @@ class RestaurantRepository {
 
   async create(data, tx) {
     const client = tx || this.prisma;
-    const { v4: uuidv4 } = require('uuid');
 
     return client.restaurants.create({
       data: {
-        id: uuidv4(),
+        owner_id: data.owner_id,
         name: data.name,
         email: data.email || '',
         phone: data.phone || '',

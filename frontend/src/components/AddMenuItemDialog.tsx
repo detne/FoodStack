@@ -329,7 +329,7 @@ export default function AddMenuItemDialog({
                   <img 
                     src={imagePreview} 
                     alt="Preview" 
-                    className="w-32 h-32 object-cover rounded-lg mx-auto"
+                    className="w-64 h-64 object-cover rounded-lg mx-auto"
                   />
                   <div className="text-sm text-muted-foreground">
                     {imageFile?.name}

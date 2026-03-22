@@ -76,7 +76,6 @@ class UserRepository {
    */
   async create(data, tx) {
     const client = tx || this.prisma;
-    const { v4: uuidv4 } = require('uuid');
 
     const role = data.role; // 'Owner' | 'Manager' | 'Staff'
 
@@ -87,7 +86,6 @@ class UserRepository {
 
     return client.users.create({
       data: {
-        id: uuidv4(),
         email: data.email,
         password_hash: data.passwordHash,
         full_name: data.fullName,

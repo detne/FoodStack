@@ -141,8 +141,8 @@ export default function CustomerOrder() {
           description: 'Your order has been sent to the kitchen',
         });
         
-        // Navigate back to table hub
-        navigate(`/t/${qrToken}`);
+        // Navigate to my order page
+        navigate(`/customer/my-order?table=${tableId}&branch=${branchId}&qr_token=${qrToken}`);
       } else {
         throw new Error(orderResult.message || 'Failed to place order');
       }

@@ -33,6 +33,8 @@ import OwnerCategories from './OwnerCategories';
 import Tables from './Tables';
 import Staff from './Staff';
 import Branding from './Branding';
+import OwnerAnalytics from './OwnerAnalytics';
+import OwnerManagerDashboard from './OwnerManagerDashboard';
 
 interface NavItem {
   title: string;
@@ -87,13 +89,13 @@ const navItems: NavItem[] = [
   {
     title: 'Reports & Analytics',
     subtitle: 'View performance metrics',
-    href: '/analytics',
+    href: '/owner/analytics',
     icon: BarChart3,
   },
   {
     title: 'Manager Dashboard',
     subtitle: 'Access manager dashboard',
-    href: '/dashboard',
+    href: '/owner/manager',
     icon: LayoutDashboard,
   },
 ];
@@ -285,6 +287,10 @@ export default function OwnerDashboard() {
               <Staff />
             ) : location.pathname === '/owner/branding' ? (
               <Branding />
+            ) : location.pathname === '/owner/analytics' ? (
+              <OwnerAnalytics />
+            ) : location.pathname === '/owner/manager' ? (
+              <OwnerManagerDashboard />
             ) : (
               <Outlet />
             )}

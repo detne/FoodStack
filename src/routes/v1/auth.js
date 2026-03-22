@@ -81,7 +81,7 @@ function createAuthRoutes(authController, authMiddleware) {
    */
   router.post(
     '/logout',
-    // authMiddleware,
+    authMiddleware,
     (req, res, next) => authController.logout(req, res, next)
   );
 

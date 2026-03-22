@@ -1,4 +1,5 @@
 const { verifyAccessToken } = require('../utils/jwt');
+const { redisService } = require('../service/redis.service');
 
 function createAuthMiddleware(tokenService) {
   return async (req, res, next) => {
@@ -10,10 +11,15 @@ function createAuthMiddleware(tokenService) {
         return res.status(401).json({ success: false, message: 'Unauthorized' });
       }
 
-      // Check blacklist (logout, etc.)
-      const blacklisted = await tokenService.isTokenBlacklisted(token);
-      if (blacklisted) {
-        return res.status(401).json({ success: false, message: 'Token is blacklisted' });
+      // Check Redis blacklist first (faster)
+      if (process.env.REDIS_ENABLED === 'true') {
+        const isBlacklisted = await redisService.isTokenBlacklisted(token);
+        if (isBlacklisted) {
+          return res.status(401).json({
+            success: false,
+            message: 'Token has been revoked'
+          });
+        }
       }
 
       // Verify JWT

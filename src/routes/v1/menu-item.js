@@ -50,11 +50,18 @@ function createMenuItemRoutes(menuItemController, authMiddleware) {
     (req, res, next) => menuItemController.uploadImage(req, res, next)
   );
 
-  // PATCH /api/v1/menu-items/:id/availability - Update availability
+  // PATCH /api/v1/menu-items/:id/availability - Update availability (Owner only)
   router.patch(
     '/:id/availability',
     authMiddleware,
     (req, res, next) => menuItemController.updateAvailability(req, res, next)
+  );
+
+  // PATCH /api/v1/menu-items/:id/branch-availability - Update branch availability (Manager only)
+  router.patch(
+    '/:id/branch-availability',
+    authMiddleware,
+    (req, res, next) => menuItemController.updateBranchAvailability(req, res, next)
   );
 
   return router;

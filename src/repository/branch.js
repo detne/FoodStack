@@ -13,7 +13,7 @@ class BranchRepository {
     return await this.prisma.branches.findMany({
       where: {
         restaurant_id: restaurantId,
-        deleted_at: null,
+        // Remove deleted_at filter since we're using hard delete now
       },
       orderBy: { created_at: 'asc' },
     });
@@ -21,16 +21,33 @@ class BranchRepository {
 
   async create(data, tx) {
     const client = tx || this.prisma;
-    const { v4: uuidv4 } = require('uuid');
+
+    // Generate unique slug from branch name
+    const baseSlug = data.name
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, '') // Remove special characters
+      .replace(/\s+/g, '-') // Replace spaces with hyphens
+      .replace(/-+/g, '-') // Replace multiple hyphens with single
+      .trim();
+
+    // Ensure slug is unique by adding timestamp if needed
+    let slug = baseSlug;
+    const existingBranch = await client.branches.findUnique({
+      where: { slug: slug }
+    });
+    
+    if (existingBranch) {
+      slug = `${baseSlug}-${Date.now()}`;
+    }
 
     return client.branches.create({
       data: {
-        id: uuidv4(),
         restaurant_id: data.restaurantId,
         name: data.name,
         address: data.address,
         phone: data.phone || null,
         status: data.status || 'ACTIVE',
+        slug: slug,
         created_at: new Date(),
         updated_at: new Date(),
       },
@@ -52,19 +69,19 @@ class BranchRepository {
 
     console.log('BranchRepository.listByRestaurant called with:', { restaurantId, page, limit });
 
-    // First, let's check if any branches exist for this restaurant (without deleted_at filter)
+    // First, let's check if any branches exist for this restaurant
     const allBranches = await this.prisma.branches.findMany({
       where: {
         restaurant_id: restaurantId,
       },
     });
-    console.log('All branches for restaurant (including deleted):', allBranches);
+    console.log('All branches for restaurant:', allBranches);
 
     const [items, total] = await this.prisma.$transaction([
       this.prisma.branches.findMany({
         where: {
           restaurant_id: restaurantId,
-          deleted_at: null,
+          // Remove deleted_at filter since MongoDB doesn't have this field by default
         },
         orderBy: { created_at: 'desc' },
         skip,
@@ -73,7 +90,7 @@ class BranchRepository {
       this.prisma.branches.count({
         where: {
           restaurant_id: restaurantId,
-          deleted_at: null,
+          // Remove deleted_at filter
         },
       }),
     ]);
@@ -85,19 +102,19 @@ class BranchRepository {
   }
 
   async delete(id) {
-    return await this.prisma.branches.update({
-      where: { id },
-      data: { deleted_at: new Date() },
+    // For MongoDB, use hard delete instead of soft delete
+    return await this.prisma.branches.delete({
+      where: { id }
     });
   }
 
   async deactivate(id) {
+    // Just set status to INACTIVE, don't delete
     return this.prisma.branches.update({
       where: { id },
       data: {
         status: 'INACTIVE',
         updated_at: new Date(),
-        deleted_at: new Date(),
       },
     });
   }

@@ -9,6 +9,8 @@ class ReservationController {
     updateReservationUseCase,
     cancelReservationUseCase,
     confirmReservationUseCase,
+    completeReservationUseCase,
+    assignTableToReservationUseCase,
     getReservationDetailsUseCase,
     listReservationsUseCase,
     checkTableAvailabilityUseCase,
@@ -17,6 +19,8 @@ class ReservationController {
     this.updateReservationUseCase = updateReservationUseCase;
     this.cancelReservationUseCase = cancelReservationUseCase;
     this.confirmReservationUseCase = confirmReservationUseCase;
+    this.completeReservationUseCase = completeReservationUseCase;
+    this.assignTableToReservationUseCase = assignTableToReservationUseCase;
     this.getReservationDetailsUseCase = getReservationDetailsUseCase;
     this.listReservationsUseCase = listReservationsUseCase;
     this.checkTableAvailabilityUseCase = checkTableAvailabilityUseCase;
@@ -92,6 +96,53 @@ class ReservationController {
       res.status(200).json({
         success: true,
         message: 'Reservation confirmed',
+        data: result,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  // POST /api/v1/reservations/:id/complete
+  async complete(req, res, next) {
+    try {
+      const { id } = req.params;
+
+      const result = await this.completeReservationUseCase.execute(id, {
+        userId: req.user?.userId,
+        role: req.user?.role,
+      });
+
+      res.status(200).json({
+        success: true,
+        message: 'Reservation completed',
+        data: result,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  // PATCH /api/v1/reservations/:id/assign-table
+  async assignTable(req, res, next) {
+    try {
+      const { id } = req.params;
+      const { tableId } = req.body;
+
+      if (!tableId) {
+        const err = new Error('tableId is required');
+        err.status = 400;
+        throw err;
+      }
+
+      const result = await this.assignTableToReservationUseCase.execute(id, tableId, {
+        userId: req.user?.userId,
+        role: req.user?.role,
+      });
+
+      res.status(200).json({
+        success: true,
+        message: 'Table assigned to reservation',
         data: result,
       });
     } catch (err) {
