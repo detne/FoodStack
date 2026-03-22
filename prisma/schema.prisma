@@ -161,7 +161,6 @@ model invoices {
   pdf_url        String?
   payments       payments? @relation(fields: [payment_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
-  @@index([order_id], map: "idx_invoices_order_id")
   @@index([payment_id], map: "idx_invoices_payment_id")
 }
 
