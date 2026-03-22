@@ -4,6 +4,7 @@
  */
 
 const express = require('express');
+const path = require('path');
 const { prisma } = require('./config/database.config'); // Use singleton Prisma from config
 
 // Services
@@ -12,6 +13,8 @@ const { EmailService } = require('./service/email');
 const { UploadService } = require('./service/upload');
 const { QrService } = require('./service/qr');
 const { CloudinaryUploadService } = require('./service/cloudinary-upload');
+const { PayOSService } = require('./service/payos');
+const { InvoicePdfService } = require('./service/invoice-pdf');
 
 // Repositories
 const { UserRepository } = require('./repository/user');
@@ -25,7 +28,9 @@ const { CustomizationRepository } = require('./repository/customization');
 const { ReservationRepository } = require('./repository/reservation');
 const { TableRepository } = require('./repository/table');
 const { OrderRepository } = require('./repository/order');
+const { PaymentRepository } = require('./repository/payment');
 const { ActivityLogRepository } = require('./repository/activity-log');
+const { InvoiceRepository } = require('./repository/invoice');
 const { BrandingRepository } = require('./repository/branding');
 
 // Use cases
@@ -98,6 +103,14 @@ const { GetReservationDetailsUseCase } = require('./use-cases/reservation/get-de
 const { ListReservationsUseCase } = require('./use-cases/reservation/list-reservations');
 const { CheckTableAvailabilityUseCase } = require('./use-cases/reservation/check-availability');
 
+const { ProcessPaymentUseCase } = require('./use-cases/payment/process-payment');
+const { VerifyPaymentWebhookUseCase } = require('./use-cases/payment/verify-payment-webhook');
+const { GetCheckoutPreviewUseCase } = require('./use-cases/payment/get-checkout-preview');
+const { GetPaymentDetailsUseCase } = require('./use-cases/payment/get-payment-details');
+const { GetPaymentHistoryUseCase } = require('./use-cases/payment/get-payment-history');
+const { GetPaymentStatisticsUseCase } = require('./use-cases/payment/get-payment-statistics');
+const { GenerateInvoiceUseCase } = require('./use-cases/payment/generate-invoice');
+const { ConfirmCashPaymentUseCase } = require('./use-cases/payment/confirm-cash-payment');
 // Order use cases
 const { CreateOrderUseCase } = require('./use-cases/order/create-order');
 const { GetOrderDetailsUseCase } = require('./use-cases/order/get-order-details');
@@ -121,6 +134,7 @@ const { MenuItemController } = require('./controller/menu-item');
 const { CustomizationController } = require('./controller/customization');
 const { ReservationController } = require('./controller/reservation');
 const { TableController } = require('./controller/table');
+const { PaymentController } = require('./controller/payment');
 const { OrderController } = require('./controller/order');
 const { BrandingController } = require('./controller/branding');
 
@@ -134,6 +148,7 @@ const { createCustomizationRoutes } = require('./routes/v1/customization');
 const { createStaffRoutes } = require('./routes/v1/staff');
 const { createPublicRoutes } = require('./routes/v1/public');
 const { createCustomerOrderRoutes } = require('./routes/v1/customer-orders');
+const { createPaymentRoutes } = require('./routes/v1/payments');
 
 const { createAreaRoutes } = require('./routes/v1/areas');
 const { createReservationRoutes } = require('./routes/v1/reservation');
@@ -169,15 +184,14 @@ function createApp() {
     next();
   });
 
-  // Use singleton Prisma instance from config
-  // No need to create new PrismaClient here
-
   // Services
   const tokenService = new TokenService();
   const emailService = new EmailService();
   const uploadService = new UploadService(); // Now uses real Cloudinary
   const qrService = new QrService();
   const cloudinaryUploadService = new CloudinaryUploadService();
+  const payOSService = new PayOSService();
+  const invoicePdfService = new InvoicePdfService();
 
   // Repositories
   const userRepository = new UserRepository(prisma);
@@ -191,7 +205,9 @@ function createApp() {
   const reservationRepository = new ReservationRepository(prisma);
   const tableRepository = new TableRepository(prisma);
   const orderRepository = new OrderRepository(prisma);
+  const paymentRepository = new PaymentRepository(prisma);
   const activityLogRepository = new ActivityLogRepository(prisma);
+  const invoiceRepository = new InvoiceRepository(prisma);
   const brandingRepository = new BrandingRepository(prisma);
 
   // Use cases (misc)
@@ -405,7 +421,7 @@ function createApp() {
   const updateStaffUseCase = new UpdateStaffUseCase(userRepository, prisma);
   const deleteStaffUseCase = new DeleteStaffUseCase(userRepository, tokenService);
 
-  // ✅ Table use case + controller
+  // Table use case + controller
   const createTableUseCase = new CreateTableUseCase(
     tableRepository,
     areaRepository,
@@ -433,6 +449,7 @@ function createApp() {
     orderRepository
   );
 
+  // Staff controller with all use cases
   const listTablesByBranchUseCase = new ListTablesByBranchUseCase(
     tableRepository,
     branchRepository,
@@ -459,7 +476,6 @@ function createApp() {
     userRepository
   );
 
-  // ✅ Staff controller
   // ✅ Staff controller with all use cases
   const staffController = new StaffController(
     createStaffUseCase,
@@ -470,7 +486,7 @@ function createApp() {
     setStaffStatusUseCase
   );
 
-  // ✅ Initialize reservation use cases
+  // Reservation use cases
   const createReservationUseCase = new CreateReservationUseCase(
     reservationRepository,
     branchRepository,
@@ -482,13 +498,9 @@ function createApp() {
     tableRepository
   );
 
-  const cancelReservationUseCase = new CancelReservationUseCase(
-    reservationRepository
-  );
+  const cancelReservationUseCase = new CancelReservationUseCase(reservationRepository);
 
-  const confirmReservationUseCase = new ConfirmReservationUseCase(
-    reservationRepository
-  );
+  const confirmReservationUseCase = new ConfirmReservationUseCase(reservationRepository);
 
   const completeReservationUseCase = new CompleteReservationUseCase(
     reservationRepository,
@@ -514,7 +526,7 @@ function createApp() {
     branchRepository
   );
 
-  // ✅ Reservation controller
+  // Reservation controller
   const reservationController = new ReservationController({
     createReservationUseCase,
     updateReservationUseCase,
@@ -527,6 +539,70 @@ function createApp() {
     checkTableAvailabilityUseCase,
   });
 
+  // Payment use cases + controller
+  const processPaymentUseCase = new ProcessPaymentUseCase(
+    orderRepository,
+    paymentRepository,
+    payOSService,
+    prisma
+  );
+
+  const generateInvoiceUseCase = new GenerateInvoiceUseCase(
+    paymentRepository,
+    orderRepository,
+    invoiceRepository,
+    invoicePdfService,
+    prisma
+  );
+
+  const verifyPaymentWebhookUseCase = new VerifyPaymentWebhookUseCase(
+    payOSService,
+    paymentRepository,
+    orderRepository,
+    generateInvoiceUseCase,
+    prisma
+  );
+
+  const getCheckoutPreviewUseCase = new GetCheckoutPreviewUseCase(
+    orderRepository,
+    prisma
+  );
+
+  const getPaymentDetailsUseCase = new GetPaymentDetailsUseCase(
+    paymentRepository,
+    orderRepository,
+    userRepository
+  );
+
+  const getPaymentHistoryUseCase = new GetPaymentHistoryUseCase(
+    paymentRepository,
+    userRepository,
+    prisma
+  );
+
+  const getPaymentStatisticsUseCase = new GetPaymentStatisticsUseCase(
+    paymentRepository,
+    userRepository,
+    prisma
+  );
+
+  const confirmCashPaymentUseCase = new ConfirmCashPaymentUseCase(
+  paymentRepository,
+  orderRepository,
+  generateInvoiceUseCase,
+  userRepository,
+  prisma
+);
+
+  const paymentController = new PaymentController(
+    processPaymentUseCase,
+    verifyPaymentWebhookUseCase,
+    getCheckoutPreviewUseCase,
+    getPaymentDetailsUseCase,
+    getPaymentHistoryUseCase,
+    getPaymentStatisticsUseCase,
+    confirmCashPaymentUseCase
+  )
   // Order use cases
   const createOrderUseCase = new CreateOrderUseCase(
     orderRepository,
@@ -607,6 +683,7 @@ function createApp() {
         staff: '/api/v1/staff',
         areas: '/api/v1/areas',
         reservations: '/api/v1/reservations',
+        payments: '/api/v1/payments',
         orders: '/api/v1/orders',
         branding: '/api/v1/branding',
         public: '/api/v1/public',
@@ -628,20 +705,21 @@ function createApp() {
   // Areas routes (PATCH/DELETE /areas/:areaId)
   app.use('/api/v1/areas', createAreaRoutes(areaController, authMiddleware));
 
-  // ✅ Tables routes (POST /areas/:areaId/tables)
+  // Tables routes (POST /areas/:areaId/tables)
   app.use('/api/v1', createTableRoutes(tableController, authMiddleware));
 
-  // Category/menu/customization/staff
+  // Category/menu/customization/staff/reservations/payments
   app.use('/api/v1/categories', createCategoryRoutes(categoryController, authMiddleware));
   app.use('/api/v1/menu-items', createMenuItemRoutes(menuItemController, authMiddleware));
   app.use('/api/v1/customizations', createCustomizationRoutes(customizationController, authMiddleware));
   app.use('/api/v1/staff', createStaffRoutes(staffController, authMiddleware));
   app.use('/api/v1/reservations', createReservationRoutes(reservationController, authMiddleware));
+  app.use('/api/v1/payments', createPaymentRoutes(paymentController, authMiddleware));
   app.use('/api/v1/orders', createOrderRoutes(orderController, authMiddleware));
   app.use('/api/v1/branding', createBrandingRoutes(brandingController, authMiddleware));
   app.use('/api/v1/public', createPublicRoutes(prisma));
   app.use('/api/v1/customer-orders', createCustomerOrderRoutes(prisma));
-
+  app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
   // 404
   app.use((req, res) => {
     res.status(404).json({ success: false, message: 'Route not found', path: req.path });

@@ -156,9 +156,12 @@ model invoices {
   issued_at      DateTime  @default(now())
   paid_at        DateTime?
   created_at     DateTime  @default(now())
-  updated_at     DateTime  @updatedAt
+  updated_at     DateTime
+  payment_id     String?
+  pdf_url        String?
+  payments       payments? @relation(fields: [payment_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
-  @@map("invoices")
+  @@index([payment_id], map: "idx_invoices_payment_id")
 }
 
 model menu_item_customizations {
@@ -289,15 +292,14 @@ model payments {
   order_id        String   @unique @db.ObjectId
   amount          Float
   method          String
-  status          String   @default("PENDING")
-  transaction_ref String?  @unique
+  status          String     @default("PENDING")
+  transaction_ref String?    @unique
   payos_data      Json?
-  idempotency_key String   @unique
-  created_at      DateTime @default(now())
-  updated_at      DateTime @updatedAt
-  orders          orders   @relation(fields: [order_id], references: [id])
-
-  @@map("payments")
+  idempotency_key String     @unique
+  created_at      DateTime   @default(now())
+  updated_at      DateTime
+  invoices        invoices[]
+  orders          orders     @relation(fields: [order_id], references: [id])
 }
 
 model permissions {
