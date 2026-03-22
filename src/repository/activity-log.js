@@ -1,5 +1,4 @@
 const { PrismaClient } = require('@prisma/client');
-const { v4: uuidv4 } = require('uuid');
 
 class ActivityLogRepository {
   constructor(prisma) {
@@ -9,7 +8,6 @@ class ActivityLogRepository {
   async create(logData) {
     return await this.prisma.activity_logs.create({
       data: {
-        id: uuidv4(),
         user_id: logData.user_id,
         restaurant_id: logData.restaurant_id,
         branch_id: logData.branch_id,

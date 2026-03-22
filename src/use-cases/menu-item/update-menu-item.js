@@ -11,14 +11,14 @@ class UpdateMenuItemUseCase {
   }
 
   async execute(dto) {
-    // 1. Validate user role (Owner/Manager)
+    // 1. Validate user role (Only Owner can update menu items)
     const user = await this.userRepository.findById(dto.userId);
     if (!user) {
       throw new UnauthorizedError('User not found');
     }
 
-    if (!['OWNER', 'MANAGER'].includes(user.role)) {
-      throw new UnauthorizedError('Only Owner or Manager can update menu items');
+    if (user.role !== 'OWNER') {
+      throw new UnauthorizedError('Only Owner can update menu items');
     }
 
     // 2. Validate menu item exists

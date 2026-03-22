@@ -21,25 +21,34 @@ class CreateCategoryUseCase {
       throw new UnauthorizedError('Only Owner or Manager can create categories');
     }
 
-    // 2. Validate branch exists
-    const branch = await this.branchRepository.findById(dto.branchId);
-    if (!branch) {
-      throw new ValidationError('Branch not found');
+    // 2. Get restaurant_id from user or branch
+    let restaurantId = user.restaurant_id;
+    
+    if (!restaurantId && dto.branchId) {
+      const branch = await this.branchRepository.findById(dto.branchId);
+      if (!branch) {
+        throw new ValidationError('Branch not found');
+      }
+      restaurantId = branch.restaurant_id;
     }
 
-    // 3. Check duplicate category name in same branch
-    const existingCategory = await this.categoryRepository.findByNameAndBranch(
+    if (!restaurantId) {
+      throw new ValidationError('Restaurant not found');
+    }
+
+    // 3. Check duplicate category name in same restaurant
+    const existingCategory = await this.categoryRepository.findByNameAndRestaurant(
       dto.name,
-      dto.branchId
+      restaurantId
     );
 
     if (existingCategory) {
-      throw new ValidationError('Category name already exists in this branch');
+      throw new ValidationError('Category name already exists in this restaurant');
     }
 
-    // 4. Create category
+    // 4. Create category (now at restaurant level)
     const category = await this.categoryRepository.create({
-      branchId: dto.branchId,
+      restaurantId: restaurantId,
       name: dto.name,
       description: dto.description,
       sortOrder: dto.sortOrder || 0,
@@ -47,7 +56,7 @@ class CreateCategoryUseCase {
 
     return {
       categoryId: category.id,
-      branchId: category.branch_id,
+      restaurantId: category.restaurant_id,
       name: category.name,
       description: category.description,
       sortOrder: category.sort_order,

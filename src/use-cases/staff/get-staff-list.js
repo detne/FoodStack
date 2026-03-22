@@ -19,7 +19,7 @@ class GetStaffListUseCase {
       throw new UnauthorizedError('Only Owner or Manager can view staff list');
     }
 
-    const { page, limit, search, status } = dto;
+    const { page, limit, search, status, branchId } = dto;
 
     // 2. Get restaurant ID from JWT token
     let restaurantId = currentUser.restaurantId; // JWT uses camelCase
@@ -33,12 +33,35 @@ class GetStaffListUseCase {
 
     console.log('GetStaffListUseCase - Using restaurantId:', restaurantId);
 
+    // 2.1. Determine which branch to filter by
+    let filterBranchId = branchId; // From query param (Owner selecting branch)
+    
+    if (!filterBranchId) {
+      // If no branchId in query, get from user (Manager's branch)
+      const fullUser = await this.userRepository.findById(currentUser.userId);
+      filterBranchId = fullUser?.branch_id;
+    }
+    
+    console.log('GetStaffListUseCase - Filter branch ID:', {
+      fromQuery: branchId,
+      fromUser: filterBranchId,
+      role: currentUser.role
+    });
+
     // 3. Build filter conditions
     const where = {
       restaurant_id: restaurantId,
-      role: { in: ['MANAGER', 'STAFF'] }, // Exclude OWNER
+      role: 'STAFF', // Only show STAFF (not MANAGER or OWNER)
       status: status ? status : undefined,
     };
+
+    // 3.1. Filter by branch if available
+    if (filterBranchId) {
+      where.branch_id = filterBranchId;
+      console.log('GetStaffListUseCase - Filtering by branch:', filterBranchId);
+    } else {
+      console.log('GetStaffListUseCase - No branch filter (showing all staff)');
+    }
 
     // 4. Add search filter if specified
     if (search) {

@@ -8,7 +8,7 @@ const CustomizationOptionSchema = z.object({
 });
 
 const CreateCustomizationGroupSchema = z.object({
-  menuItemId: z.string().uuid('Invalid menu item ID'),
+  menuItemId: z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid ID format"),
   name: z.string().min(1, 'Group name is required').max(100),
   description: z.string().max(255).optional(),
   minSelect: z.number().int().min(0).default(0),

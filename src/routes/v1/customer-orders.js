@@ -4,7 +4,6 @@
  */
 
 const express = require('express');
-const router = express.Router();
 
 /**
  * @route POST /api/v1/customer-orders/sessions
@@ -15,69 +14,81 @@ async function createOrderSession(req, res) {
   try {
     const { qr_token, customer_count = 1 } = req.body;
 
-    // Validate table using raw query
-    const result = await req.prisma.$queryRaw`
-      SELECT 
-        t.id as table_id,
-        t.table_number,
-        t.capacity,
-        t.status,
-        b.id as branch_id,
-        b.name as branch_name,
-        b.restaurant_id
-      FROM tables t
-      JOIN areas a ON t.area_id = a.id
-      JOIN branches b ON a.branch_id = b.id
-      WHERE t.qr_token = ${qr_token}
-        AND t.deleted_at IS NULL
-    `;
+    // Validate table with relations
+    const table = await req.prisma.tables.findUnique({
+      where: { 
+        qr_token: qr_token
+      },
+      include: {
+        areas: {
+          include: {
+            branches: true
+          }
+        }
+      }
+    });
 
-    if (!result || result.length === 0) {
+    if (!table || table.deleted_at !== null) {
       return res.status(404).json({
         success: false,
         message: 'Invalid QR code'
       });
     }
 
-    const table = result[0];
-
-    if (table.status !== 'AVAILABLE') {
-      return res.status(400).json({
-        success: false,
-        message: 'Table is not available'
-      });
-    }
-
-    // Create session
-    const session = await req.prisma.order_sessions.create({
-      data: {
-        table_id: table.table_id,
-        session_token: require('crypto').randomBytes(32).toString('hex'),
-        customer_count: parseInt(customer_count),
-        started_at: new Date(),
+    // Check if there's already an active session for this table
+    let session = await req.prisma.order_sessions.findFirst({
+      where: {
+        table_id: table.id,
         is_active: true
+      },
+      orderBy: {
+        started_at: 'desc'
       }
     });
 
-    // Update table status
-    await req.prisma.tables.update({
-      where: { id: table.table_id },
-      data: { status: 'OCCUPIED' }
-    });
+    // If no active session exists, create a new one
+    if (!session) {
+      // Only check AVAILABLE status when creating new session
+      if (table.status !== 'AVAILABLE' && table.status !== 'OCCUPIED') {
+        return res.status(400).json({
+          success: false,
+          message: 'Table is not available'
+        });
+      }
+
+      session = await req.prisma.order_sessions.create({
+        data: {
+          table_id: table.id,
+          session_token: require('crypto').randomBytes(32).toString('hex'),
+          customer_count: parseInt(customer_count),
+          started_at: new Date(),
+          is_active: true
+        }
+      });
+
+      // Update table status to OCCUPIED
+      await req.prisma.tables.update({
+        where: { id: table.id },
+        data: { status: 'OCCUPIED' }
+      });
+    }
+
+    // Get branch info
+    const branch = table.areas.branches;
 
     res.json({
       success: true,
       data: {
         session_token: session.session_token,
         table: {
-          id: table.table_id,
+          id: table.id,
           name: table.table_number,
           capacity: table.capacity
         },
         branch: {
-          id: table.branch_id,
-          name: table.branch_name,
-          restaurant_id: table.restaurant_id
+          id: branch.id,
+          name: branch.name,
+          restaurant_id: branch.restaurant_id
         }
       }
     });
@@ -86,7 +97,8 @@ async function createOrderSession(req, res) {
     console.error('Create order session error:', error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error'
+      message: 'Internal server error',
+      error: error.message
     });
   }
 }
@@ -105,13 +117,6 @@ async function createOrder(req, res) {
       where: { 
         session_token,
         is_active: true 
-      },
-      include: {
-        table: {
-          include: {
-            branch: true
-          }
-        }
       }
     });
 
@@ -121,6 +126,27 @@ async function createOrder(req, res) {
         message: 'Invalid or expired session'
       });
     }
+
+    // Get table with branch info
+    const table = await req.prisma.tables.findUnique({
+      where: { id: session.table_id },
+      include: {
+        areas: {
+          include: {
+            branches: true
+          }
+        }
+      }
+    });
+
+    if (!table) {
+      return res.status(404).json({
+        success: false,
+        message: 'Table not found'
+      });
+    }
+
+    const branch = table.areas.branches;
 
     // Calculate totals
     let subTotal = 0;
@@ -140,7 +166,7 @@ async function createOrder(req, res) {
 
       let itemTotal = menuItem.price * item.quantity;
       
-      // Add customization costs
+      // Add customization costs (if needed in future)
       if (item.customizations) {
         for (const customization of item.customizations) {
           const option = await req.prisma.customization_options.findUnique({
@@ -156,68 +182,54 @@ async function createOrder(req, res) {
       orderItems.push({
         menu_item_id: item.menu_item_id,
         quantity: item.quantity,
-        base_price: menuItem.price,
-        notes: item.notes || null,
-        customizations: item.customizations || []
+        price: menuItem.price,
+        subtotal: itemTotal,
+        notes: item.notes || null
       });
     }
 
+    // Generate order number
+    const orderNumber = `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+
     // Create order
-    const order = await req.prisma.$transaction(async (tx) => {
-      const newOrder = await tx.orders.create({
+    const order = await req.prisma.orders.create({
+      data: {
+        restaurant_id: branch.restaurant_id,
+        branch_id: branch.id,
+        table_id: table.id,
+        session_id: session.id,
+        order_number: orderNumber,
+        status: 'PENDING',
+        subtotal: subTotal,
+        tax: 0,
+        service_charge: 0,
+        total: subTotal,
+        payment_status: 'UNPAID',
+        notes: notes || null
+      }
+    });
+
+    // Create order items
+    for (const item of orderItems) {
+      await req.prisma.order_items.create({
         data: {
-          restaurant_id: session.table.branch.restaurant_id,
-          branch_id: session.table.branch_id,
-          table_id: session.table_id,
-          session_id: session.id,
-          status: 'Pending',
-          sub_total: subTotal,
-          total_amount: subTotal,
-          payment_status: 'Pending',
-          notes
+          order_id: order.id,
+          menu_item_id: item.menu_item_id,
+          quantity: item.quantity,
+          price: item.price,
+          subtotal: item.subtotal,
+          notes: item.notes
         }
       });
-
-      // Create order items
-      for (const item of orderItems) {
-        const orderItem = await tx.order_items.create({
-          data: {
-            order_id: newOrder.id,
-            menu_item_id: item.menu_item_id,
-            quantity: item.quantity,
-            base_price: item.base_price,
-            notes: item.notes,
-            session_id: session_token
-          }
-        });
-
-        // Create customizations
-        if (item.customizations) {
-          for (const customization of item.customizations) {
-            const option = await tx.customization_options.findUnique({
-              where: { id: customization.option_id }
-            });
-            
-            await tx.order_item_customizations.create({
-              data: {
-                order_item_id: orderItem.id,
-                option_id: customization.option_id,
-                price_delta: option?.price_delta || 0
-              }
-            });
-          }
-        }
-      }
-
-      return newOrder;
-    });
+    }
 
     res.json({
       success: true,
       data: {
         order_id: order.id,
+        order_number: order.order_number,
         status: order.status,
-        total_amount: order.total_amount,
+        total_amount: order.total,
         created_at: order.created_at
       }
     });
@@ -226,7 +238,8 @@ async function createOrder(req, res) {
     console.error('Create order error:', error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error'
+      message: 'Internal server error',
+      error: error.message
     });
   }
 }
@@ -253,7 +266,7 @@ async function getOrderStatus(req, res) {
       });
     }
 
-    const order = await req.prisma.orders.findUnique({
+    const order = await req.prisma.orders.findFirst({
       where: { 
         id: order_id,
         session_id: session.id 
@@ -261,20 +274,10 @@ async function getOrderStatus(req, res) {
       include: {
         order_items: {
           include: {
-            menu_item: {
+            menu_items: {
               select: {
                 name: true,
                 image_url: true
-              }
-            },
-            order_item_customizations: {
-              include: {
-                option: {
-                  select: {
-                    name: true,
-                    price_delta: true
-                  }
-                }
               }
             }
           }
@@ -296,21 +299,17 @@ async function getOrderStatus(req, res) {
           id: order.id,
           status: order.status,
           payment_status: order.payment_status,
-          sub_total: order.sub_total,
-          total_amount: order.total_amount,
+          subtotal: order.subtotal,
+          total: order.total,
           notes: order.notes,
           created_at: order.created_at,
           items: order.order_items.map(item => ({
             id: item.id,
-            name: item.menu_item.name,
+            name: item.menu_items.name,
             quantity: item.quantity,
-            base_price: item.base_price,
-            image_url: item.menu_item.image_url,
-            notes: item.notes,
-            customizations: item.order_item_customizations.map(c => ({
-              name: c.option.name,
-              price_delta: c.price_delta
-            }))
+            price: item.price,
+            image_url: item.menu_items.image_url,
+            notes: item.notes
           }))
         }
       }
@@ -365,58 +364,35 @@ async function addOrderItems(req, res) {
     // Add new items
     let additionalTotal = 0;
 
-    await req.prisma.$transaction(async (tx) => {
-      for (const item of items) {
-        const menuItem = await tx.menu_items.findUnique({
-          where: { id: item.menu_item_id }
-        });
+    for (const item of items) {
+      const menuItem = await req.prisma.menu_items.findUnique({
+        where: { id: item.menu_item_id }
+      });
 
-        if (!menuItem) continue;
+      if (!menuItem) continue;
 
-        let itemTotal = menuItem.price * item.quantity;
-        additionalTotal += itemTotal;
+      let itemTotal = menuItem.price * item.quantity;
+      additionalTotal += itemTotal;
 
-        const orderItem = await tx.order_items.create({
-          data: {
-            order_id: order.id,
-            menu_item_id: item.menu_item_id,
-            quantity: item.quantity,
-            base_price: menuItem.price,
-            notes: item.notes || null,
-            session_id: session_token
-          }
-        });
-
-        // Add customizations
-        if (item.customizations) {
-          for (const customization of item.customizations) {
-            const option = await tx.customization_options.findUnique({
-              where: { id: customization.option_id }
-            });
-            
-            if (option) {
-              additionalTotal += option.price_delta * item.quantity;
-              
-              await tx.order_item_customizations.create({
-                data: {
-                  order_item_id: orderItem.id,
-                  option_id: customization.option_id,
-                  price_delta: option.price_delta
-                }
-              });
-            }
-          }
-        }
-      }
-
-      // Update order totals
-      await tx.orders.update({
-        where: { id: order.id },
+      await req.prisma.order_items.create({
         data: {
-          sub_total: order.sub_total + additionalTotal,
-          total_amount: order.total_amount + additionalTotal
+          order_id: order.id,
+          menu_item_id: item.menu_item_id,
+          quantity: item.quantity,
+          price: menuItem.price,
+          subtotal: itemTotal,
+          notes: item.notes || null
         }
       });
+    }
+
+    // Update order totals
+    await req.prisma.orders.update({
+      where: { id: order.id },
+      data: {
+        subtotal: order.subtotal + additionalTotal,
+        total: order.total + additionalTotal
+      }
     });
 
     res.json({
@@ -445,6 +421,7 @@ function injectPrisma(prisma) {
 }
 
 function createCustomerOrderRoutes(prisma) {
+  const router = express.Router();
   router.use(injectPrisma(prisma));
   
   router.post('/sessions', createOrderSession);
@@ -474,7 +451,7 @@ async function getTableOrders(req, res) {
         deleted_at: null
       },
       include: {
-        area: {
+        areas: {
           select: {
             name: true
           }
@@ -507,7 +484,7 @@ async function getTableOrders(req, res) {
           table: {
             id: table.id,
             table_number: table.table_number,
-            area_name: table.area.name
+            area_name: table.areas.name
           },
           orders: []
         }
@@ -518,25 +495,16 @@ async function getTableOrders(req, res) {
     const orders = await req.prisma.orders.findMany({
       where: {
         session_id: session.id,
-        status: { not: 'Cancelled' }
+        status: { not: 'CANCELLED' }
       },
       include: {
         order_items: {
           include: {
-            menu_item: {
+            menu_items: {
               select: {
                 name: true,
                 description: true,
                 image_url: true
-              }
-            },
-            order_item_customizations: {
-              include: {
-                option: {
-                  select: {
-                    name: true
-                  }
-                }
               }
             }
           }
@@ -553,23 +521,23 @@ async function getTableOrders(req, res) {
         table: {
           id: table.id,
           table_number: table.table_number,
-          area_name: table.area.name
+          area_name: table.areas.name
         },
         orders: orders.map(order => ({
           id: order.id,
-          order_number: `#VK-${order.id.slice(-4)}`,
+          order_number: order.order_number || `#ORD-${order.id.slice(-4)}`,
           status: order.status,
-          total: parseFloat(order.total_amount),
+          total: parseFloat(order.total),
           created_at: order.created_at,
           items: order.order_items.map(item => ({
             id: item.id,
-            name: item.menu_item.name,
-            description: item.menu_item.description,
+            name: item.menu_items.name,
+            description: item.menu_items.description,
             quantity: item.quantity,
-            price: parseFloat(item.base_price),
-            image_url: item.menu_item.image_url,
+            price: parseFloat(item.price),
+            image_url: item.menu_items.image_url,
             notes: item.notes,
-            customizations: item.order_item_customizations.map(c => c.option.name).join(', ')
+            customizations: ''
           }))
         }))
       }

@@ -1,4 +1,4 @@
-const { v4: uuidv4 } = require('uuid');
+const { ObjectId } = require('mongodb');
 
 class CreateTableUseCase {
   constructor(
@@ -80,10 +80,10 @@ class CreateTableUseCase {
       throw err;
     }
 
-    // 5) Create table trước
+    // 5) Create table trước - Use MongoDB ObjectId
     const now = new Date();
-    const tableId = uuidv4();
-    const qrToken = uuidv4();
+    const tableId = new ObjectId().toString();
+    const qrToken = new ObjectId().toString();
 
     const table = await this.tableRepository.create({
       id: tableId,

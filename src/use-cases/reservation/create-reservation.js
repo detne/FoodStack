@@ -14,33 +14,35 @@ class CreateReservationUseCase {
       throw err;
     }
 
-    // Check table exists
-    const table = await this.tableRepository.findById(dto.tableId);
-    if (!table) {
-      const err = new Error('Table not found');
-      err.status = 404;
-      throw err;
-    }
+    // If table is provided, validate it
+    if (dto.tableId) {
+      const table = await this.tableRepository.findById(dto.tableId);
+      if (!table) {
+        const err = new Error('Table not found');
+        err.status = 404;
+        throw err;
+      }
 
-    // Validate table capacity
-    if (table.capacity < dto.partySize) {
-      const err = new Error('Table capacity is insufficient for party size');
-      err.status = 400;
-      throw err;
-    }
+      // Validate table capacity
+      if (table.capacity < dto.partySize) {
+        const err = new Error('Table capacity is insufficient for party size');
+        err.status = 400;
+        throw err;
+      }
 
-    // Check table availability
-    const isAvailable = await this.reservationRepository.checkTableAvailability(
-      dto.branchId,
-      dto.tableId,
-      dto.reservationDate,
-      dto.reservationTime
-    );
+      // Check table availability
+      const isAvailable = await this.reservationRepository.checkTableAvailability(
+        dto.branchId,
+        dto.tableId,
+        dto.reservationDate,
+        dto.reservationTime
+      );
 
-    if (!isAvailable) {
-      const err = new Error('NO_AVAILABLE_TABLE');
-      err.status = 409;
-      throw err;
+      if (!isAvailable) {
+        const err = new Error('Table is not available at the selected time');
+        err.status = 409;
+        throw err;
+      }
     }
 
     // Create reservation

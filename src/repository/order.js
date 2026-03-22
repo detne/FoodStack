@@ -1,5 +1,4 @@
 const { PrismaClient } = require('@prisma/client');
-const { v4: uuidv4 } = require('uuid');
 
 class OrderRepository {
   constructor(prisma) {
@@ -16,8 +15,8 @@ class OrderRepository {
     return client.orders.count({
       where: {
         table_id: tableId,
-        status: { in: ['PENDING', 'PREPARING', 'SERVED'] },
-      },
+        status: { in: ['PENDING', 'PREPARING', 'SERVED'] }
+      }
     });
   }
 
@@ -78,9 +77,7 @@ class OrderRepository {
   async createWithItems(orderData) {
     return this.prisma.$transaction(async (tx) => {
       const order = await tx.orders.create({
-        data: {
-          id: uuidv4(),
-          branch_id: orderData.branch_id,
+        data: {          branch_id: orderData.branch_id,
           table_id: orderData.table_id,
           order_number: orderData.order_number,
           status: orderData.status,
@@ -99,9 +96,7 @@ class OrderRepository {
         const orderItems = await Promise.all(
           orderData.items.map(async (item) => {
             const orderItem = await tx.order_items.create({
-              data: {
-                id: uuidv4(),
-                order_id: order.id,
+              data: {                order_id: order.id,
                 menu_item_id: item.menu_item_id,
                 quantity: item.quantity,
                 price: item.price,
@@ -115,9 +110,7 @@ class OrderRepository {
               await Promise.all(
                 item.customizations.map((customization) =>
                   tx.order_item_customizations.create({
-                    data: {
-                      id: uuidv4(),
-                      order_item_id: orderItem.id,
+                    data: {                      order_item_id: orderItem.id,
                       customization_option_id: customization.customization_option_id,
                       price_delta: customization.price_delta,
                       created_at: new Date(),
@@ -203,19 +196,16 @@ class OrderRepository {
           const { customizations, ...orderItemData } = item;
           const orderItem = await tx.order_items.create({
             data: {
-              id: uuidv4(),
               ...orderItemData,
-              created_at: new Date(),
-            },
+              created_at: new Date()
+            }
           });
 
           if (customizations && customizations.length > 0) {
             await Promise.all(
               customizations.map((customization) =>
                 tx.order_item_customizations.create({
-                  data: {
-                    id: uuidv4(),
-                    order_item_id: orderItem.id,
+                  data: {                    order_item_id: orderItem.id,
                     customization_option_id: customization.customization_option_id,
                     price_delta: customization.price_delta,
                     created_at: new Date(),

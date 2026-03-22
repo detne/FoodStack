@@ -24,7 +24,19 @@ class UpdateMenuItemAvailabilityUseCase {
       throw new ValidationError('Menu item not found');
     }
 
-    // 3. Update availability
+    // 3. For Manager: validate they can only update items in their branch
+    if (user.role === 'MANAGER') {
+      if (!user.branch_id) {
+        throw new UnauthorizedError('Manager must be assigned to a branch');
+      }
+      
+      // Manager can only update availability for their branch
+      // This will be handled via menu_item_availability table
+      // For now, we prevent direct update to menu_items.available field
+      throw new UnauthorizedError('Manager can only update availability through branch-specific endpoint');
+    }
+
+    // 4. Owner can update the global availability
     const updatedMenuItem = await this.menuItemRepository.update(dto.menuItemId, {
       available: dto.available,
     });

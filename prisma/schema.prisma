@@ -66,24 +66,24 @@ model branches {
   seo_keywords  String?
   areas         areas[]
   restaurants   restaurants  @relation(fields: [restaurant_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  categories    categories[]
   orders        orders[]
+  menu_item_availability menu_item_availability[]
   users         users[]
 
   @@map("branches")
 }
 
 model categories {
-  id          String       @id @default(auto()) @map("_id") @db.ObjectId
-  branch_id   String       @db.ObjectId
-  name        String
-  description String?
-  sort_order  Int          @default(0)
-  created_at  DateTime     @default(now())
-  updated_at  DateTime     @updatedAt
-  deleted_at  DateTime?
-  branches    branches     @relation(fields: [branch_id], references: [id])
-  menu_items  menu_items[]
+  id            String       @id @default(auto()) @map("_id") @db.ObjectId
+  restaurant_id String       @db.ObjectId
+  name          String
+  description   String?
+  sort_order    Int          @default(0)
+  created_at    DateTime     @default(now())
+  updated_at    DateTime     @updatedAt
+  deleted_at    DateTime?
+  restaurants   restaurants  @relation(fields: [restaurant_id], references: [id])
+  menu_items    menu_items[]
 
   @@map("categories")
 }
@@ -188,8 +188,23 @@ model menu_items {
   deleted_at  DateTime?
   categories  categories    @relation(fields: [category_id], references: [id])
   order_items order_items[]
+  menu_item_availability menu_item_availability[]
 
   @@map("menu_items")
+}
+
+model menu_item_availability {
+  id             String      @id @default(auto()) @map("_id") @db.ObjectId
+  menu_item_id   String      @db.ObjectId
+  branch_id      String      @db.ObjectId
+  is_available   Boolean     @default(true)
+  reason         String?
+  updated_at     DateTime    @updatedAt
+  menu_items     menu_items  @relation(fields: [menu_item_id], references: [id], onDelete: Cascade)
+  branches       branches    @relation(fields: [branch_id], references: [id], onDelete: Cascade)
+
+  @@unique([menu_item_id, branch_id])
+  @@map("menu_item_availability")
 }
 
 model notifications {
@@ -233,10 +248,26 @@ model order_items {
   @@map("order_items")
 }
 
+model order_sessions {
+  id             String    @id @default(auto()) @map("_id") @db.ObjectId
+  table_id       String    @db.ObjectId
+  session_token  String    @unique
+  customer_count Int       @default(1)
+  started_at     DateTime  @default(now())
+  ended_at       DateTime?
+  is_active      Boolean   @default(true)
+  created_at     DateTime  @default(now())
+  updated_at     DateTime  @updatedAt
+
+  @@map("order_sessions")
+}
+
 model orders {
   id                  String        @id @default(auto()) @map("_id") @db.ObjectId
+  restaurant_id       String?       @db.ObjectId
   branch_id           String        @db.ObjectId
   table_id            String        @db.ObjectId
+  session_id          String?       @db.ObjectId
   order_number        String        @unique
   status              String        @default("PENDING")
   subtotal            Float
@@ -244,6 +275,9 @@ model orders {
   service_charge      Float         @default(0)
   total               Float
   payment_status      String        @default("UNPAID")
+  customer_count      Int           @default(1)
+  notes               String?
+  cancellation_reason String?
   created_at          DateTime      @default(now())
   updated_at          DateTime      @updatedAt
   order_items         order_items[]
@@ -314,6 +348,7 @@ model restaurants {
   updated_at        DateTime            @updatedAt
   deleted_at        DateTime?
   branches          branches[]
+  categories        categories[]
   subscriptions     subscriptions?      @relation(fields: [subscription_id], references: [id])
   users             users[]
   owner             users               @relation("RestaurantOwner", fields: [owner_id], references: [id], onDelete: NoAction, onUpdate: NoAction)

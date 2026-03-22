@@ -13,18 +13,19 @@ class CategoryRepository {
     });
   }
 
-  async findByBranchId(branchId) {
-    return await this.prisma.categories.findMany({
+  async findByRestaurantId(restaurantId) {
+    console.log('[CategoryRepository.findByRestaurantId] restaurantId:', restaurantId);
+    
+    const categories = await this.prisma.categories.findMany({
       where: {
-        branch_id: branchId,
-        deleted_at: null,
+        restaurant_id: restaurantId
       },
       include: {
         _count: {
           select: {
             menu_items: {
               where: {
-                deleted_at: null,
+                available: true
               },
             },
           },
@@ -32,13 +33,29 @@ class CategoryRepository {
       },
       orderBy: { sort_order: 'asc' },
     });
+    
+    console.log('[CategoryRepository.findByRestaurantId] Found categories:', categories.length);
+    return categories;
   }
 
-  async findByNameAndBranch(name, branchId) {
+  // Keep for backward compatibility, but fetch by restaurant
+  async findByBranchId(branchId) {
+    // Get branch to find restaurant_id
+    const branch = await this.prisma.branches.findUnique({
+      where: { id: branchId },
+      select: { restaurant_id: true }
+    });
+
+    if (!branch) return [];
+
+    return this.findByRestaurantId(branch.restaurant_id);
+  }
+
+  async findByNameAndRestaurant(name, restaurantId) {
     return await this.prisma.categories.findFirst({
       where: {
         name,
-        branch_id: branchId,
+        restaurant_id: restaurantId,
         deleted_at: null,
       },
     });
@@ -46,12 +63,10 @@ class CategoryRepository {
 
   async create(data, tx) {
     const client = tx || this.prisma;
-    const { v4: uuidv4 } = require('uuid');
 
     return await client.categories.create({
       data: {
-        id: uuidv4(),
-        branch_id: data.branchId,
+        restaurant_id: data.restaurantId,
         name: data.name,
         description: data.description || null,
         sort_order: data.sortOrder || 0,
@@ -74,10 +89,7 @@ class CategoryRepository {
   async softDelete(id) {
     return await this.prisma.categories.update({
       where: { id },
-      data: {
-        deleted_at: new Date(),
-        updated_at: new Date(),
-      },
+      data: { deleted_at: new Date() }
     });
   }
 

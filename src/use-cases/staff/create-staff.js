@@ -1,6 +1,5 @@
 // src/use-cases/staff/create-staff.js
 
-const { v4: uuidv4 } = require('uuid');
 const { ValidationError } = require('../../exception/validation-error');
 const { UnauthorizedError } = require('../../exception/unauthorized-error');
 
@@ -43,49 +42,60 @@ class CreateStaffUseCase {
       throw new ValidationError('Email already registered');
     }
 
-    // 5. Generate random password (8 characters)
-    const tempPassword = this.generateRandomPassword(8);
-    const bcrypt = require('bcryptjs');
-    const hashedPassword = await bcrypt.hash(tempPassword, 12);
+    // 5. Hash password from DTO or generate random if not provided
+    let tempPassword = null;
+    let hashedPassword;
+    
+    if (dto.password && dto.password.trim() !== '') {
+      // Use provided password
+      const bcrypt = require('bcryptjs');
+      hashedPassword = await bcrypt.hash(dto.password, 12);
+    } else {
+      // Generate random password (8 characters)
+      tempPassword = this.generateRandomPassword(8);
+      const bcrypt = require('bcryptjs');
+      hashedPassword = await bcrypt.hash(tempPassword, 12);
+    }
 
     // 6. Create staff account
     return await this.prisma.$transaction(async (tx) => {
       const now = new Date();
-      const userId = uuidv4();
 
-      // Create user
+      // Create user - Let MongoDB generate ObjectId
       const user = await tx.users.create({
         data: {
-          id: userId,
           restaurant_id: currentUser.restaurantId,
-          branch_id: dto.branch_id || null, // Now we can use branch_id
+          branch_id: dto.branch_id || null,
           email: dto.email,
           password_hash: hashedPassword,
           full_name: dto.full_name,
           phone: dto.phone || null,
-          role: dto.role || 'STAFF', // Use provided role or default to STAFF
+          role: dto.role || 'STAFF',
           status: 'ACTIVE',
           created_at: now,
           updated_at: now,
         },
       });
 
-      // 7. Send activation email with temporary password
-      this.emailService
-        .sendStaffActivationEmail(dto.email, dto.full_name, tempPassword, restaurant.name)
-        .catch((err) => console.error('Email error:', err));
+      // 7. Send activation email with temporary password (only if auto-generated)
+      if (tempPassword) {
+        this.emailService
+          .sendStaffActivationEmail(dto.email, dto.full_name, tempPassword, restaurant.name)
+          .catch((err) => console.error('Email error:', err));
+      }
 
       return {
         userId: user.id,
         email: user.email,
         name: user.full_name,
         role: user.role,
-        // branchId: user.branch_id, // Temporarily commented out until DB migration
         restaurantId: user.restaurant_id,
         status: user.status,
-        message: 'Staff account created successfully. Activation email has been sent.',
+        message: tempPassword 
+          ? 'Staff account created successfully. Activation email has been sent.'
+          : 'Staff account created successfully.',
         // Include temp password in development only
-        ...(process.env.NODE_ENV === 'development' && { tempPassword }),
+        ...(process.env.NODE_ENV === 'development' && tempPassword && { tempPassword }),
       };
     });
   }
