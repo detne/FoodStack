@@ -14,9 +14,12 @@ const { SetStaffStatusSchema } = require('../../dto/staff/set-staff-status');
 function validateRequest(schema) {
   return (req, res, next) => {
     try {
-      schema.parse(req.body);
+      console.log('Validating request body:', JSON.stringify(req.body, null, 2));
+      const result = schema.parse(req.body);
+      console.log('Validation passed:', JSON.stringify(result, null, 2));
       next();
     } catch (error) {
+      console.error('Validation failed:', error.errors);
       res.status(400).json({
         success: false,
         message: 'Validation error',
@@ -34,10 +37,86 @@ function validateRequest(schema) {
  */
 function createStaffRoutes(staffController, authMiddleware) {
   const router = express.Router();
+  
+  // Import prisma from config
+  const { prisma } = require('../../config/database.config');
 
   if (!authMiddleware) {
     throw new Error('authMiddleware is required for staff routes');
   }
+
+  /**
+   * @route   GET /api/v1/staff/debug
+   * @desc    Debug endpoint to check user and restaurant data
+   * @access  Private
+   */
+  router.get(
+    '/debug',
+    authMiddleware,
+    async (req, res) => {
+      try {
+        console.log('Staff debug endpoint - req.user:', req.user);
+        
+        // Try to find user in database
+        const user = await prisma.users.findUnique({
+          where: { id: req.user.id },
+          select: { 
+            id: true, 
+            email: true, 
+            role: true, 
+            restaurant_id: true,
+            full_name: true,
+            branch_id: true
+          }
+        });
+        
+        console.log('Staff debug endpoint - user from DB:', user);
+        
+        // Try to find owned restaurant if user is OWNER
+        let ownedRestaurant = null;
+        if (req.user.role === 'OWNER') {
+          ownedRestaurant = await prisma.restaurants.findFirst({
+            where: { owner_id: req.user.id },
+            select: { id: true, name: true }
+          });
+          console.log('Staff debug endpoint - owned restaurant:', ownedRestaurant);
+        }
+        
+        res.json({
+          success: true,
+          data: {
+            tokenUser: req.user,
+            dbUser: user,
+            ownedRestaurant
+          }
+        });
+      } catch (error) {
+        console.error('Staff debug endpoint error:', error);
+        res.status(500).json({
+          success: false,
+          message: error.message
+        });
+      }
+    }
+  );
+
+  /**
+   * @route   GET /api/v1/staff/test
+   * @desc    Test endpoint
+   * @access  Private
+   */
+  router.get(
+    '/test',
+    authMiddleware,
+    (req, res) => {
+      console.log('Staff test endpoint called with user:', req.user);
+      res.json({
+        success: true,
+        message: 'Staff test endpoint working',
+        user: req.user
+      });
+    }
+  );
 
   /**
    * @route   GET /api/v1/staff

@@ -9,7 +9,7 @@ const Redis = require('ioredis');
 const { logger } = require('./logger.config');
 
 // =====================================================
-// PostgreSQL Configuration (Prisma)
+// MongoDB Configuration (Primary Database via Prisma)
 // =====================================================
 
 const prismaClientSingleton = () => {
@@ -20,7 +20,6 @@ const prismaClientSingleton = () => {
       { level: 'warn', emit: 'event' },
     ],
     errorFormat: 'minimal',
-    // Force disable prepared statements in development to avoid conflicts
     datasources: {
       db: {
         url: process.env.DATABASE_URL,
@@ -68,56 +67,6 @@ process.on('beforeExit', disconnectPrisma);
 process.on('SIGINT', disconnectPrisma);
 process.on('SIGTERM', disconnectPrisma);
 process.on('SIGUSR2', disconnectPrisma); // nodemon restart signal
-
-// =====================================================
-// MongoDB Configuration (Mongoose)
-// =====================================================
-
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/qr_service_platform';
-
-/**
- * Connect to MongoDB
- * @returns {Promise<void>}
- */
-const connectMongoDB = async () => {
-  try {
-    await mongoose.connect(MONGODB_URI, {
-      maxPoolSize: 10,
-      minPoolSize: 5,
-      serverSelectionTimeoutMS: 5000,
-      socketTimeoutMS: 45000,
-      family: 4, // Use IPv4
-    });
-
-    logger.info('MongoDB connected successfully', {
-      host: mongoose.connection.host,
-      database: mongoose.connection.name,
-    });
-
-    // MongoDB connection events
-    mongoose.connection.on('error', (error) => {
-      logger.error('MongoDB connection error', { error });
-    });
-
-    mongoose.connection.on('disconnected', () => {
-      logger.warn('MongoDB disconnected');
-    });
-
-    mongoose.connection.on('reconnected', () => {
-      logger.info('MongoDB reconnected');
-    });
-  } catch (error) {
-    logger.error('MongoDB connection failed', { error });
-    throw error;
-  }
-};
-
-// Graceful shutdown
-process.on('SIGINT', async () => {
-  await mongoose.connection.close();
-  logger.info('MongoDB disconnected through app termination');
-  process.exit(0);
-});
 
 // =====================================================
 // Redis Configuration (ioredis)
@@ -179,32 +128,19 @@ process.on('SIGTERM', async () => {
   logger.info('Redis disconnected through app termination');
 });
 
-// =====================================================
-// Database Health Check
-// =====================================================
-
 /**
  * Check health of all databases
- * @returns {Promise<{postgres: boolean, mongodb: boolean, redis: boolean}>}
+ * @returns {Promise<{mongodb: boolean, redis: boolean}>}
  */
 const checkDatabaseHealth = async () => {
   const health = {
-    postgres: false,
     mongodb: false,
     redis: false,
   };
 
-  // Check PostgreSQL
+  // Check MongoDB via Prisma
   try {
-    await prisma.$queryRaw`SELECT 1`;
-    health.postgres = true;
-  } catch (error) {
-    logger.error('PostgreSQL health check failed', { error });
-  }
-
-  // Check MongoDB
-  try {
-    await mongoose.connection.db.admin().ping();
+    await prisma.$connect();
     health.mongodb = true;
   } catch (error) {
     logger.error('MongoDB health check failed', { error });
@@ -231,13 +167,13 @@ const checkDatabaseHealth = async () => {
  */
 const initializeDatabases = async () => {
   try {
-    // Connect MongoDB
-    await connectMongoDB();
+    // Connect to MongoDB via Prisma
+    await prisma.$connect();
 
     // Verify all connections
     const health = await checkDatabaseHealth();
     
-    if (!health.postgres || !health.mongodb || !health.redis) {
+    if (!health.mongodb || !health.redis) {
       throw new Error('Database health check failed');
     }
 
@@ -252,7 +188,6 @@ module.exports = {
   prisma,
   redis,
   redisPubSub,
-  connectMongoDB,
   checkDatabaseHealth,
   initializeDatabases,
 };

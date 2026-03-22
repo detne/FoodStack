@@ -66,7 +66,13 @@ class BranchController {
   // GET /api/v1/branches?restaurantId=...&page=1&limit=10
   async list(req, res, next) {
     try {
-      const dto = ListBranchesSchema.parse(req.query);
+      // Use restaurantId from authenticated user if not provided in query
+      const queryWithDefaults = {
+        ...req.query,
+        restaurantId: req.query.restaurantId || req.user?.restaurantId,
+      };
+      
+      const dto = ListBranchesSchema.parse(queryWithDefaults);
 
       const result = await this.listBranchesUseCase.execute(dto);
 

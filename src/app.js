@@ -30,6 +30,7 @@ const { OrderRepository } = require('./repository/order');
 const { PaymentRepository } = require('./repository/payment');
 const { ActivityLogRepository } = require('./repository/activity-log');
 const { InvoiceRepository } = require('./repository/invoice');
+const { BrandingRepository } = require('./repository/branding');
 
 // Use cases
 const { LoginUseCase } = require('./use-cases/auth/login');
@@ -58,6 +59,9 @@ const { UpdateBranchUseCase } = require('./use-cases/branch/update');
 const { ListBranchesUseCase } = require('./use-cases/branch/list');
 const { DeleteBranchUseCase } = require('./use-cases/branch/delete');
 const { GetBranchDetailsUseCase } = require('./use-cases/branch/get-details');
+
+const { GetBrandingUseCase } = require('./use-cases/branding/get-branding');
+const { UpdateBrandingUseCase } = require('./use-cases/branding/update-branding');
 
 const { CreateAreaUseCase } = require('./use-cases/area/create-area');
 const { GetListAreaUseCase } = require('./use-cases/area/list-by-branch');
@@ -127,6 +131,7 @@ const { ReservationController } = require('./controller/reservation');
 const { TableController } = require('./controller/table');
 const { PaymentController } = require('./controller/payment');
 const { OrderController } = require('./controller/order');
+const { BrandingController } = require('./controller/branding');
 
 // Routes
 const { createAuthRoutes } = require('./routes/v1/auth');
@@ -144,6 +149,7 @@ const { createAreaRoutes } = require('./routes/v1/areas');
 const { createReservationRoutes } = require('./routes/v1/reservation');
 const { createTableRoutes } = require('./routes/v1/tables');
 const { createOrderRoutes } = require('./routes/v1/orders');
+const { createBrandingRoutes } = require('./routes/v1/branding');
 
 // Middleware
 const { createAuthMiddleware } = require('./middleware/auth');
@@ -196,6 +202,7 @@ function createApp() {
   const paymentRepository = new PaymentRepository(prisma);
   const activityLogRepository = new ActivityLogRepository(prisma);
   const invoiceRepository = new InvoiceRepository(prisma);
+  const brandingRepository = new BrandingRepository(prisma);
 
   // Use cases (misc)
   const getRestaurantStatisticsUseCase = new GetRestaurantStatisticsUseCase(prisma);
@@ -220,6 +227,10 @@ function createApp() {
   const listBranchesUseCase = new ListBranchesUseCase(branchRepository, restaurantRepository);
   const deleteBranchUseCase = new DeleteBranchUseCase(branchRepository);
   const getBranchDetailsUseCase = new GetBranchDetailsUseCase(branchRepository);
+
+  // Branding use cases
+  const getBrandingUseCase = new GetBrandingUseCase(brandingRepository);
+  const updateBrandingUseCase = new UpdateBrandingUseCase(brandingRepository);
 
   // Auth middleware
   const authMiddleware = createAuthMiddleware(tokenService);
@@ -622,6 +633,12 @@ function createApp() {
     getOrderLifecycleUseCase
   );
 
+  // Branding controller
+  const brandingController = new BrandingController({
+    getBrandingUseCase,
+    updateBrandingUseCase,
+  });
+
   // Routes
   app.get('/', (req, res) => {
     res.json({
@@ -640,6 +657,7 @@ function createApp() {
         reservations: '/api/v1/reservations',
         payments: '/api/v1/payments',
         orders: '/api/v1/orders',
+        branding: '/api/v1/branding',
         public: '/api/v1/public',
         customerOrders: '/api/v1/customer-orders',
         health: '/health',
@@ -670,6 +688,7 @@ function createApp() {
   app.use('/api/v1/reservations', createReservationRoutes(reservationController, authMiddleware));
   app.use('/api/v1/payments', createPaymentRoutes(paymentController, authMiddleware));
   app.use('/api/v1/orders', createOrderRoutes(orderController, authMiddleware));
+  app.use('/api/v1/branding', createBrandingRoutes(brandingController, authMiddleware));
   app.use('/api/v1/public', createPublicRoutes(prisma));
   app.use('/api/v1/customer-orders', createCustomerOrderRoutes(prisma));
   app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));

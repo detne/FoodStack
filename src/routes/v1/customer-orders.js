@@ -15,25 +15,33 @@ async function createOrderSession(req, res) {
   try {
     const { qr_token, customer_count = 1 } = req.body;
 
-    // Validate table
-    const table = await req.prisma.tables.findUnique({
-      where: { 
-        qr_code_token: qr_token,
-        deleted_at: null 
-      },
-      include: {
-        branch: true
-      }
-    });
+    // Validate table using raw query
+    const result = await req.prisma.$queryRaw`
+      SELECT 
+        t.id as table_id,
+        t.table_number,
+        t.capacity,
+        t.status,
+        b.id as branch_id,
+        b.name as branch_name,
+        b.restaurant_id
+      FROM tables t
+      JOIN areas a ON t.area_id = a.id
+      JOIN branches b ON a.branch_id = b.id
+      WHERE t.qr_token = ${qr_token}
+        AND t.deleted_at IS NULL
+    `;
 
-    if (!table) {
+    if (!result || result.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'Invalid QR code'
       });
     }
 
-    if (table.status !== 'Available') {
+    const table = result[0];
+
+    if (table.status !== 'AVAILABLE') {
       return res.status(400).json({
         success: false,
         message: 'Table is not available'
@@ -43,7 +51,7 @@ async function createOrderSession(req, res) {
     // Create session
     const session = await req.prisma.order_sessions.create({
       data: {
-        table_id: table.id,
+        table_id: table.table_id,
         session_token: require('crypto').randomBytes(32).toString('hex'),
         customer_count: parseInt(customer_count),
         started_at: new Date(),
@@ -53,8 +61,8 @@ async function createOrderSession(req, res) {
 
     // Update table status
     await req.prisma.tables.update({
-      where: { id: table.id },
-      data: { status: 'Occupied' }
+      where: { id: table.table_id },
+      data: { status: 'OCCUPIED' }
     });
 
     res.json({
@@ -62,14 +70,14 @@ async function createOrderSession(req, res) {
       data: {
         session_token: session.session_token,
         table: {
-          id: table.id,
-          name: table.name,
+          id: table.table_id,
+          name: table.table_number,
           capacity: table.capacity
         },
         branch: {
-          id: table.branch.id,
-          name: table.branch.name,
-          restaurant_id: table.branch.restaurant_id
+          id: table.branch_id,
+          name: table.branch_name,
+          restaurant_id: table.restaurant_id
         }
       }
     });
@@ -441,10 +449,139 @@ function createCustomerOrderRoutes(prisma) {
   
   router.post('/sessions', createOrderSession);
   router.post('/', createOrder);
+  router.get('/table/:table_id', getTableOrders);
   router.get('/:order_id', getOrderStatus);
   router.put('/:order_id/items', addOrderItems);
 
   return router;
+}
+
+/**
+ * @route GET /api/v1/customer-orders/table/:table_id
+ * @desc Get all orders for a table
+ * @access Public (with QR token validation)
+ */
+async function getTableOrders(req, res) {
+  try {
+    const { table_id } = req.params;
+    const { qr_token } = req.query;
+
+    // Validate QR token matches table
+    const table = await req.prisma.tables.findFirst({
+      where: {
+        id: table_id,
+        qr_token: qr_token,
+        deleted_at: null
+      },
+      include: {
+        area: {
+          select: {
+            name: true
+          }
+        }
+      }
+    });
+
+    if (!table) {
+      return res.status(404).json({
+        success: false,
+        message: 'Invalid table or QR token'
+      });
+    }
+
+    // Get active session for this table
+    const session = await req.prisma.order_sessions.findFirst({
+      where: {
+        table_id: table_id,
+        is_active: true
+      },
+      orderBy: {
+        started_at: 'desc'
+      }
+    });
+
+    if (!session) {
+      return res.json({
+        success: true,
+        data: {
+          table: {
+            id: table.id,
+            table_number: table.table_number,
+            area_name: table.area.name
+          },
+          orders: []
+        }
+      });
+    }
+
+    // Get orders for this session
+    const orders = await req.prisma.orders.findMany({
+      where: {
+        session_id: session.id,
+        status: { not: 'Cancelled' }
+      },
+      include: {
+        order_items: {
+          include: {
+            menu_item: {
+              select: {
+                name: true,
+                description: true,
+                image_url: true
+              }
+            },
+            order_item_customizations: {
+              include: {
+                option: {
+                  select: {
+                    name: true
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      orderBy: {
+        created_at: 'desc'
+      }
+    });
+
+    res.json({
+      success: true,
+      data: {
+        table: {
+          id: table.id,
+          table_number: table.table_number,
+          area_name: table.area.name
+        },
+        orders: orders.map(order => ({
+          id: order.id,
+          order_number: `#VK-${order.id.slice(-4)}`,
+          status: order.status,
+          total: parseFloat(order.total_amount),
+          created_at: order.created_at,
+          items: order.order_items.map(item => ({
+            id: item.id,
+            name: item.menu_item.name,
+            description: item.menu_item.description,
+            quantity: item.quantity,
+            price: parseFloat(item.base_price),
+            image_url: item.menu_item.image_url,
+            notes: item.notes,
+            customizations: item.order_item_customizations.map(c => c.option.name).join(', ')
+          }))
+        }))
+      }
+    });
+
+  } catch (error) {
+    console.error('Get table orders error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
 }
 
 module.exports = { createCustomerOrderRoutes };

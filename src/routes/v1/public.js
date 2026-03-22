@@ -15,44 +15,39 @@ async function getTableByQR(req, res) {
   try {
     const { qr_token } = req.params;
     
-    // Get table with branch info
-    const table = await req.prisma.tables.findUnique({
-      where: { 
-        qr_code_token: qr_token,
-        deleted_at: null 
-      },
-      include: {
-        branch: {
-          select: {
-            id: true,
-            name: true,
-            restaurant_id: true,
-            restaurant: {
-              select: {
-                id: true,
-                name: true,
-                logo_url: true
-              }
-            }
-          }
-        },
-        area: {
-          select: {
-            id: true,
-            name: true
-          }
-        }
-      }
-    });
+    // Get table info using raw query to avoid relation issues
+    const result = await req.prisma.$queryRaw`
+      SELECT 
+        t.id as table_id,
+        t.table_number,
+        t.capacity,
+        t.status,
+        a.id as area_id,
+        a.name as area_name,
+        b.id as branch_id,
+        b.name as branch_name,
+        b.restaurant_id,
+        r.id as restaurant_id,
+        r.name as restaurant_name,
+        r.logo_url
+      FROM tables t
+      JOIN areas a ON t.area_id = a.id
+      JOIN branches b ON a.branch_id = b.id
+      JOIN restaurants r ON b.restaurant_id = r.id
+      WHERE t.qr_token = ${qr_token}
+        AND t.deleted_at IS NULL
+    `;
 
-    if (!table) {
+    if (!result || result.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'Invalid QR code'
       });
     }
 
-    if (table.status === 'OutOfService') {
+    const tableData = result[0];
+
+    if (tableData.status === 'OutOfService') {
       return res.status(400).json({
         success: false,
         message: 'Table is currently out of service'
@@ -63,14 +58,25 @@ async function getTableByQR(req, res) {
       success: true,
       data: {
         table: {
-          id: table.id,
-          name: table.name,
-          capacity: table.capacity,
-          status: table.status,
-          area: table.area
+          id: tableData.table_id,
+          name: tableData.table_number,
+          capacity: tableData.capacity,
+          status: tableData.status,
+          area: {
+            id: tableData.area_id,
+            name: tableData.area_name
+          }
         },
-        branch: table.branch,
-        restaurant: table.branch.restaurant
+        branch: {
+          id: tableData.branch_id,
+          name: tableData.branch_name,
+          restaurant_id: tableData.restaurant_id
+        },
+        restaurant: {
+          id: tableData.restaurant_id,
+          name: tableData.restaurant_name,
+          logo_url: tableData.logo_url
+        }
       }
     });
 
@@ -95,31 +101,23 @@ async function getPublicMenu(req, res) {
     // Get categories with menu items
     const categories = await req.prisma.categories.findMany({
       where: {
-        OR: [
-          { branch_id: branch_id },
-          { branch_id: null } // Global categories
-        ],
+        branch_id: branch_id,
         deleted_at: null
       },
       include: {
         menu_items: {
           where: {
-            OR: [
-              { branch_id: branch_id },
-              { branch_id: null }
-            ],
             deleted_at: null,
-            is_available: true
+            available: true
           },
           select: {
             id: true,
             name: true,
             price: true,
             description: true,
-            image_url: true,
-            sort_order: true
+            image_url: true
           },
-          orderBy: { sort_order: 'asc' }
+          orderBy: { id: 'asc' }
         }
       },
       orderBy: { sort_order: 'asc' }
@@ -153,31 +151,11 @@ async function getItemCustomizations(req, res) {
   try {
     const { item_id } = req.params;
 
-    const customizations = await req.prisma.item_customizations.findMany({
-      where: { menu_item_id: item_id },
-      include: {
-        group: {
-          include: {
-            customization_options: {
-              where: { deleted_at: null },
-              orderBy: { sort_order: 'asc' }
-            }
-          }
-        }
-      }
-    });
-
+    // Simple response for now - will implement customizations later
     res.json({
       success: true,
       data: {
-        customizations: customizations.map(ic => ({
-          group_id: ic.group.id,
-          name: ic.group.name,
-          min_select: ic.group.min_select,
-          max_select: ic.group.max_select,
-          is_required: ic.group.is_required,
-          options: ic.group.customization_options
-        }))
+        customizations: []
       }
     });
 

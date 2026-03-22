@@ -1,5 +1,4 @@
 // src/use-cases/auth/register-restaurant.js
-const { v4: uuidv4 } = require('uuid');
 const { hashPassword } = require('../../utils/bcrypt');
 const { ValidationError } = require('../../exception/validation-error');
 
@@ -18,17 +17,13 @@ class RegisterRestaurantUseCase {
 
     return await this.prisma.$transaction(async (tx) => {
       const now = new Date();
-      const userId = uuidv4();
-      const restaurantId = uuidv4();
-      const branchId = uuidv4();
 
       // 2) Hash password
       const hashedPassword = await hashPassword(dto.ownerPassword);
 
-      // 3) Create owner user FIRST (restaurant_id null)
+      // 3) Create owner user FIRST (restaurant_id null) - Let MongoDB generate ObjectId
       const user = await tx.users.create({
         data: {
-          id: userId,
           restaurant_id: null,
           email: dto.ownerEmail,
           password_hash: hashedPassword,
@@ -43,7 +38,6 @@ class RegisterRestaurantUseCase {
       // 4) Create restaurant with owner_id
       const restaurant = await tx.restaurants.create({
         data: {
-          id: restaurantId,
           owner_id: user.id,
           name: dto.restaurantName ?? 'My Restaurant',
           email: dto.ownerEmail,
@@ -68,7 +62,6 @@ class RegisterRestaurantUseCase {
       // 6) Create default branch
       await tx.branches.create({
         data: {
-          id: branchId,
           restaurant_id: restaurant.id,
           name: 'Main Branch',
           address: dto.address ?? 'Default Address',

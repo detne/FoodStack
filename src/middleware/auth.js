@@ -18,6 +18,7 @@ function createAuthMiddleware(tokenService) {
 
       // Verify JWT
       const payload = verifyAccessToken(token);
+      console.log('Auth middleware - JWT payload:', payload);
 
       // Check token version (invalidate all tokens)
       const currentVersion = await tokenService.getTokenVersion(payload.userId);
@@ -27,6 +28,7 @@ function createAuthMiddleware(tokenService) {
 
       req.user = payload;      // { userId, email, role, restaurantId, tv, iat, exp }
       req.accessToken = token; // keep for blacklisting current token if needed
+      console.log('Auth middleware - req.user set:', req.user);
       next();
     } catch (err) {
       return res.status(401).json({ success: false, message: err.message || 'Unauthorized' });

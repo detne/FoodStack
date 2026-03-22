@@ -11,10 +11,10 @@ const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_TOKEN_SECRET || 'your-refresh
 /**
  * Generate JWT access token
  * @param {Object} payload - Token payload
- * @param {string} expiresIn - Expiration time (default: 15m)
+ * @param {string} expiresIn - Expiration time (default: 1h)
  * @returns {string} JWT token
  */
-function generateAccessToken(payload, expiresIn = '15m') {
+function generateAccessToken(payload, expiresIn = '1h') {
   return jwt.sign(payload, JWT_SECRET, { expiresIn });
 }
 

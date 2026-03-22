@@ -3,9 +3,14 @@
 const { z } = require('zod');
 
 const CreateStaffSchema = z.object({
-  name: z.string().min(2, 'Name must be at least 2 characters').max(100),
+  full_name: z.string().min(2, 'Name must be at least 2 characters').max(100),
   email: z.string().email('Invalid email format'),
-  branchId: z.string().uuid('Invalid branch ID format'),
+  branch_id: z.string().uuid('Invalid branch ID format').optional(),
+  phone: z.string().optional(),
+  password: z.string().optional(), // Remove min length validation temporarily
+  role: z.enum(['STAFF', 'MANAGER'], {
+    errorMap: () => ({ message: 'Role must be either STAFF or MANAGER' })
+  }).optional(),
 });
 
 module.exports = { CreateStaffSchema };
