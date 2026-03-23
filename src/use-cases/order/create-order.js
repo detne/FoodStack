@@ -31,6 +31,23 @@ class CreateOrderUseCase {
       throw err;
     }
 
+    // ✅ Validate customer_count
+    const normalizedCustomerCount = Number(customer_count);
+
+    if (!Number.isInteger(normalizedCustomerCount) || normalizedCustomerCount <= 0) {
+      const err = new Error('customer_count must be a positive integer');
+      err.status = 400;
+      throw err;
+    }
+
+    if (normalizedCustomerCount > Number(table.capacity)) {
+      const err = new Error(
+        `Customer count (${normalizedCustomerCount}) exceeds table capacity (${table.capacity})`
+      );
+      err.status = 400;
+      throw err;
+    }
+
     // ✅ Acceptance 3: Branch đang mở
     const branch = await this.branchRepository.findById(table.areas.branch_id);
     if (!branch || branch.status !== 'ACTIVE') {
@@ -66,15 +83,12 @@ class CreateOrderUseCase {
       }
     }
 
-    // Calculate totals
-    const tax = subtotal * 0.1; // 10% tax
-    const service_charge = subtotal * 0.05; // 5% service charge
+    const tax = subtotal * 0.1;
+    const service_charge = subtotal * 0.05;
     const total = subtotal + tax + service_charge;
 
-    // Generate order number
     const orderNumber = await this.generateOrderNumber(branch.id);
 
-    // ✅ Acceptance 4-7: Tạo order với status = PENDING, gắn với tableId, lưu order items, tính tổng tiền
     const order = await this.orderRepository.createWithItems({
       branch_id: branch.id,
       table_id: table.id,
@@ -85,11 +99,10 @@ class CreateOrderUseCase {
       service_charge,
       total,
       payment_status: 'UNPAID',
-      customer_count,
+      customer_count: normalizedCustomerCount,
       items: orderItems
     });
 
-    // Update table status to occupied
     await this.tableRepository.updateStatus(table.id, 'OCCUPIED');
 
     return {
@@ -118,10 +131,10 @@ class CreateOrderUseCase {
   async generateOrderNumber(branchId) {
     const today = new Date();
     const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
-    
+
     const count = await this.orderRepository.countOrdersToday(branchId);
     const orderNum = String(count + 1).padStart(3, '0');
-    
+
     return `ORD-${dateStr}-${orderNum}`;
   }
 }

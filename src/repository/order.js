@@ -428,6 +428,46 @@ class OrderRepository {
 
     return { orders, total };
   }
+
+  async sumRevenueByBranch(branchId, filters = {}) {
+    const { from_date, to_date } = filters;
+
+    const where = {
+      branch_id: branchId,
+      payment_status: 'PAID',
+    };
+
+    if (from_date || to_date) {
+      where.created_at = {};
+      if (from_date) where.created_at.gte = from_date;
+      if (to_date) where.created_at.lte = to_date;
+    }
+
+    const result = await this.prisma.orders.aggregate({
+      where,
+      _sum: {
+        total: true,
+      },
+    });
+
+    return Number(result._sum.total || 0);
+  }
+
+  async countByBranch(branchId, filters = {}) {
+    const { from_date, to_date } = filters;
+
+    const where = {
+      branch_id: branchId,
+    };
+
+    if (from_date || to_date) {
+      where.created_at = {};
+      if (from_date) where.created_at.gte = from_date;
+      if (to_date) where.created_at.lte = to_date;
+    }
+
+    return await this.prisma.orders.count({ where });
+  }
 }
 
 module.exports = { OrderRepository };

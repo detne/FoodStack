@@ -7,9 +7,9 @@ class TableRepository {
 
   async findByQrToken(qrToken) {
     return await this.prisma.tables.findUnique({
-      where: { 
+      where: {
         qr_token: qrToken,
-        deleted_at: null 
+        deleted_at: null
       },
       include: {
         areas: {
@@ -30,9 +30,9 @@ class TableRepository {
 
   async findById(tableId) {
     return await this.prisma.tables.findUnique({
-      where: { 
+      where: {
         id: tableId,
-        deleted_at: null 
+        deleted_at: null
       },
       include: {
         areas: {
@@ -53,7 +53,7 @@ class TableRepository {
   async updateStatus(tableId, status) {
     return await this.prisma.tables.update({
       where: { id: tableId },
-      data: { 
+      data: {
         status,
         updated_at: new Date()
       }
@@ -62,9 +62,9 @@ class TableRepository {
 
   async findByAreaId(areaId) {
     return await this.prisma.tables.findMany({
-      where: { 
+      where: {
         area_id: areaId,
-        deleted_at: null 
+        deleted_at: null
       },
       orderBy: { table_number: 'asc' },
     });
@@ -122,6 +122,19 @@ class TableRepository {
     const client = tx || this.prisma;
     return await client.tables.delete({
       where: { id: tableId },
+    });
+  }
+
+  async countActiveByBranch(branchId) {
+    return await this.prisma.tables.count({
+      where: {
+        deleted_at: null,
+        status: 'ACTIVE',
+        areas: {
+          branch_id: branchId,
+          deleted_at: null,
+        },
+      },
     });
   }
 }

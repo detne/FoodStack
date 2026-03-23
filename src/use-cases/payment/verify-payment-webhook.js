@@ -77,6 +77,7 @@ class VerifyPaymentWebhookUseCase {
           payment.order_id,
           {
             payment_status: 'PAID',
+            status: 'COMPLETED',
             updated_at: new Date(),
           },
           tx

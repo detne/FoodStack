@@ -59,6 +59,7 @@ const { UpdateBranchUseCase } = require('./use-cases/branch/update');
 const { ListBranchesUseCase } = require('./use-cases/branch/list');
 const { DeleteBranchUseCase } = require('./use-cases/branch/delete');
 const { GetBranchDetailsUseCase } = require('./use-cases/branch/get-details');
+const { GetBranchStatisticsUseCase } = require('./use-cases/branch/get-statistics');
 
 const { GetBrandingUseCase } = require('./use-cases/branding/get-branding');
 const { UpdateBrandingUseCase } = require('./use-cases/branding/update-branding');
@@ -228,6 +229,12 @@ function createApp() {
   const deleteBranchUseCase = new DeleteBranchUseCase(branchRepository);
   const getBranchDetailsUseCase = new GetBranchDetailsUseCase(branchRepository);
 
+  const getBranchStatisticsUseCase = new GetBranchStatisticsUseCase(
+    branchRepository,
+    orderRepository,
+    tableRepository
+  );
+
   // Branding use cases
   const getBrandingUseCase = new GetBrandingUseCase(brandingRepository);
   const updateBrandingUseCase = new UpdateBrandingUseCase(brandingRepository);
@@ -309,6 +316,7 @@ function createApp() {
     deleteBranchUseCase,
     getBranchDetailsUseCase,
     getFullMenuByBranchUseCase,
+    getBranchStatisticsUseCase,
   });
 
   // Area use cases + controller
@@ -559,12 +567,12 @@ function createApp() {
   );
 
   const confirmCashPaymentUseCase = new ConfirmCashPaymentUseCase(
-  paymentRepository,
-  orderRepository,
-  generateInvoiceUseCase,
-  userRepository,
-  prisma
-);
+    paymentRepository,
+    orderRepository,
+    generateInvoiceUseCase,
+    userRepository,
+    prisma
+  );
 
   const paymentController = new PaymentController(
     processPaymentUseCase,
