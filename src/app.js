@@ -719,6 +719,10 @@ function createApp() {
   app.use('/api/v1/branding', createBrandingRoutes(brandingController, authMiddleware));
   app.use('/api/v1/public', createPublicRoutes(prisma));
   app.use('/api/v1/customer-orders', createCustomerOrderRoutes(prisma));
+  
+  // Mock payment routes
+  app.use('/api/v1/mock-payments', require('./routes/v1/mock-payment'));
+  
   app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
   // 404
   app.use((req, res) => {

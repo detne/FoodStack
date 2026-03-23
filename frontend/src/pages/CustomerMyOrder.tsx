@@ -16,7 +16,9 @@ import {
   FileText,
   Bell,
   Plus,
-  RefreshCw
+  RefreshCw,
+  CreditCard,
+  Receipt
 } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 
@@ -34,6 +36,7 @@ interface Order {
   id: string;
   order_number: string;
   status: string;
+  payment_status?: string;
   total: number;
   items: OrderItem[];
   created_at: string;
@@ -50,6 +53,7 @@ export default function CustomerMyOrder() {
   const [loading, setLoading] = useState(true);
   const [orders, setOrders] = useState<Order[]>([]);
   const [tableInfo, setTableInfo] = useState<any>(null);
+  const [sessionToken, setSessionToken] = useState<string | null>(null);
 
   useEffect(() => {
     if (!tableId || !qrToken) {
@@ -77,6 +81,14 @@ export default function CustomerMyOrder() {
       if (data.success) {
         setTableInfo(data.data.table);
         setOrders(data.data.orders);
+        // Get session token from first active order or create new session
+        if (data.data.orders.length > 0) {
+          // Assume we have session_token in localStorage or get from API
+          const storedToken = localStorage.getItem(`session_token_${tableId}`);
+          if (storedToken) {
+            setSessionToken(storedToken);
+          }
+        }
       } else {
         toast({
           title: 'Error',
@@ -182,7 +194,7 @@ export default function CustomerMyOrder() {
         {orders.length > 0 && (
           <Card className="border-0 shadow-sm">
             <CardContent className="p-4">
-              <div className="flex justify-between items-center">
+              <div className="flex justify-between items-center mb-4">
                 <div>
                   <p className="text-sm text-gray-600">Total Items</p>
                   <p className="text-2xl font-bold">{getTotalItems()}</p>
@@ -194,6 +206,17 @@ export default function CustomerMyOrder() {
                   </p>
                 </div>
               </div>
+              
+              {/* View Bill Button */}
+              {orders.some(order => order.payment_status === 'UNPAID' && order.status !== 'CANCELLED') && (
+                <Button
+                  onClick={() => navigate(`/customer/bill?table=${tableId}&qr_token=${qrToken}&branch=${branchId}`)}
+                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white"
+                >
+                  <Receipt className="h-4 w-4 mr-2" />
+                  View Bill & Pay
+                </Button>
+              )}
             </CardContent>
           </Card>
         )}
@@ -275,6 +298,19 @@ export default function CustomerMyOrder() {
                       </div>
                     ))}
                   </div>
+
+                  {/* Pay Now Button */}
+                  {order.payment_status === 'UNPAID' && order.status !== 'CANCELLED' && (
+                    <div className="mt-4 pt-4 border-t">
+                      <Button
+                        onClick={() => navigate(`/customer/payment?order_id=${order.id}&session_token=${sessionToken}&qr_token=${qrToken}&table=${tableId}`)}
+                        className="w-full bg-green-600 hover:bg-green-700 text-white py-3"
+                      >
+                        <CreditCard className="h-4 w-4 mr-2" />
+                        Pay Now - ${order.total.toFixed(2)}
+                      </Button>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             ))}

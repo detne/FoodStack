@@ -18,14 +18,16 @@ class CategoryRepository {
     
     const categories = await this.prisma.categories.findMany({
       where: {
-        restaurant_id: restaurantId
+        restaurant_id: restaurantId,
+        deleted_at: null
       },
       include: {
         _count: {
           select: {
             menu_items: {
               where: {
-                available: true
+                available: true,
+                deleted_at: null
               },
             },
           },

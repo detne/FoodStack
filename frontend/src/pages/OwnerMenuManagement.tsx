@@ -192,7 +192,7 @@ export default function OwnerMenuManagement() {
 
       console.log('Fetching menu items');
 
-      const response = await fetch('http://localhost:3000/api/v1/menu-items/search', {
+      const response = await fetch('http://localhost:3000/api/v1/menu-items/search?limit=50', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',

@@ -527,6 +527,7 @@ async function getTableOrders(req, res) {
           id: order.id,
           order_number: order.order_number || `#ORD-${order.id.slice(-4)}`,
           status: order.status,
+          payment_status: order.payment_status || 'UNPAID',
           total: parseFloat(order.total),
           created_at: order.created_at,
           items: order.order_items.map(item => ({

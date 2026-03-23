@@ -211,7 +211,7 @@ export default function CustomerLanding() {
             </Button>
 
             {/* Action Buttons */}
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 gap-4">
               <Card className="bg-white/90 backdrop-blur-sm border-0 hover:bg-white transition-all cursor-pointer">
                 <CardContent className="p-4 text-center">
                   <Bell className="h-6 w-6 text-indigo-600 mx-auto mb-2" />
@@ -226,10 +226,23 @@ export default function CustomerLanding() {
                 </CardContent>
               </Card>
               
-              <Card className="bg-white/90 backdrop-blur-sm border-0 hover:bg-white transition-all cursor-pointer">
+              <Card 
+                className="bg-white/90 backdrop-blur-sm border-0 hover:bg-white transition-all cursor-pointer"
+                onClick={() => navigate(`/customer/my-order?table=${tableInfo?.table.id}&qr_token=${qr_token}&branch=${tableInfo?.branch.id}`)}
+              >
                 <CardContent className="p-4 text-center">
-                  <Receipt className="h-6 w-6 text-indigo-600 mx-auto mb-2" />
-                  <span className="text-xs font-semibold text-gray-900 uppercase tracking-wide">VIEW BILL</span>
+                  <FileText className="h-6 w-6 text-indigo-600 mx-auto mb-2" />
+                  <span className="text-xs font-semibold text-gray-900 uppercase tracking-wide">MY ORDER</span>
+                </CardContent>
+              </Card>
+              
+              <Card 
+                className="bg-green-500/90 backdrop-blur-sm border-0 hover:bg-green-600 transition-all cursor-pointer"
+                onClick={() => navigate(`/customer/bill?table=${tableInfo?.table.id}&qr_token=${qr_token}&branch=${tableInfo?.branch.id}`)}
+              >
+                <CardContent className="p-4 text-center">
+                  <Receipt className="h-6 w-6 text-white mx-auto mb-2" />
+                  <span className="text-xs font-semibold text-white uppercase tracking-wide">REQUEST PAYMENT</span>
                 </CardContent>
               </Card>
             </div>
@@ -251,7 +264,7 @@ export default function CustomerLanding() {
                 <span className="text-xs font-bold">Ordering</span>
               </button>
               <button 
-                onClick={() => navigate(`/customer/order-status?table=${table.id}&qr_token=${qr_token}`)}
+                onClick={() => navigate(`/customer/my-order?table=${tableInfo?.table.id}&qr_token=${qr_token}&branch=${tableInfo?.branch.id}`)}
                 className="flex flex-col items-center py-3 text-white/70 hover:text-white transition-colors"
               >
                 <FileText className="h-6 w-6 mb-1" />

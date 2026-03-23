@@ -77,6 +77,7 @@ export default function OwnerCategories() {
   const [customizations, setCustomizations] = useState<Customization[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('categories');
+  const [refreshKey, setRefreshKey] = useState(0); // Force re-render key
   
   // Category form state
   const [showCategoryDialog, setShowCategoryDialog] = useState(false);
@@ -146,6 +147,7 @@ export default function OwnerCategories() {
           description: "No branch found. Please create a branch first.",
           variant: "destructive",
         });
+        setLoading(false);
         return;
       }
       
@@ -154,7 +156,18 @@ export default function OwnerCategories() {
       console.log('Categories response:', response);
       
       if (response.success && response.data) {
-        setCategories(response.data as Category[]);
+        const categoriesData = response.data as Category[];
+        console.log('Setting categories:', categoriesData.length, 'items');
+        console.log('Categories:', categoriesData.map(c => c.name).join(', '));
+        
+        // Force new array reference and trigger re-render
+        setCategories([...categoriesData]);
+        setRefreshKey(prev => prev + 1); // Force component re-render
+        
+        // Force component update
+        setTimeout(() => {
+          console.log('Current categories state:', categoriesData.length);
+        }, 100);
       } else {
         console.error('Failed to fetch categories:', response.message);
         toast({
@@ -162,6 +175,7 @@ export default function OwnerCategories() {
           description: response.message || "Failed to load categories",
           variant: "destructive",
         });
+        setCategories([]);
       }
     } catch (error: any) {
       console.error('Failed to fetch categories:', error);
@@ -267,16 +281,38 @@ export default function OwnerCategories() {
           });
         }
       } else {
+        console.log('Creating category with data:', categoryData);
         const response = await apiClient.createCategory(categoryData);
+        console.log('Create category response:', response);
         if (response.success) {
           toast({
             title: "Success", 
             description: "Category created successfully",
           });
+          
+          // Immediately add the new category to the state for instant UI update
+          if (response.data) {
+            const responseData = response.data as any;
+            const newCategory = {
+              id: responseData.categoryId,
+              name: categoryData.name,
+              description: categoryData.description || '',
+              sort_order: responseData.sortOrder || 0,
+              created_at: responseData.createdAt || new Date().toISOString(),
+              updated_at: responseData.createdAt || new Date().toISOString(),
+              _count: { menu_items: 0 }
+            };
+            setCategories(prev => [...prev, newCategory]);
+            setRefreshKey(prev => prev + 1);
+          }
         }
       }
       setShowCategoryDialog(false);
-      fetchCategories(); // Refresh list
+      
+      // Force refresh categories
+      console.log('Refreshing categories after save...');
+      await fetchCategories();
+      console.log('Categories refreshed');
     } catch (error: any) {
       console.error('Failed to save category:', error);
       toast({
@@ -297,7 +333,13 @@ export default function OwnerCategories() {
           title: "Success",
           description: "Category deleted successfully",
         });
-        fetchCategories(); // Refresh list
+        
+        // Immediately remove from state for instant UI update
+        setCategories(prev => prev.filter(cat => cat.id !== categoryId));
+        setRefreshKey(prev => prev + 1);
+        
+        // Also refresh from server to ensure consistency
+        setTimeout(() => fetchCategories(), 500);
       }
     } catch (error: any) {
       console.error('Failed to delete category:', error);
@@ -362,7 +404,9 @@ export default function OwnerCategories() {
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-xl font-semibold">Categories</h2>
-              <p className="text-muted-foreground">Manage menu categories and organize your items</p>
+              <p className="text-muted-foreground">
+                Manage menu categories and organize your items ({categories.length} categories)
+              </p>
             </div>
             <Button onClick={handleCreateCategory} className="bg-orange-600 hover:bg-orange-700">
               <Plus className="w-4 h-4 mr-2" />
@@ -370,67 +414,83 @@ export default function OwnerCategories() {
             </Button>
           </div>
 
-          <div className="space-y-3">
-            {categories.map((category) => (
-              <Card key={category.id}>
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-orange-100 dark:bg-orange-900/20 rounded-lg flex items-center justify-center">
-                        <FolderTree className="w-5 h-5 text-orange-600 dark:text-orange-400" />
-                      </div>
-                      <div>
-                        <h3 className="font-medium">{category.name}</h3>
-                        {category.description && (
-                          <p className="text-sm text-muted-foreground">{category.description}</p>
-                        )}
-                        <div className="flex items-center gap-2 mt-1">
-                          <Badge variant="secondary" className="text-xs">
-                            {category._count?.menu_items || 0} items
-                          </Badge>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-muted-foreground hover:text-foreground"
-                        onClick={() => {
-                          // Navigate to menu management filtered by this category
-                          window.location.href = `/owner/menu?category=${category.id}`;
-                        }}
-                      >
-                        <Settings className="w-4 h-4 mr-1" />
-                        Manage
-                      </Button>
-                      
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-                            <MoreHorizontal className="w-4 h-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleEditCategory(category)}>
-                            <Edit className="w-4 h-4 mr-2" />
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            onClick={() => handleDeleteCategory(category.id)}
-                            className="text-destructive"
-                          >
-                            <Trash2 className="w-4 h-4 mr-2" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </div>
+          <div className="space-y-3" key={refreshKey}>
+            {categories.length === 0 ? (
+              <Card>
+                <CardContent className="p-8 text-center">
+                  <FolderTree className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-medium mb-2">No categories yet</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Create your first category to start organizing your menu items.
+                  </p>
+                  <Button onClick={handleCreateCategory} className="bg-orange-600 hover:bg-orange-700">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Your First Category
+                  </Button>
                 </CardContent>
               </Card>
-            ))}
+            ) : (
+              categories.map((category) => (
+                <Card key={category.id}>
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-orange-100 dark:bg-orange-900/20 rounded-lg flex items-center justify-center">
+                          <FolderTree className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+                        </div>
+                        <div>
+                          <h3 className="font-medium">{category.name}</h3>
+                          {category.description && (
+                            <p className="text-sm text-muted-foreground">{category.description}</p>
+                          )}
+                          <div className="flex items-center gap-2 mt-1">
+                            <Badge variant="secondary" className="text-xs">
+                              {category._count?.menu_items || 0} items
+                            </Badge>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-muted-foreground hover:text-foreground"
+                          onClick={() => {
+                            // Navigate to menu management filtered by this category
+                            window.location.href = `/owner/menu?category=${category.id}`;
+                          }}
+                        >
+                          <Settings className="w-4 h-4 mr-1" />
+                          Manage
+                        </Button>
+                        
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+                              <MoreHorizontal className="w-4 h-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleEditCategory(category)}>
+                              <Edit className="w-4 h-4 mr-2" />
+                              Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => handleDeleteCategory(category.id)}
+                              className="text-destructive"
+                            >
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
           </div>
         </TabsContent>
 

@@ -52,7 +52,11 @@ import CustomerLanding from "./pages/CustomerLanding";
 import CustomerMenu from "./pages/CustomerMenu";
 import CustomerOrder from "./pages/CustomerOrder";
 import CustomerOrderStatus from "./pages/CustomerOrderStatus";
-import CustomerMyOrder from "./pages/CustomerMyOrder";
+import CustomerBill from "./pages/CustomerBill";
+import CustomerMyOrderSimple from "./pages/CustomerMyOrderSimple";
+import CustomerPaymentSimple from "./pages/CustomerPaymentSimple";
+import CustomerPaymentSuccess from "./pages/CustomerPaymentSuccess";
+import PaymentSuccess from "./pages/PaymentSuccess";
 
 const queryClient = new QueryClient();
 
@@ -158,8 +162,15 @@ const App = () => (
             <Route path="/t/:qr_token" element={<CustomerLanding />} />
             <Route path="/customer/menu" element={<CustomerMenu />} />
             <Route path="/customer/order" element={<CustomerOrder />} />
-            <Route path="/customer/my-order" element={<CustomerMyOrder />} />
+            <Route path="/customer/my-order" element={<CustomerMyOrderSimple />} />
+            <Route path="/customer/bill" element={<CustomerBill />} />
+            <Route path="/customer/payment" element={<CustomerPaymentSimple />} />
+            <Route path="/customer/payment-success" element={<CustomerPaymentSuccess />} />
             <Route path="/customer/order-status" element={<CustomerOrderStatus />} />
+            
+            {/* Payment Routes */}
+            <Route path="/payment/success" element={<PaymentSuccess />} />
+            <Route path="/payment/cancel" element={<PaymentSuccess />} />
             
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
