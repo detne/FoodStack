@@ -9,8 +9,8 @@ class UpdateTableUseCase {
 
   async execute(tableId, dto, context) {
     const role = (context?.role || '').toLowerCase();
-    if (role !== 'owner' && role !== 'manager') {
-      const err = new Error('Forbidden: Owner/Manager only');
+    if (role !== 'owner' && role !== 'manager' && role !== 'staff') {
+      const err = new Error('Forbidden: Owner/Manager/Staff only');
       err.status = 403;
       throw err;
     }
@@ -36,6 +36,7 @@ class UpdateTableUseCase {
       throw err;
     }
 
+    // Authorization checks
     if (role === 'owner') {
       const restaurant = await this.restaurantRepository.findOwnerIdById(branch.restaurant_id);
       if (!restaurant || restaurant.owner_id !== context.userId) {
@@ -43,10 +44,18 @@ class UpdateTableUseCase {
         err.status = 403;
         throw err;
       }
-    } else {
+    } else if (role === 'manager') {
       const user = await this.userRepository.findById(context.userId);
       if (!user?.restaurant_id || user.restaurant_id !== branch.restaurant_id) {
         const err = new Error('Forbidden: Manager not in this restaurant');
+        err.status = 403;
+        throw err;
+      }
+    } else if (role === 'staff') {
+      // Staff can only update tables in their assigned branch
+      const user = await this.userRepository.findById(context.userId);
+      if (!user?.branch_id || user.branch_id !== branch.id) {
+        const err = new Error('Forbidden: Staff can only update tables in their assigned branch');
         err.status = 403;
         throw err;
       }
@@ -54,7 +63,13 @@ class UpdateTableUseCase {
 
     const updateData = { updated_at: new Date() };
 
+    // Staff can only update status, not capacity
     if (dto.capacity !== undefined) {
+      if (role === 'staff') {
+        const err = new Error('Forbidden: Staff cannot update table capacity');
+        err.status = 403;
+        throw err;
+      }
       if (!Number.isInteger(dto.capacity) || dto.capacity <= 0) {
         const err = new Error('Capacity must be > 0');
         err.status = 400;

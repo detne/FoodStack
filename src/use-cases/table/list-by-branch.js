@@ -45,7 +45,23 @@ class ListTablesByBranchUseCase {
     // 3) List tables by branch
     const tables = await this.tableRepository.listByBranchId(branchId);
 
-    return tables;
+    console.log('Raw tables from DB:', JSON.stringify(tables.slice(0, 1), null, 2));
+
+    // Transform data to match frontend expectations
+    const transformed = tables.map(table => ({
+      id: table.id,
+      table_number: table.table_number,
+      capacity: table.capacity,
+      status: table.status.toLowerCase(),
+      area_id: table.area_id,
+      area_name: table.areas?.name || 'No Area',
+      qr_token: table.qr_token,
+      qr_code_url: table.qr_code_url,
+    }));
+
+    console.log('Transformed tables:', JSON.stringify(transformed.slice(0, 1), null, 2));
+
+    return transformed;
   }
 }
 

@@ -34,6 +34,10 @@ const Login = () => {
       // Redirect based on user role
       if (userData?.role === 'OWNER') {
         navigate("/restaurant-selector");
+      } else if (userData?.role === 'MANAGER') {
+        navigate("/manager");
+      } else if (userData?.role === 'STAFF') {
+        navigate("/staff/reservations");
       } else {
         navigate("/dashboard");
       }

@@ -1,5 +1,3 @@
-const { v4: uuidv4 } = require('uuid');
-
 class ProcessPaymentUseCase {
   constructor(orderRepository, paymentRepository, paymentGatewayService, prisma) {
     this.orderRepository = orderRepository;
@@ -141,7 +139,6 @@ class ProcessPaymentUseCase {
 
         return this.paymentRepository.create(
           {
-            id: uuidv4(),
             orderId: freshOrder.id,
             amount: freshOrder.total,
             method: 'CASH',
@@ -195,7 +192,6 @@ class ProcessPaymentUseCase {
 
       return this.paymentRepository.create(
         {
-          id: uuidv4(),
           orderId: freshOrder.id,
           amount: freshOrder.total,
           method: 'QR_PAY',
@@ -216,20 +212,35 @@ class ProcessPaymentUseCase {
     let gatewayResult;
 
     try {
-      gatewayResult = await this.paymentGatewayService.charge({
-        orderId: order.id,
-        amount: orderTotal,
-        method: 'QR_PAY',
-        orderCode: payosOrderCode,
-        description,
-        items: [
-          {
-            name: 'Thanh toan don hang',
-            quantity: 1,
-            price: orderTotal,
-          },
-        ],
-      });
+      // Check if mock mode is enabled
+      const useMockPayment = process.env.USE_MOCK_PAYMENT === 'true';
+      
+      if (useMockPayment) {
+        // Use mock payment gateway
+        const mockResult = await this.createMockPayment({
+          orderId: order.id,
+          amount: orderTotal,
+          orderCode: payosOrderCode,
+          description,
+        });
+        gatewayResult = mockResult;
+      } else {
+        // Use real PayOS
+        gatewayResult = await this.paymentGatewayService.charge({
+          orderId: order.id,
+          amount: orderTotal,
+          method: 'QR_PAY',
+          orderCode: payosOrderCode,
+          description,
+          items: [
+            {
+              name: 'Thanh toan don hang',
+              quantity: 1,
+              price: orderTotal,
+            },
+          ],
+        });
+      }
     } catch (error) {
       const failedPayment = await this.prisma.$transaction(async (tx) => {
         return this.paymentRepository.update(
@@ -238,7 +249,7 @@ class ProcessPaymentUseCase {
             status: 'FAILED',
             payos_data: {
               ...(payment.payos_data || {}),
-              error: error.message || 'Create PayOS payment link failed',
+              error: error.message || 'Create payment link failed',
             },
             updated_at: new Date(),
           },
@@ -292,6 +303,51 @@ class ProcessPaymentUseCase {
     });
 
     return this.mapPaymentResponse(updatedPayment);
+  }
+
+  async createMockPayment({ orderId, amount, orderCode, description }) {
+    const fetch = require('node-fetch');
+    
+    try {
+      const response = await fetch(`${process.env.BASE_URL}/api/v1/mock-payments/create-payment-link`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          amount,
+          description,
+          returnUrl: `${process.env.FRONTEND_URL}/payment/success?orderCode=${orderCode}`,
+          cancelUrl: `${process.env.FRONTEND_URL}/payment/success?orderCode=${orderCode}&cancel=true`,
+        }),
+      });
+
+      const result = await response.json();
+      
+      if (result.error === 0) {
+        return {
+          success: true,
+          paymentLinkId: result.data.paymentLinkId,
+          checkoutUrl: result.data.checkoutUrl,
+          qrCode: result.data.qrCode,
+          accountNumber: result.data.accountNumber,
+          accountName: result.data.accountName,
+          bin: result.data.bin,
+          raw: result.data,
+        };
+      } else {
+        return {
+          success: false,
+          message: result.message || 'Mock payment creation failed',
+          raw: result,
+        };
+      }
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message || 'Mock payment service error',
+      };
+    }
   }
 }
 

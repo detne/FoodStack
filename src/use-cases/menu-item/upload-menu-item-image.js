@@ -23,7 +23,7 @@ class UploadMenuItemImageUseCase {
 
     // 2. Validate menu item exists
     const menuItem = await this.menuItemRepository.findById(menuItemId);
-    if (!menuItem || menuItem.deleted_at) {
+    if (!menuItem) {
       throw new ValidationError('Menu item not found');
     }
 

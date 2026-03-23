@@ -23,6 +23,7 @@ const { BranchRepository } = require('./repository/branch');
 const { CategoryRepository } = require('./repository/category');
 const { AreaRepository } = require('./repository/area');
 const { MenuItemRepository } = require('./repository/menu-item');
+const { MenuItemAvailabilityRepository } = require('./repository/menu-item-availability');
 const { CustomizationRepository } = require('./repository/customization');
 const { ReservationRepository } = require('./repository/reservation');
 const { TableRepository } = require('./repository/table');
@@ -40,6 +41,7 @@ const { RefreshTokenUseCase } = require('./use-cases/auth/refresh-token');
 const { ChangePasswordUseCase } = require('./use-cases/auth/change-password');
 const { RegisterRestaurantUseCase } = require('./use-cases/auth/register-restaurant');
 const { VerifyEmailOtpUseCase } = require('./use-cases/auth/verify-email-otp');
+const { LogoutUseCase } = require('./use-cases/auth/logout');
 
 const { GetRestaurantDetailsUseCase } = require('./use-cases/restaurant/get-details');
 const { UploadRestaurantLogoUseCase } = require('./use-cases/restaurant/upload-logo');
@@ -79,6 +81,7 @@ const { UpdateMenuItemUseCase } = require('./use-cases/menu-item/update-menu-ite
 const { DeleteMenuItemUseCase } = require('./use-cases/menu-item/delete-menu-item');
 const { UploadMenuItemImageUseCase } = require('./use-cases/menu-item/upload-menu-item-image');
 const { UpdateMenuItemAvailabilityUseCase } = require('./use-cases/menu-item/update-availability');
+const { UpdateBranchAvailabilityUseCase } = require('./use-cases/menu-item/update-branch-availability');
 const { SearchMenuItemsUseCase } = require('./use-cases/menu-item/search-menu-items');
 
 const { CreateCustomizationGroupUseCase } = require('./use-cases/customization/create-customization-group');
@@ -95,6 +98,8 @@ const { CreateReservationUseCase } = require('./use-cases/reservation/create-res
 const { UpdateReservationUseCase } = require('./use-cases/reservation/update-reservation');
 const { CancelReservationUseCase } = require('./use-cases/reservation/cancel-reservation');
 const { ConfirmReservationUseCase } = require('./use-cases/reservation/confirm-reservation');
+const { CompleteReservationUseCase } = require('./use-cases/reservation/complete-reservation');
+const { AssignTableToReservationUseCase } = require('./use-cases/reservation/assign-table');
 const { GetReservationDetailsUseCase } = require('./use-cases/reservation/get-details');
 const { ListReservationsUseCase } = require('./use-cases/reservation/list-reservations');
 const { CheckTableAvailabilityUseCase } = require('./use-cases/reservation/check-availability');
@@ -196,6 +201,7 @@ function createApp() {
   const categoryRepository = new CategoryRepository(prisma);
   const areaRepository = new AreaRepository(prisma);
   const menuItemRepository = new MenuItemRepository(prisma);
+  const menuItemAvailabilityRepository = new MenuItemAvailabilityRepository(prisma);
   const customizationRepository = new CustomizationRepository(prisma);
   const reservationRepository = new ReservationRepository(prisma);
   const tableRepository = new TableRepository(prisma);
@@ -213,6 +219,7 @@ function createApp() {
   const refreshTokenUseCase = new RefreshTokenUseCase(userRepository, tokenService);
   const changePasswordUseCase = new ChangePasswordUseCase(userRepository, tokenService);
   const verifyEmailOtpUseCase = new VerifyEmailOtpUseCase(userRepository, prisma);
+  const logoutUseCase = new LogoutUseCase(userRepository);
   const forgotPasswordUseCase = new ForgotPasswordUseCase(userRepository, emailService);
   const resetPasswordUseCase = new ResetPasswordUseCase(userRepository);
   const registerRestaurantUseCase = new RegisterRestaurantUseCase(
@@ -247,7 +254,7 @@ function createApp() {
     loginUseCase,
     registerRestaurantUseCase,
     refreshTokenUseCase,
-    null,
+    logoutUseCase,
     forgotPasswordUseCase,
     resetPasswordUseCase,
     changePasswordUseCase,
@@ -360,7 +367,8 @@ function createApp() {
   const createMenuItemUseCase = new CreateMenuItemUseCase(
     menuItemRepository,
     categoryRepository,
-    userRepository
+    userRepository,
+    prisma
   );
   const updateMenuItemUseCase = new UpdateMenuItemUseCase(
     menuItemRepository,
@@ -377,6 +385,11 @@ function createApp() {
     menuItemRepository,
     userRepository
   );
+  const updateBranchAvailabilityUseCase = new UpdateBranchAvailabilityUseCase(
+    menuItemAvailabilityRepository,
+    menuItemRepository,
+    userRepository
+  );
   const searchMenuItemsUseCase = new SearchMenuItemsUseCase(menuItemRepository);
 
   const menuItemController = new MenuItemController({
@@ -385,6 +398,7 @@ function createApp() {
     deleteMenuItemUseCase,
     uploadMenuItemImageUseCase,
     updateMenuItemAvailabilityUseCase,
+    updateBranchAvailabilityUseCase,
     searchMenuItemsUseCase,
   });
 
@@ -496,7 +510,19 @@ function createApp() {
 
   const confirmReservationUseCase = new ConfirmReservationUseCase(reservationRepository);
 
-  const getReservationDetailsUseCase = new GetReservationDetailsUseCase(reservationRepository);
+  const completeReservationUseCase = new CompleteReservationUseCase(
+    reservationRepository,
+    tableRepository
+  );
+
+  const assignTableToReservationUseCase = new AssignTableToReservationUseCase(
+    reservationRepository,
+    tableRepository
+  );
+
+  const getReservationDetailsUseCase = new GetReservationDetailsUseCase(
+    reservationRepository
+  );
 
   const listReservationsUseCase = new ListReservationsUseCase(
     reservationRepository,
@@ -514,6 +540,8 @@ function createApp() {
     updateReservationUseCase,
     cancelReservationUseCase,
     confirmReservationUseCase,
+    completeReservationUseCase,
+    assignTableToReservationUseCase,
     getReservationDetailsUseCase,
     listReservationsUseCase,
     checkTableAvailabilityUseCase,
@@ -699,6 +727,10 @@ function createApp() {
   app.use('/api/v1/branding', createBrandingRoutes(brandingController, authMiddleware));
   app.use('/api/v1/public', createPublicRoutes(prisma));
   app.use('/api/v1/customer-orders', createCustomerOrderRoutes(prisma));
+  
+  // Mock payment routes
+  app.use('/api/v1/mock-payments', require('./routes/v1/mock-payment'));
+  
   app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
   // 404
   app.use((req, res) => {

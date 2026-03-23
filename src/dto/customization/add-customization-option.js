@@ -1,7 +1,7 @@
 const { z } = require('zod');
 
 const AddCustomizationOptionSchema = z.object({
-  groupId: z.string().uuid('Invalid group ID'),
+  groupId: z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid ID format"),
   name: z.string().min(1, 'Option name is required').max(100),
   priceDelta: z.number().min(0, 'Price delta must be >= 0').default(0),
   sortOrder: z.number().int().min(0).default(0),

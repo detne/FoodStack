@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 import { toast } from '@/components/ui/use-toast';
 import { apiClient } from '@/lib/api-client';
 import AddMenuItemDialog from '@/components/AddMenuItemDialog';
+import EditMenuItemDialog from '@/components/EditMenuItemDialog';
 
 interface MenuItem {
   id: string;
@@ -45,6 +46,8 @@ export default function OwnerMenuManagement() {
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState<string>('');
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [uploadingItemId, setUploadingItemId] = useState<string | null>(null);
 
   // Fetch data from backend
@@ -159,8 +162,11 @@ export default function OwnerMenuManagement() {
 
       const data = await response.json();
       console.log('Categories data:', data);
+      console.log('Categories array:', data.data);
+      console.log('Categories length:', data.data?.length);
       
       if (data.success && data.data) {
+        console.log('Setting categories:', data.data.length);
         setCategories(data.data);
       } else {
         console.log('No categories data in response');
@@ -186,7 +192,7 @@ export default function OwnerMenuManagement() {
 
       console.log('Fetching menu items');
 
-      const response = await fetch('http://localhost:3000/api/v1/menu-items/search', {
+      const response = await fetch('http://localhost:3000/api/v1/menu-items/search?limit=50', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -439,7 +445,7 @@ export default function OwnerMenuManagement() {
                       style={{ animationDelay: `${categoryIdx * 50 + itemIdx * 30}ms` }}
                     >
                       {/* Image Container */}
-                      <div className="relative aspect-video bg-muted overflow-hidden">
+                      <div className="relative aspect-square bg-muted overflow-hidden">
                         {item.image_url ? (
                           <img
                             src={item.image_url}
@@ -536,6 +542,10 @@ export default function OwnerMenuManagement() {
                           <Button
                             size="icon"
                             variant="ghost"
+                            onClick={() => {
+                              setEditingItem(item);
+                              setShowEditDialog(true);
+                            }}
                             className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all duration-300 rounded-lg flex-shrink-0"
                           >
                             <Edit className="h-4 w-4" />
@@ -632,6 +642,20 @@ export default function OwnerMenuManagement() {
           fetchData(); // Refresh data after adding item
         }}
         categories={categories}
+      />
+
+      {/* Edit Menu Item Dialog */}
+      <EditMenuItemDialog
+        isOpen={showEditDialog}
+        onClose={() => {
+          setShowEditDialog(false);
+          setEditingItem(null);
+        }}
+        onSuccess={() => {
+          fetchData(); // Refresh data after editing item
+        }}
+        categories={categories}
+        item={editingItem}
       />
     </div>
   );

@@ -1,5 +1,4 @@
 const { PrismaClient, Prisma } = require('@prisma/client');
-const { randomUUID } = require('crypto');
 
 class PaymentRepository {
   constructor(prisma) {
@@ -15,7 +14,6 @@ class PaymentRepository {
 
     return client.payments.create({
       data: {
-        id: data.id || randomUUID(),
         order_id: data.orderId,
         amount: new Prisma.Decimal(data.amount),
         method: data.method || 'QR_PAY',

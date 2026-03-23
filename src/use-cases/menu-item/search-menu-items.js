@@ -18,6 +18,7 @@ class SearchMenuItemsUseCase {
       keyword: dto.keyword,
       categoryId: dto.category,
       branchId: dto.branchId,
+      restaurantId: dto.restaurantId,
       limit: dto.limit,
       offset: dto.offset,
     };

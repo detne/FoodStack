@@ -13,20 +13,41 @@ class CategoryController {
     try {
       const { branch_id } = req.query;
       
-      if (!branch_id) {
+      console.log('[CategoryController.list] req.user:', req.user);
+      console.log('[CategoryController.list] branch_id:', branch_id);
+      
+      // Get restaurant_id from user or branch
+      let restaurantId = req.user?.restaurantId;
+      
+      console.log('[CategoryController.list] restaurantId from user:', restaurantId);
+      
+      if (!restaurantId && branch_id) {
+        // If branch_id provided, get restaurant from branch
+        const categories = await this.categoryRepository.findByBranchId(branch_id);
+        console.log('[CategoryController.list] Categories from branch:', categories.length);
+        return res.json({
+          success: true,
+          data: categories,
+        });
+      }
+      
+      if (!restaurantId) {
+        console.log('[CategoryController.list] No restaurantId found');
         return res.status(400).json({
           success: false,
-          message: 'branch_id is required',
+          message: 'Unable to determine restaurant',
         });
       }
 
-      const categories = await this.categoryRepository.findByBranchId(branch_id);
+      const categories = await this.categoryRepository.findByRestaurantId(restaurantId);
+      console.log('[CategoryController.list] Categories from restaurant:', categories.length);
 
       res.json({
         success: true,
         data: categories,
       });
     } catch (error) {
+      console.error('[CategoryController.list] Error:', error);
       next(error);
     }
   }

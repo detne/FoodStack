@@ -71,22 +71,45 @@ class TableRepository {
   }
 
   async listByBranchId(branchId) {
-    return await this.prisma.tables.findMany({
+    // First get all areas for this branch
+    const areas = await this.prisma.areas.findMany({
+      where: {
+        branch_id: branchId,
+        deleted_at: null,
+      },
+      select: {
+        id: true,
+        name: true,
+      },
+    });
+
+    const areaMap = {};
+    areas.forEach(area => {
+      areaMap[area.id] = area.name;
+    });
+
+    // Then get tables
+    const tables = await this.prisma.tables.findMany({
       where: {
         deleted_at: null,
-        areas: {
-          branch_id: branchId,
-          deleted_at: null,
+        area_id: {
+          in: areas.map(a => a.id),
         },
       },
-      include: {
-        areas: true,
-      },
       orderBy: [
-        { areas: { name: 'asc' } },
+        { area_id: 'asc' },
         { table_number: 'asc' },
       ],
     });
+
+    // Manually attach area name
+    return tables.map(table => ({
+      ...table,
+      areas: {
+        id: table.area_id,
+        name: areaMap[table.area_id] || 'Unknown Area',
+      },
+    }));
   }
 
   // Check trùng số bàn trong cùng branch (join tables -> areas -> branch)
@@ -137,6 +160,16 @@ class TableRepository {
       },
     });
   }
-}
 
+  async getAreaById(areaId) {
+    return await this.prisma.areas.findUnique({
+      where: { id: areaId },
+      select: {
+        id: true,
+        branch_id: true,
+        name: true,
+      },
+    });
+  }
+}
 module.exports = { TableRepository };

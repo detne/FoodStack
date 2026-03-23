@@ -273,13 +273,50 @@ Proprietary - QR Service Platform Team
 
 ---
 
+## 💳 PayOS Payment Integration
+
+### Quick Setup (3 bước)
+
+```bash
+# 1. Chạy backend
+npm run dev:backend
+
+# 2. Setup ngrok & cập nhật URL
+npm run payos:quickstart        # macOS/Linux
+scripts\payos-quickstart.bat    # Windows
+
+# 3. Cập nhật URL trên PayOS dashboard
+# https://payos.vn/portal/settings
+```
+
+### Kiểm tra & Test
+
+```bash
+# Kiểm tra cấu hình
+npm run payos:check
+
+# Test payment flow
+npm run payos:test
+
+# Cập nhật URL ngrok thủ công
+npm run payos:update-url https://your-ngrok-url.ngrok-free.app
+```
+
+### Tài liệu chi tiết
+
+- 📖 [Hướng dẫn đầy đủ](docs/PAYOS_SETUP_GUIDE.md)
+- 🚀 [Quick Start Guide](PAYOS_QUICKSTART.md)
+
+---
+
 ## 📞 Support
 
 **Gặp vấn đề?**
 1. Đọc [START-HERE.md](START-HERE.md)
 2. Đọc [QUICK-FIX.md](QUICK-FIX.md)
 3. Check [FIX-LOGIN-ERROR.md](FIX-LOGIN-ERROR.md)
-4. Cung cấp:
+4. PayOS: [PAYOS_SETUP_GUIDE.md](docs/PAYOS_SETUP_GUIDE.md)
+5. Cung cấp:
    - Screenshot
    - Console logs
    - Terminal output

@@ -6,42 +6,39 @@ class ReservationRepository {
 
   async findById(id) {
     return await this.prisma.reservations.findUnique({
-      where: { id },
+      where: { id }
     });
   }
 
   async findByIdWithDetails(id) {
     // Manual join since Prisma schema doesn't have relations
     const reservation = await this.prisma.reservations.findUnique({
-      where: { id },
+      where: { id }
     });
 
     if (!reservation) return null;
 
     // Get branch info
     const branch = await this.prisma.branches.findUnique({
-      where: { id: reservation.branch_id },
+      where: { id: reservation.branch_id }
     });
 
     // Get table info
     const table = await this.prisma.tables.findUnique({
-      where: { id: reservation.table_id },
+      where: { id: reservation.table_id }
     });
 
     return {
       ...reservation,
       branch,
-      table,
+      table
     };
   }
 
   async create(data) {
-    const { v4: uuidv4 } = require('uuid');
-
+    
     return await this.prisma.reservations.create({
-      data: {
-        id: uuidv4(),
-        branch_id: data.branchId,
+      data: {        branch_id: data.branchId,
         table_id: data.tableId,
         customer_name: data.customerName,
         customer_phone: data.customerPhone,
@@ -51,14 +48,14 @@ class ReservationRepository {
         reservation_time: data.reservationTime,
         status: 'PENDING',
         notes: data.notes || null,
-        updated_at: new Date(),
-      },
+        updated_at: new Date()
+      }
     });
   }
 
   async update(id, data) {
     const updateData = {
-      updated_at: new Date(),
+      updated_at: new Date()
     };
 
     if (data.partySize !== undefined) updateData.party_size = data.partySize;
@@ -66,10 +63,33 @@ class ReservationRepository {
     if (data.reservationTime !== undefined) updateData.reservation_time = data.reservationTime;
     if (data.notes !== undefined) updateData.notes = data.notes || null;
     if (data.status !== undefined) updateData.status = data.status;
+    if (data.table_id !== undefined) updateData.table_id = data.table_id;
 
     return await this.prisma.reservations.update({
       where: { id },
-      data: updateData,
+      data: updateData
+    });
+  }
+
+  async getUserById(userId) {
+    return await this.prisma.users.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        branch_id: true,
+        restaurant_id: true,
+        role: true
+      }
+    });
+  }
+
+  async getAreaById(areaId) {
+    return await this.prisma.areas.findUnique({
+      where: { id: areaId },
+      select: {
+        id: true,
+        branch_id: true
+      }
     });
   }
 
@@ -78,7 +98,7 @@ class ReservationRepository {
     const skip = (page - 1) * limit;
 
     const where = {
-      branch_id: branchId,
+      branch_id: branchId
     };
 
     if (status) {
@@ -92,19 +112,54 @@ class ReservationRepository {
 
       where.reservation_date = {
         gte: startDate,
-        lt: endDate,
+        lt: endDate
       };
     }
 
-    const [items, total] = await this.prisma.$transaction([
+    const [reservations, total] = await this.prisma.$transaction([
       this.prisma.reservations.findMany({
         where,
-        orderBy: { reservation_date: 'asc' },
+        orderBy: [
+          { reservation_date: 'asc' },
+          { reservation_time: 'asc' }
+        ],
         skip,
-        take: limit,
+        take: limit
       }),
       this.prisma.reservations.count({ where }),
     ]);
+
+    // Manually join table info
+    const items = await Promise.all(
+      reservations.map(async (reservation) => {
+        let table = null;
+        if (reservation.table_id) {
+          table = await this.prisma.tables.findUnique({
+            where: { id: reservation.table_id },
+            select: {
+              id: true,
+              table_number: true,
+              capacity: true,
+              status: true
+            }
+          });
+        }
+
+        return {
+          id: reservation.id,
+          guest_name: reservation.customer_name,
+          guest_phone: reservation.customer_phone,
+          guest_email: reservation.customer_email,
+          guest_count: reservation.party_size,
+          reservation_date: reservation.reservation_date.toISOString().split('T')[0],
+          reservation_time: reservation.reservation_time,
+          status: reservation.status.toLowerCase(),
+          special_requests: reservation.notes,
+          table_id: reservation.table_id,
+          table: table
+        };
+      })
+    );
 
     return { items, total };
   }
@@ -119,12 +174,12 @@ class ReservationRepository {
       branch_id: branchId,
       reservation_date: {
         gte: startDate,
-        lt: endDate,
+        lt: endDate
       },
       reservation_time: reservationTime,
       status: {
-        in: ['PENDING', 'CONFIRMED'],
-      },
+        in: ['PENDING', 'CONFIRMED']
+      }
     };
 
     if (excludeReservationId) {
@@ -132,7 +187,7 @@ class ReservationRepository {
     }
 
     const conflictingReservation = await this.prisma.reservations.findFirst({
-      where,
+      where
     });
 
     return !conflictingReservation;
@@ -147,9 +202,9 @@ class ReservationRepository {
     const areas = await this.prisma.areas.findMany({
       where: {
         branch_id: branchId,
-        deleted_at: null,
+        deleted_at: null
       },
-      select: { id: true, name: true, branch_id: true },
+      select: { id: true, name: true, branch_id: true }
     });
 
     if (!areas.length) return [];
@@ -162,16 +217,16 @@ class ReservationRepository {
         branch_id: branchId,
         reservation_date: {
           gte: startDate,
-          lt: endDate,
+          lt: endDate
         },
         reservation_time: reservationTime,
         status: {
-          in: ['PENDING', 'CONFIRMED'],
-        },
+          in: ['PENDING', 'CONFIRMED']
+        }
       },
       select: {
-        table_id: true,
-      },
+        table_id: true
+      }
     });
 
     const reservedTableIds = conflictingReservations.map((r) => r.table_id);
@@ -180,32 +235,32 @@ class ReservationRepository {
     const tables = await this.prisma.tables.findMany({
       where: {
         area_id: {
-          in: areaIds,
+          in: areaIds
         },
         capacity: {
-          gte: partySize,
+          gte: partySize
         },
         status: 'AVAILABLE',
         deleted_at: null,
         ...(reservedTableIds.length
           ? {
               id: {
-                notIn: reservedTableIds,
-              },
+                notIn: reservedTableIds
+              }
             }
-          : {}),
+          : {})
       },
       orderBy: [
         { capacity: 'asc' },
         { table_number: 'asc' },
-      ],
+      ]
     });
 
     return tables.map((table) => {
       const area = areas.find((a) => a.id === table.area_id) || null;
       return {
         ...table,
-        area,
+        area
       };
     });
   }

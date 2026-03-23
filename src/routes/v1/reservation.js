@@ -34,6 +34,14 @@ function createReservationRoutes(reservationController, authMiddleware) {
     reservationController.confirm(req, res, next)
   );
 
+  router.post('/:id/complete', authMiddleware, (req, res, next) =>
+    reservationController.complete(req, res, next)
+  );
+
+  router.patch('/:id/assign-table', authMiddleware, (req, res, next) =>
+    reservationController.assignTable(req, res, next)
+  );
+
   return router;
 }
 

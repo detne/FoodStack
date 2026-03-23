@@ -14,6 +14,7 @@ interface User {
   full_name?: string; // For backward compatibility
   role: string;
   restaurantId?: string;
+  branchId?: string; // Add branchId
   restaurant?: {
     id: string;
     name: string;
@@ -76,6 +77,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           full_name: userData.fullName, // For backward compatibility
           role: userData.role,
           restaurantId: userData.restaurantId,
+          branchId: userData.branchId, // Add branchId
           restaurant: userData.restaurant,
         };
         
@@ -87,6 +89,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
         localStorage.setItem('user', JSON.stringify(normalizedUser));
         console.log('User saved to localStorage:', normalizedUser);
+        
+        // Save branch_id for staff/manager
+        if (userData.branchId) {
+          localStorage.setItem('selected_branch_id', userData.branchId);
+          console.log('Branch ID saved to localStorage:', userData.branchId);
+        }
         
         setUser(normalizedUser);
         

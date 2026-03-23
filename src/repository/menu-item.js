@@ -9,8 +9,8 @@ class MenuItemRepository {
   async findById(id) {
     return await this.prisma.menu_items.findUnique({
       where: { 
-        id,
-        deleted_at: null
+        id
+        // Remove deleted_at filter since MongoDB doesn't have this field by default
       }
     });
   }
@@ -19,18 +19,16 @@ class MenuItemRepository {
     return await this.prisma.menu_items.findMany({
       where: {
         category_id: categoryId,
-        deleted_at: null,
+        // Remove deleted_at filter
       },
       orderBy: { created_at: 'desc' },
     });
   }
 
   async create(data) {
-    const { v4: uuidv4 } = require('uuid');
 
     return await this.prisma.menu_items.create({
       data: {
-        id: uuidv4(),
         category_id: data.categoryId,
         name: data.name,
         description: data.description || null,
@@ -54,22 +52,17 @@ class MenuItemRepository {
   }
 
   async softDelete(id) {
-    return await this.prisma.menu_items.update({
-      where: { id },
-      data: {
-        deleted_at: new Date(),
-        updated_at: new Date(),
-      },
+    // For MongoDB, use hard delete instead of soft delete
+    return await this.prisma.menu_items.delete({
+      where: { id }
     });
   }
 
   async search(filters) {
-    const { keyword = '', categoryId, branchId, limit = 10, offset = 0 } = filters;
+    const { keyword = '', categoryId, branchId, restaurantId, limit = 10, offset = 0 } = filters;
 
     // Build where clause
-    const whereClause = {
-      deleted_at: null,
-    };
+    const whereClause = {};
 
     // Search by keyword (name or description)
     if (keyword.trim()) {
@@ -94,11 +87,23 @@ class MenuItemRepository {
       whereClause.category_id = categoryId;
     }
 
-    // Filter by branch (through category relationship)
-    if (branchId) {
+    // Filter by restaurant (through category relationship)
+    if (restaurantId) {
       whereClause.categories = {
-        branch_id: branchId,
+        restaurant_id: restaurantId,
       };
+    } else if (branchId) {
+      // If branchId provided, get restaurant_id from branch
+      const branch = await this.prisma.branches.findUnique({
+        where: { id: branchId },
+        select: { restaurant_id: true }
+      });
+      
+      if (branch) {
+        whereClause.categories = {
+          restaurant_id: branch.restaurant_id,
+        };
+      }
     }
 
     // Get total count

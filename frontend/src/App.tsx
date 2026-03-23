@@ -38,6 +38,8 @@ import KitchenDisplay from "./pages/KitchenDisplay";
 import UIShowcase from "./pages/UIShowcase";
 import NotFound from "./pages/NotFound";
 import OwnerDashboard from "./pages/OwnerDashboard";
+import ManagerDashboard from "./pages/ManagerDashboard";
+import StaffDashboard from "./pages/StaffDashboard";
 import QRAnalytics from "./pages/QRAnalytics";
 import ApiTest from "./pages/ApiTest";
 import Register from "./pages/Register";
@@ -50,6 +52,11 @@ import CustomerLanding from "./pages/CustomerLanding";
 import CustomerMenu from "./pages/CustomerMenu";
 import CustomerOrder from "./pages/CustomerOrder";
 import CustomerOrderStatus from "./pages/CustomerOrderStatus";
+import CustomerBill from "./pages/CustomerBill";
+import CustomerMyOrderSimple from "./pages/CustomerMyOrderSimple";
+import CustomerPaymentSimple from "./pages/CustomerPaymentSimple";
+import CustomerPaymentSuccess from "./pages/CustomerPaymentSuccess";
+import PaymentSuccess from "./pages/PaymentSuccess";
 
 const queryClient = new QueryClient();
 
@@ -71,8 +78,7 @@ const App = () => (
             <Route path="/login" element={<Login />} />
             <Route path="/restaurant-selector" element={<RestaurantSelector />} />
             <Route path="/branch-selector" element={<BranchSelector />} />
-            <Route path="/dashboard" element={<DashboardNew />} />
-            <Route path="/dashboard-old" element={<Dashboard />} />
+            {/* Remove old dashboard routes - now handled within Owner Portal */}
             
             {/* Branch Management */}
             <Route path="/branches" element={<Branches />} />
@@ -108,14 +114,10 @@ const App = () => (
             {/* QR Codes */}
             <Route path="/qr-codes" element={<QRCodes />} />
             
-            {/* Staff */}
-            <Route path="/staff" element={<Staff />} />
-            
             {/* Reservations */}
             <Route path="/reservations" element={<Reservations />} />
             
-            {/* Analytics */}
-            <Route path="/analytics" element={<Analytics />} />
+            {/* QR Analytics - Standalone (keep for backward compatibility) */}
             <Route path="/qr-analytics" element={<QRAnalytics />} />
             
             {/* Owner Dashboard */}
@@ -127,8 +129,28 @@ const App = () => (
             <Route path="/owner/tables" element={<OwnerDashboard />} />
             <Route path="/owner/staff" element={<OwnerDashboard />} />
             <Route path="/owner/branding" element={<OwnerDashboard />} />
+            <Route path="/owner/analytics" element={<OwnerDashboard />} />
+            <Route path="/owner/manager" element={<OwnerDashboard />} />
             <Route path="/owner/branch-setup" element={<BranchSetup />} />
             <Route path="/owner/branch-edit/:branchId" element={<BranchEdit />} />
+            
+            {/* Manager Dashboard */}
+            <Route path="/manager" element={<ManagerDashboard />} />
+            <Route path="/manager/overview" element={<ManagerDashboard />} />
+            <Route path="/manager/branch-info" element={<ManagerDashboard />} />
+            <Route path="/manager/tables" element={<ManagerDashboard />} />
+            <Route path="/manager/reservations" element={<ManagerDashboard />} />
+            <Route path="/manager/menu" element={<ManagerDashboard />} />
+            <Route path="/manager/bills" element={<ManagerDashboard />} />
+            <Route path="/manager/staff" element={<ManagerDashboard />} />
+            <Route path="/manager/promotions" element={<ManagerDashboard />} />
+            
+            {/* Staff Dashboard */}
+            <Route path="/staff" element={<StaffDashboard />} />
+            <Route path="/staff/overview" element={<StaffDashboard />} />
+            <Route path="/staff/reservations" element={<StaffDashboard />} />
+            <Route path="/staff/tables" element={<StaffDashboard />} />
+            <Route path="/staff/orders" element={<StaffDashboard />} />
             
             {/* Reviews */}
             <Route path="/reviews" element={<Reviews />} />
@@ -140,7 +162,15 @@ const App = () => (
             <Route path="/t/:qr_token" element={<CustomerLanding />} />
             <Route path="/customer/menu" element={<CustomerMenu />} />
             <Route path="/customer/order" element={<CustomerOrder />} />
+            <Route path="/customer/my-order" element={<CustomerMyOrderSimple />} />
+            <Route path="/customer/bill" element={<CustomerBill />} />
+            <Route path="/customer/payment" element={<CustomerPaymentSimple />} />
+            <Route path="/customer/payment-success" element={<CustomerPaymentSuccess />} />
             <Route path="/customer/order-status" element={<CustomerOrderStatus />} />
+            
+            {/* Payment Routes */}
+            <Route path="/payment/success" element={<PaymentSuccess />} />
+            <Route path="/payment/cancel" element={<PaymentSuccess />} />
             
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

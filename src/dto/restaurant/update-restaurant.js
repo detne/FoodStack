@@ -1,6 +1,5 @@
 const { z } = require('zod');
 const { AppError } = require('../../core/errors/AppError');
-const { randomUUID } = require('crypto');
 
 /**
  * DTO (Body) - update restaurant info
@@ -120,7 +119,6 @@ class UpdateRestaurantUseCase {
     // Log activity
     await this.prisma.activity_logs.create({
       data: {
-        id: randomUUID(),
         user_id: context.userId,
         restaurant_id: restaurantId,
         action: 'UPDATE',
@@ -128,6 +126,7 @@ class UpdateRestaurantUseCase {
         entity_id: restaurantId,
         old_values: oldValues,
         new_values: newValues,
+        created_at: new Date(),
       },
     });
 

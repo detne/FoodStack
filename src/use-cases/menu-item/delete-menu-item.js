@@ -10,19 +10,19 @@ class DeleteMenuItemUseCase {
   }
 
   async execute(dto) {
-    // 1. Validate user role (Owner/Manager)
+    // 1. Validate user role (Only Owner can delete menu items)
     const user = await this.userRepository.findById(dto.userId);
     if (!user) {
       throw new UnauthorizedError('User not found');
     }
 
-    if (!['OWNER', 'MANAGER'].includes(user.role)) {
-      throw new UnauthorizedError('Only Owner or Manager can delete menu items');
+    if (user.role !== 'OWNER') {
+      throw new UnauthorizedError('Only Owner can delete menu items');
     }
 
     // 2. Validate menu item exists
     const menuItem = await this.menuItemRepository.findById(dto.menuItemId);
-    if (!menuItem || menuItem.deleted_at) {
+    if (!menuItem) {
       throw new ValidationError('Menu item not found');
     }
 

@@ -338,6 +338,13 @@ class ApiClient {
     });
   }
 
+  async updateBranchAvailability(menuItemId: string, available: boolean, reason?: string) {
+    return this.request(`/menu-items/${menuItemId}/branch-availability`, {
+      method: 'PATCH',
+      body: JSON.stringify({ available, reason }),
+    });
+  }
+
   // Public endpoints
   async getTableByQR(qrToken: string) {
     return this.request(`/public/tables/${qrToken}`);
@@ -376,6 +383,143 @@ class ApiClient {
       body: JSON.stringify({ session_token: sessionToken, items }),
     });
   }
+
+  // Table endpoints
+  async getTablesByBranch(branchId: string) {
+    return this.request(`/branches/${branchId}/tables`);
+  }
+
+  async updateTableStatus(tableId: string, status: string) {
+    return this.request(`/tables/${tableId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    });
+  }
+
+  // Reservation endpoints
+  async getReservations(params?: { branchId?: string; status?: string; date?: string; page?: number; limit?: number }) {
+    const query = new URLSearchParams();
+    if (params?.branchId) query.append('branchId', params.branchId);
+    if (params?.status) query.append('status', params.status);
+    if (params?.date) query.append('date', params.date);
+    if (params?.page) query.append('page', params.page.toString());
+    if (params?.limit) query.append('limit', params.limit.toString());
+    
+    const queryString = query.toString();
+    return this.request(`/reservations${queryString ? '?' + queryString : ''}`);
+  }
+
+  async getReservationDetails(id: string) {
+    return this.request(`/reservations/${id}`);
+  }
+
+  async createReservation(data: any) {
+    return this.request('/reservations', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateReservation(id: string, data: any) {
+    return this.request(`/reservations/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async cancelReservation(id: string) {
+    return this.request(`/reservations/${id}/cancel`, {
+      method: 'POST',
+    });
+  }
+
+  async confirmReservation(id: string) {
+    return this.request(`/reservations/${id}/confirm`, {
+      method: 'POST',
+    });
+  }
+
+  async completeReservation(id: string) {
+    return this.request(`/reservations/${id}/complete`, {
+      method: 'POST',
+    });
+  }
+
+  async assignTableToReservation(id: string, tableId: string) {
+    return this.request(`/reservations/${id}/assign-table`, {
+      method: 'PATCH',
+      body: JSON.stringify({ tableId }),
+    });
+  }
+
+  async checkTableAvailability(params: { branchId: string; reservationDate: string; reservationTime: string; partySize: number }) {
+    const query = new URLSearchParams({
+      branchId: params.branchId,
+      reservationDate: params.reservationDate,
+      reservationTime: params.reservationTime,
+      partySize: params.partySize.toString(),
+    });
+    return this.request(`/reservations/check-availability?${query.toString()}`);
+  }
+
+  // Organized API methods
+  reservations = {
+    list: (branchId: string) => {
+      return this.request(`/reservations?branchId=${branchId}`);
+    },
+    
+    create: (branchId: string, data: any) => {
+      return this.request(`/reservations`, {
+        method: 'POST',
+        body: JSON.stringify({ ...data, branch_id: branchId }),
+      });
+    },
+    
+    updateStatus: (branchId: string, id: string, status: string) => {
+      return this.request(`/reservations/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ status }),
+      });
+    },
+    
+    assignTable: (branchId: string, id: string, tableId: string) => {
+      return this.request(`/reservations/${id}/assign-table`, {
+        method: 'PATCH',
+        body: JSON.stringify({ tableId }),
+      });
+    },
+    
+    complete: (branchId: string, id: string) => {
+      return this.request(`/reservations/${id}/complete`, {
+        method: 'POST',
+      });
+    },
+    
+    confirm: (branchId: string, id: string) => {
+      return this.request(`/reservations/${id}/confirm`, {
+        method: 'POST',
+      });
+    },
+    
+    cancel: (branchId: string, id: string) => {
+      return this.request(`/reservations/${id}/cancel`, {
+        method: 'POST',
+      });
+    },
+  };
+
+  tables = {
+    list: (branchId: string) => {
+      return this.request(`/branches/${branchId}/tables`);
+    },
+    
+    updateStatus: (branchId: string, id: string, status: string) => {
+      return this.request(`/tables/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status }),
+      });
+    },
+  };
 }
 
 export const apiClient = new ApiClient(API_BASE_URL);
