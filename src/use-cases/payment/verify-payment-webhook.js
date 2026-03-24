@@ -24,7 +24,18 @@ class VerifyPaymentWebhookUseCase {
       return { message: 'Webhook received without signature/data' };
     }
 
-    const isValid = this.payOSService.verifyWebhookSignature(webhookBody);
+    // PayOS confirmation ping (orderCode=0) — just return 200
+    const pingOrderCode = String(webhookBody.data?.orderCode || '');
+    if (pingOrderCode === '0') {
+      return { message: 'Webhook URL confirmed' };
+    }
+
+    let isValid = false;
+    try {
+      isValid = this.payOSService.verifyWebhookSignature(webhookBody);
+    } catch (_) {
+      isValid = false;
+    }
 
     if (!isValid) {
       return { message: 'Webhook received with invalid signature' };
@@ -33,8 +44,9 @@ class VerifyPaymentWebhookUseCase {
     const data = webhookBody.data || {};
     const orderCode = String(data.orderCode || '');
 
-    if (!orderCode) {
-      return { message: 'Webhook received without orderCode' };
+    // PayOS sends orderCode=0 as a confirmation ping when saving webhook URL
+    if (!orderCode || orderCode === '0') {
+      return { message: 'Webhook confirmed' };
     }
 
     let paidPaymentId = null;
@@ -82,6 +94,12 @@ class VerifyPaymentWebhookUseCase {
           },
           tx
         );
+
+        // Free up the table
+        const order = await this.orderRepository.findById(payment.order_id, tx);
+        if (order?.table_id) {
+          await this.orderRepository.updateTableStatus(order.table_id, 'AVAILABLE', tx);
+        }
 
         paidPaymentId = updatedPayment.id;
 

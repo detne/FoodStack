@@ -32,9 +32,10 @@ class CancelOrderUseCase {
       throw err;
     }
 
-    // ✅ Acceptance 2: Order chưa PREPARING
-    if (['PREPARING', 'SERVED', 'COMPLETED', 'CANCELLED'].includes(order.status)) {
-      const err = new Error('Cannot cancel order that is being prepared or already completed');
+    // Only ACTIVE orders (or legacy active-equivalent) can be cancelled
+    const TERMINAL = ['COMPLETED', 'CANCELLED'];
+    if (TERMINAL.includes(order.status)) {
+      const err = new Error('Cannot cancel an order that is already completed or cancelled');
       err.status = 400;
       throw err;
     }

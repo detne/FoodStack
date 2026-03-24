@@ -8,7 +8,8 @@ class MenuItemController {
     uploadMenuItemImageUseCase, 
     updateMenuItemAvailabilityUseCase,
     updateBranchAvailabilityUseCase,
-    searchMenuItemsUseCase 
+    searchMenuItemsUseCase,
+    importMenuItemsUseCase,
   }) {
     this.createMenuItemUseCase = createMenuItemUseCase;
     this.updateMenuItemUseCase = updateMenuItemUseCase;
@@ -17,6 +18,7 @@ class MenuItemController {
     this.updateMenuItemAvailabilityUseCase = updateMenuItemAvailabilityUseCase;
     this.updateBranchAvailabilityUseCase = updateBranchAvailabilityUseCase;
     this.searchMenuItemsUseCase = searchMenuItemsUseCase;
+    this.importMenuItemsUseCase = importMenuItemsUseCase;
   }
 
   // POST /api/v1/menu-items
@@ -173,9 +175,41 @@ class MenuItemController {
     }
   }
 
-  // GET /api/v1/menu-items/search
-  async search(req, res, next) {
+  // POST /api/v1/menu-items/import
+  async importItems(req, res, next) {
     try {
+      const rows = req.body.rows;
+
+      if (!Array.isArray(rows) || rows.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'rows must be a non-empty array',
+        });
+      }
+
+      if (rows.length > 500) {
+        return res.status(400).json({
+          success: false,
+          message: 'Maximum 500 rows per import',
+        });
+      }
+
+      const result = await this.importMenuItemsUseCase.execute(rows, req.user?.userId);
+
+      const statusCode = result.failed === 0 ? 200 : result.succeeded === 0 ? 422 : 207;
+
+      return res.status(statusCode).json({
+        success: result.failed === 0,
+        message: `Imported ${result.succeeded}/${result.total} items successfully`,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // GET /api/v1/menu-items/search
+  async search(req, res, next) {    try {
       const { SearchMenuItemsDto } = require('../dto/menu-item/search-menu-items');
 
       const dto = new SearchMenuItemsDto({

@@ -1,340 +1,354 @@
 /**
- * Owner Analytics Page
- * Analytics dashboard for restaurant owners within the owner portal
+ * Owner Analytics / Reports Page
+ * Connects to GET /payments/statistics for real revenue & transaction data.
  */
 
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useState, useEffect, useCallback } from 'react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { 
-  BarChart3, 
-  TrendingUp, 
-  TrendingDown, 
-  Users, 
-  ShoppingCart, 
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  BarChart3,
+  TrendingUp,
   DollarSign,
-  Eye,
-  Clock,
-  Star,
-  Download
+  ShoppingCart,
+  RefreshCw,
+  Calendar,
+  AlertCircle,
+  Loader2,
 } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { apiClient } from '@/lib/api-client';
+import { toast } from '@/components/ui/use-toast';
 
-interface AnalyticsData {
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+interface Stats {
+  restaurant: { id: string; name: string };
+  filters: { startDate: string | null; endDate: string | null };
   totalRevenue: number;
-  totalOrders: number;
-  avgOrderValue: number;
-  conversionRate: number;
-  qrScans: number;
-  avgInteractionTime: string;
-  customerSatisfaction: number;
-  popularItems: Array<{
-    name: string;
-    orders: number;
-    revenue: number;
-  }>;
+  transactionCount: number;
 }
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function formatCurrency(amount: number) {
+  return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
+}
+
+function formatNumber(n: number) {
+  return new Intl.NumberFormat('vi-VN').format(n);
+}
+
+function toISODate(dateStr: string) {
+  // Convert YYYY-MM-DD → ISO datetime string for the API
+  if (!dateStr) return undefined;
+  return new Date(dateStr).toISOString();
+}
+
+// Preset ranges
+const PRESETS = [
+  { label: '7 Days', days: 7 },
+  { label: '30 Days', days: 30 },
+  { label: '90 Days', days: 90 },
+  { label: 'All Time', days: 0 },
+];
+
+// ── Component ─────────────────────────────────────────────────────────────────
+
 export default function OwnerAnalytics() {
-  const [loading, setLoading] = useState(true);
-  const [dateRange, setDateRange] = useState('7d');
-  const [analyticsData, setAnalyticsData] = useState<AnalyticsData>({
-    totalRevenue: 45280000,
-    totalOrders: 1247,
-    avgOrderValue: 363000,
-    conversionRate: 14.2,
-    qrScans: 12840,
-    avgInteractionTime: '4m 32s',
-    customerSatisfaction: 4.6,
-    popularItems: [
-      { name: 'Phở Bò Tái', orders: 342, revenue: 12180000 },
-      { name: 'Bún Chả', orders: 298, revenue: 8940000 },
-      { name: 'Bánh Mì Thịt', orders: 256, revenue: 5120000 },
-      { name: 'Cà Phê Sữa Đá', orders: 189, revenue: 2835000 },
-    ]
-  });
+  const { user } = useAuth();
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [activePreset, setActivePreset] = useState(30);
 
-  useEffect(() => {
-    // Simulate loading
-    const timer = setTimeout(() => {
+  // Custom date range
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+
+  const restaurantId = user?.restaurant?.id;
+
+  const fetchStats = useCallback(async (start?: string, end?: string) => {
+    if (!restaurantId) {
+      setError('No restaurant found for this account.');
+      return;
+    }
+    setLoading(true);
+    setError('');
+    try {
+      const response = await apiClient.getPaymentStatistics({
+        restaurantId,
+        startDate: start,
+        endDate: end,
+      });
+      if (response.success && response.data) {
+        setStats(response.data);
+      } else {
+        throw new Error((response as any).message || 'Failed to load statistics');
+      }
+    } catch (err: any) {
+      const msg = err.message || 'Failed to load payment statistics';
+      setError(msg);
+      toast({ title: 'Error', description: msg, variant: 'destructive' });
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
+  }, [restaurantId]);
 
-    return () => clearTimeout(timer);
-  }, []);
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('vi-VN', {
-      style: 'currency',
-      currency: 'VND'
-    }).format(amount);
+  // Apply preset
+  const applyPreset = (days: number) => {
+    setActivePreset(days);
+    setStartDate('');
+    setEndDate('');
+    if (days === 0) {
+      fetchStats();
+    } else {
+      const end = new Date();
+      const start = new Date();
+      start.setDate(start.getDate() - days);
+      fetchStats(start.toISOString(), end.toISOString());
+    }
   };
 
-  const formatNumber = (num: number) => {
-    return new Intl.NumberFormat('vi-VN').format(num);
-  };
-
-  if (loading) {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">Reports & Analytics</h1>
-            <p className="text-muted-foreground mt-2">
-              Track your restaurant performance and customer insights
-            </p>
-          </div>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {[1, 2, 3, 4].map((i) => (
-            <Card key={i}>
-              <CardContent className="p-6">
-                <div className="animate-pulse">
-                  <div className="h-4 bg-muted rounded w-3/4 mb-2"></div>
-                  <div className="h-8 bg-muted rounded w-1/2"></div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
+  // Apply custom range
+  const applyCustomRange = () => {
+    if (!startDate && !endDate) { fetchStats(); return; }
+    setActivePreset(-1);
+    fetchStats(
+      startDate ? toISODate(startDate) : undefined,
+      endDate ? toISODate(endDate) : undefined,
     );
-  }
+  };
+
+  // Load on mount with 30-day default
+  useEffect(() => {
+    applyPreset(30);
+  }, [restaurantId]);
+
+  const avgOrderValue = stats && stats.transactionCount > 0
+    ? stats.totalRevenue / stats.transactionCount
+    : 0;
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-3xl font-bold">Reports & Analytics</h1>
-          <p className="text-muted-foreground mt-2">
-            Track your restaurant performance and customer insights
+          <p className="text-muted-foreground mt-1 text-sm">
+            Real payment statistics for{' '}
+            <span className="font-medium text-foreground">
+              {stats?.restaurant?.name ?? user?.restaurant?.name ?? '—'}
+            </span>
           </p>
         </div>
-        
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <Button
-              variant={dateRange === '7d' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setDateRange('7d')}
-            >
-              7 Days
-            </Button>
-            <Button
-              variant={dateRange === '30d' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setDateRange('30d')}
-            >
-              30 Days
-            </Button>
-            <Button
-              variant={dateRange === '90d' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setDateRange('90d')}
-            >
-              90 Days
-            </Button>
-          </div>
-          
-          <Button variant="outline" size="sm">
-            <Download className="w-4 h-4 mr-2" />
-            Export Report
-          </Button>
-        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-2"
+          onClick={() => applyPreset(activePreset >= 0 ? activePreset : 30)}
+          disabled={loading}
+        >
+          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+          Refresh
+        </Button>
       </div>
 
-      {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Revenue</p>
-                <p className="text-2xl font-bold">{formatCurrency(analyticsData.totalRevenue)}</p>
-                <div className="flex items-center mt-2">
-                  <TrendingUp className="w-4 h-4 text-green-500 mr-1" />
-                  <span className="text-sm text-green-500">+12.5%</span>
-                </div>
-              </div>
-              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                <DollarSign className="w-6 h-6 text-green-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Orders</p>
-                <p className="text-2xl font-bold">{formatNumber(analyticsData.totalOrders)}</p>
-                <div className="flex items-center mt-2">
-                  <TrendingUp className="w-4 h-4 text-blue-500 mr-1" />
-                  <span className="text-sm text-blue-500">+8.2%</span>
-                </div>
-              </div>
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <ShoppingCart className="w-6 h-6 text-blue-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">QR Code Scans</p>
-                <p className="text-2xl font-bold">{formatNumber(analyticsData.qrScans)}</p>
-                <div className="flex items-center mt-2">
-                  <TrendingUp className="w-4 h-4 text-purple-500 mr-1" />
-                  <span className="text-sm text-purple-500">+15.3%</span>
-                </div>
-              </div>
-              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                <Eye className="w-6 h-6 text-purple-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Conversion Rate</p>
-                <p className="text-2xl font-bold">{analyticsData.conversionRate}%</p>
-                <div className="flex items-center mt-2">
-                  <TrendingUp className="w-4 h-4 text-orange-500 mr-1" />
-                  <span className="text-sm text-orange-500">+2.1%</span>
-                </div>
-              </div>
-              <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                <BarChart3 className="w-6 h-6 text-orange-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Charts and Details */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Popular Items */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Popular Menu Items</CardTitle>
-            <CardDescription>
-              Top performing items in the last {dateRange === '7d' ? '7 days' : dateRange === '30d' ? '30 days' : '90 days'}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {analyticsData.popularItems.map((item, index) => (
-                <div key={index} className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
-                      <span className="text-sm font-medium text-primary">#{index + 1}</span>
-                    </div>
-                    <div>
-                      <p className="font-medium">{item.name}</p>
-                      <p className="text-sm text-muted-foreground">{item.orders} orders</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-medium">{formatCurrency(item.revenue)}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Customer Insights */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Customer Insights</CardTitle>
-            <CardDescription>
-              Understanding your customer behavior
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Clock className="w-5 h-5 text-muted-foreground" />
-                  <span>Avg. Interaction Time</span>
-                </div>
-                <Badge variant="secondary">{analyticsData.avgInteractionTime}</Badge>
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <DollarSign className="w-5 h-5 text-muted-foreground" />
-                  <span>Avg. Order Value</span>
-                </div>
-                <Badge variant="secondary">{formatCurrency(analyticsData.avgOrderValue)}</Badge>
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Star className="w-5 h-5 text-muted-foreground" />
-                  <span>Customer Satisfaction</span>
-                </div>
-                <Badge variant="secondary">{analyticsData.customerSatisfaction}/5.0</Badge>
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Users className="w-5 h-5 text-muted-foreground" />
-                  <span>Repeat Customers</span>
-                </div>
-                <Badge variant="secondary">68%</Badge>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Performance Summary */}
+      {/* Filters */}
       <Card>
-        <CardHeader>
-          <CardTitle>Performance Summary</CardTitle>
-          <CardDescription>
-            Key insights and recommendations for your restaurant
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="text-center p-4 bg-green-50 rounded-lg">
-              <TrendingUp className="w-8 h-8 text-green-600 mx-auto mb-2" />
-              <h3 className="font-semibold text-green-800">Strong Growth</h3>
-              <p className="text-sm text-green-600 mt-1">
-                Revenue increased by 12.5% compared to last period
-              </p>
+        <CardContent className="p-4 space-y-4">
+          {/* Preset buttons */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {PRESETS.map(p => (
+              <Button
+                key={p.days}
+                variant={activePreset === p.days ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => applyPreset(p.days)}
+                disabled={loading}
+              >
+                {p.label}
+              </Button>
+            ))}
+          </div>
+
+          <Separator />
+
+          {/* Custom date range */}
+          <div className="flex items-end gap-3 flex-wrap">
+            <div className="space-y-1">
+              <Label className="text-xs flex items-center gap-1">
+                <Calendar className="w-3 h-3" /> From
+              </Label>
+              <Input
+                type="date"
+                value={startDate}
+                onChange={e => setStartDate(e.target.value)}
+                className="h-8 text-sm w-40"
+              />
             </div>
-            
-            <div className="text-center p-4 bg-blue-50 rounded-lg">
-              <Eye className="w-8 h-8 text-blue-600 mx-auto mb-2" />
-              <h3 className="font-semibold text-blue-800">High Engagement</h3>
-              <p className="text-sm text-blue-600 mt-1">
-                QR code scans up 15.3%, customers are finding you easily
-              </p>
+            <div className="space-y-1">
+              <Label className="text-xs flex items-center gap-1">
+                <Calendar className="w-3 h-3" /> To
+              </Label>
+              <Input
+                type="date"
+                value={endDate}
+                onChange={e => setEndDate(e.target.value)}
+                className="h-8 text-sm w-40"
+              />
             </div>
-            
-            <div className="text-center p-4 bg-orange-50 rounded-lg">
-              <BarChart3 className="w-8 h-8 text-orange-600 mx-auto mb-2" />
-              <h3 className="font-semibold text-orange-800">Good Conversion</h3>
-              <p className="text-sm text-orange-600 mt-1">
-                14.2% of QR scans result in orders, above industry average
-              </p>
-            </div>
+            <Button size="sm" onClick={applyCustomRange} disabled={loading} className="h-8">
+              Apply
+            </Button>
+            {(startDate || endDate) && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-8 text-muted-foreground"
+                onClick={() => { setStartDate(''); setEndDate(''); applyPreset(30); }}
+              >
+                Clear
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>
+
+      {/* Error state */}
+      {error && (
+        <div className="flex items-start gap-2 text-sm text-destructive bg-destructive/10 rounded-lg p-4">
+          <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Total Revenue */}
+        <Card className="hover:shadow-md transition-shadow">
+          <CardContent className="p-6">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Total Revenue</p>
+                {loading ? (
+                  <div className="h-8 w-32 bg-muted animate-pulse rounded mt-1" />
+                ) : (
+                  <p className="text-2xl font-bold mt-1">
+                    {stats ? formatCurrency(Number(stats.totalRevenue)) : '—'}
+                  </p>
+                )}
+                <p className="text-xs text-muted-foreground mt-2">Paid transactions only</p>
+              </div>
+              <div className="w-11 h-11 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                <DollarSign className="w-5 h-5 text-green-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Transaction Count */}
+        <Card className="hover:shadow-md transition-shadow">
+          <CardContent className="p-6">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Transactions</p>
+                {loading ? (
+                  <div className="h-8 w-20 bg-muted animate-pulse rounded mt-1" />
+                ) : (
+                  <p className="text-2xl font-bold mt-1">
+                    {stats ? formatNumber(stats.transactionCount) : '—'}
+                  </p>
+                )}
+                <p className="text-xs text-muted-foreground mt-2">Completed payments</p>
+              </div>
+              <div className="w-11 h-11 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                <ShoppingCart className="w-5 h-5 text-blue-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Avg Order Value */}
+        <Card className="hover:shadow-md transition-shadow">
+          <CardContent className="p-6">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Avg. Order Value</p>
+                {loading ? (
+                  <div className="h-8 w-28 bg-muted animate-pulse rounded mt-1" />
+                ) : (
+                  <p className="text-2xl font-bold mt-1">
+                    {stats && stats.transactionCount > 0 ? formatCurrency(avgOrderValue) : '—'}
+                  </p>
+                )}
+                <p className="text-xs text-muted-foreground mt-2">Revenue ÷ transactions</p>
+              </div>
+              <div className="w-11 h-11 bg-orange-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                <TrendingUp className="w-5 h-5 text-orange-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Summary card */}
+      {stats && !loading && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <BarChart3 className="w-5 h-5 text-primary" />
+              Summary
+            </CardTitle>
+            <CardDescription>
+              {stats.filters.startDate || stats.filters.endDate ? (
+                <>
+                  {stats.filters.startDate
+                    ? new Date(stats.filters.startDate).toLocaleDateString('vi-VN')
+                    : 'Beginning'}{' '}
+                  →{' '}
+                  {stats.filters.endDate
+                    ? new Date(stats.filters.endDate).toLocaleDateString('vi-VN')
+                    : 'Now'}
+                </>
+              ) : (
+                'All time'
+              )}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="rounded-lg bg-muted/40 p-4 text-center">
+                <p className="text-xs text-muted-foreground mb-1">Restaurant</p>
+                <p className="font-semibold">{stats.restaurant.name}</p>
+              </div>
+              <div className="rounded-lg bg-green-50 dark:bg-green-900/20 p-4 text-center">
+                <p className="text-xs text-muted-foreground mb-1">Total Revenue</p>
+                <p className="font-bold text-green-700 dark:text-green-400">
+                  {formatCurrency(Number(stats.totalRevenue))}
+                </p>
+              </div>
+              <div className="rounded-lg bg-blue-50 dark:bg-blue-900/20 p-4 text-center">
+                <p className="text-xs text-muted-foreground mb-1">Transactions</p>
+                <p className="font-bold text-blue-700 dark:text-blue-400">
+                  {formatNumber(stats.transactionCount)}
+                </p>
+              </div>
+            </div>
+
+            {stats.transactionCount === 0 && (
+              <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground bg-muted/40 rounded-lg p-3">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                No completed payments found for this period.
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

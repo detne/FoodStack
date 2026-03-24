@@ -1,6 +1,6 @@
 /**
  * API Client for FoodStack Backend
- * Handles authentication, request/response interceptors
+ * Handles authentication, token refresh with retry, and request queuing.
  */
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1';
@@ -22,10 +22,21 @@ class ApiClient {
   private baseURL: string;
   private token: string | null = null;
 
+  // Refresh state — prevents concurrent refresh storms
+  private isRefreshing = false;
+  private refreshQueue: Array<(token: string | null) => void> = [];
+
+  // Callback set by AuthContext so the client can trigger a full logout
+  private onForceLogout: (() => void) | null = null;
+
   constructor(baseURL: string) {
     this.baseURL = baseURL;
-    // Always try to load token from localStorage on init
     this.token = localStorage.getItem('access_token');
+  }
+
+  /** Called once by AuthProvider to wire up forced-logout on refresh failure */
+  setForceLogoutCallback(cb: () => void) {
+    this.onForceLogout = cb;
   }
 
   setToken(token: string | null) {
@@ -38,73 +49,144 @@ class ApiClient {
   }
 
   getToken(): string | null {
-    // Always get fresh token from localStorage
     if (!this.token) {
       this.token = localStorage.getItem('access_token');
     }
     return this.token;
   }
 
+  // ─── Token Refresh ────────────────────────────────────────────────────────
+
+  /**
+   * Attempt to refresh the access token using the stored refresh token.
+   * All concurrent callers queue here and receive the same result.
+   */
+  private async attemptRefresh(): Promise<string | null> {
+    // If already refreshing, queue and wait
+    if (this.isRefreshing) {
+      return new Promise((resolve) => {
+        this.refreshQueue.push(resolve);
+      });
+    }
+
+    this.isRefreshing = true;
+
+    try {
+      const refreshToken = localStorage.getItem('refresh_token');
+      if (!refreshToken) throw new Error('No refresh token');
+
+      // DTO expects { refreshToken } (camelCase) — confirmed from src/dto/auth/refresh-token.js
+      const response = await fetch(`${this.baseURL}/auth/refresh-token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken }),
+      });
+
+      if (!response.ok) throw new Error('Refresh failed');
+
+      const data = await response.json();
+
+      if (!data.success || !data.data?.accessToken) throw new Error('Invalid refresh response');
+
+      const newAccessToken: string = data.data.accessToken;
+      const newRefreshToken: string | undefined = data.data.refreshToken;
+
+      // Persist new tokens (backend does rotation — always save new refresh token)
+      this.setToken(newAccessToken);
+      if (newRefreshToken) {
+        localStorage.setItem('refresh_token', newRefreshToken);
+      }
+
+      // Resolve all queued requests with the new token
+      this.refreshQueue.forEach((resolve) => resolve(newAccessToken));
+      this.refreshQueue = [];
+
+      return newAccessToken;
+    } catch (err) {
+      // Refresh failed — flush queue with null and force logout
+      this.refreshQueue.forEach((resolve) => resolve(null));
+      this.refreshQueue = [];
+
+      this.clearSession();
+      this.onForceLogout?.();
+
+      return null;
+    } finally {
+      this.isRefreshing = false;
+    }
+  }
+
+  /** Wipe all auth data from memory and storage */
+  private clearSession() {
+    this.token = null;
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    localStorage.removeItem('user');
+  }
+
+  // ─── Core Request ─────────────────────────────────────────────────────────
+
   private async request<T>(
     endpoint: string,
-    options: RequestInit = {}
+    options: RequestInit = {},
+    _isRetry = false
   ): Promise<ApiResponse<T>> {
-    const headers: HeadersInit = {
+    const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      ...options.headers,
+      ...(options.headers as Record<string, string>),
     };
 
-    // Always get fresh token before making request
     const currentToken = this.getToken();
     if (currentToken) {
       headers['Authorization'] = `Bearer ${currentToken}`;
     }
 
-    try {
-      const response = await fetch(`${this.baseURL}${endpoint}`, {
-        ...options,
-        headers,
-      });
+    const response = await fetch(`${this.baseURL}${endpoint}`, {
+      ...options,
+      headers,
+    });
 
-      const data = await response.json();
+    // ── Happy path ──
+    if (response.ok) {
+      return response.json() as Promise<ApiResponse<T>>;
+    }
 
-      if (!response.ok) {
-        // If unauthorized, clear token
-        if (response.status === 401) {
-          console.error('401 Unauthorized - clearing tokens');
-          this.setToken(null);
-          localStorage.removeItem('user');
-          localStorage.removeItem('refresh_token');
-        }
-        throw data;
+    // ── 401 handling ──
+    if (response.status === 401 && !_isRetry) {
+      const newToken = await this.attemptRefresh();
+
+      if (newToken) {
+        // Retry original request once with the new token
+        return this.request<T>(endpoint, options, true);
       }
 
-      return data;
-    } catch (error: any) {
-      console.error('API Error:', {
-        endpoint,
-        error: error.message || error,
-        status: error.status,
-      });
-      throw error;
+      // Refresh failed — session already cleared, throw to caller
+      throw { success: false, message: 'Session expired. Please log in again.', status: 401 };
     }
+
+    // ── Other errors ──
+    let errorBody: any;
+    try {
+      errorBody = await response.json();
+    } catch {
+      errorBody = { success: false, message: response.statusText };
+    }
+    throw errorBody;
   }
 
-  // Auth endpoints
+  // ─── Auth endpoints ───────────────────────────────────────────────────────
+
   async login(email: string, password: string) {
-    return this.request<{ 
-      accessToken?: string; 
+    return this.request<{
+      accessToken?: string;
       access_token?: string;
       refreshToken?: string;
       refresh_token?: string;
-      user: any 
-    }>(
-      '/auth/login',
-      {
-        method: 'POST',
-        body: JSON.stringify({ email, password }),
-      }
-    );
+      user: any;
+    }>('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    });
   }
 
   async register(data: {
@@ -122,13 +204,6 @@ class ApiClient {
 
   async logout() {
     return this.request('/auth/logout', { method: 'POST' });
-  }
-
-  async refreshToken(refreshToken: string) {
-    return this.request<{ access_token: string }>('/auth/refresh-token', {
-      method: 'POST',
-      body: JSON.stringify({ refresh_token: refreshToken }),
-    });
   }
 
   async forgotPassword(email: string) {
@@ -159,7 +234,8 @@ class ApiClient {
     });
   }
 
-  // Restaurant endpoints
+  // ─── Restaurant endpoints ─────────────────────────────────────────────────
+
   async getRestaurant(id: string) {
     return this.request(`/restaurants/${id}`);
   }
@@ -182,27 +258,24 @@ class ApiClient {
     });
   }
 
-  // Branch endpoints
+  // ─── Branch endpoints ─────────────────────────────────────────────────────
+
   async getBranches(restaurantId?: string) {
-    // If no restaurantId provided, try to get from localStorage
     let finalRestaurantId = restaurantId;
-    
+
     if (!finalRestaurantId) {
       try {
         const userData = localStorage.getItem('user');
         if (userData) {
-          const user = JSON.parse(userData);
-          finalRestaurantId = user?.restaurant?.id;
+          finalRestaurantId = JSON.parse(userData)?.restaurant?.id;
         }
-      } catch (error) {
-        console.error('Error getting restaurant ID from localStorage:', error);
+      } catch {
+        // ignore
       }
     }
-    
-    if (!finalRestaurantId) {
-      throw new Error('Restaurant ID is required');
-    }
-    
+
+    if (!finalRestaurantId) throw new Error('Restaurant ID is required');
+
     return this.request(`/branches?restaurantId=${finalRestaurantId}`);
   }
 
@@ -210,27 +283,28 @@ class ApiClient {
     return this.request(`/branches/${id}`);
   }
 
+  async getBranchStatistics(branchId: string, params?: { from_date?: string; to_date?: string }) {
+    const query = new URLSearchParams();
+    if (params?.from_date) query.append('from_date', params.from_date);
+    if (params?.to_date) query.append('to_date', params.to_date);
+    const qs = query.toString();
+    return this.request(`/branches/${branchId}/statistics${qs ? `?${qs}` : ''}`);
+  }
+
   async createBranch(data: any) {
-    return this.request('/branches', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
+    return this.request('/branches', { method: 'POST', body: JSON.stringify(data) });
   }
 
   async updateBranch(id: string, data: any) {
-    return this.request(`/branches/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    });
+    return this.request(`/branches/${id}`, { method: 'PUT', body: JSON.stringify(data) });
   }
 
   async deleteBranch(id: string) {
-    return this.request(`/branches/${id}`, {
-      method: 'DELETE',
-    });
+    return this.request(`/branches/${id}`, { method: 'DELETE' });
   }
 
-  // Category endpoints
+  // ─── Category endpoints ───────────────────────────────────────────────────
+
   async getCategories(branchId?: string) {
     const query = branchId ? `?branch_id=${branchId}` : '';
     return this.request(`/categories${query}`);
@@ -241,26 +315,19 @@ class ApiClient {
   }
 
   async createCategory(data: any) {
-    return this.request('/categories', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
+    return this.request('/categories', { method: 'POST', body: JSON.stringify(data) });
   }
 
   async updateCategory(id: string, data: any) {
-    return this.request(`/categories/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    });
+    return this.request(`/categories/${id}`, { method: 'PUT', body: JSON.stringify(data) });
   }
 
   async deleteCategory(id: string) {
-    return this.request(`/categories/${id}`, {
-      method: 'DELETE',
-    });
+    return this.request(`/categories/${id}`, { method: 'DELETE' });
   }
 
-  // Menu Item endpoints
+  // ─── Menu Item endpoints ──────────────────────────────────────────────────
+
   async getMenuItems(categoryId?: string) {
     const query = categoryId ? `?categoryId=${categoryId}` : '';
     return this.request(`/menu-items${query}`);
@@ -271,64 +338,44 @@ class ApiClient {
   }
 
   async createMenuItem(data: any) {
-    return this.request('/menu-items', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
+    return this.request('/menu-items', { method: 'POST', body: JSON.stringify(data) });
   }
 
   async updateMenuItem(id: string, data: any) {
-    return this.request(`/menu-items/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    });
+    return this.request(`/menu-items/${id}`, { method: 'PUT', body: JSON.stringify(data) });
   }
 
   async deleteMenuItem(id: string) {
-    return this.request(`/menu-items/${id}`, {
-      method: 'DELETE',
-    });
+    return this.request(`/menu-items/${id}`, { method: 'DELETE' });
   }
 
   async uploadMenuItemImage(menuItemId: string, file: File) {
     const formData = new FormData();
     formData.append('image', file);
 
-    const headers: HeadersInit = {};
-    const currentToken = this.getToken();
-    if (currentToken) {
-      headers['Authorization'] = `Bearer ${currentToken}`;
-    }
+    const doUpload = async (token: string | null) => {
+      const headers: Record<string, string> = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
 
-    try {
-      const response = await fetch(
-        `${this.baseURL}/menu-items/${menuItemId}/image`,
-        {
-          method: 'POST',
-          headers,
-          body: formData,
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          this.setToken(null);
-          localStorage.removeItem('user');
-          localStorage.removeItem('refresh_token');
-        }
-        throw data;
-      }
-
-      return data;
-    } catch (error: any) {
-      console.error('Upload error:', {
-        endpoint: `/menu-items/${menuItemId}/image`,
-        error: error.message || error,
+      const response = await fetch(`${this.baseURL}/menu-items/${menuItemId}/image`, {
+        method: 'POST',
+        headers,
+        body: formData,
       });
-      throw error;
+
+      return { response, data: await response.json() };
+    };
+
+    let { response, data } = await doUpload(this.getToken());
+
+    if (response.status === 401) {
+      const newToken = await this.attemptRefresh();
+      if (!newToken) throw { success: false, message: 'Session expired. Please log in again.' };
+      ({ response, data } = await doUpload(newToken));
     }
+
+    if (!response.ok) throw data;
+    return data;
   }
 
   async updateMenuItemAvailability(menuItemId: string, available: boolean) {
@@ -338,6 +385,37 @@ class ApiClient {
     });
   }
 
+  async importMenuItems(rows: Array<Record<string, any>>) {
+    return this.request<{
+      total: number;
+      succeeded: number;
+      failed: number;
+      errors: Array<{ row: number; message: string }>;
+      items: any[];
+    }>('/menu-items/import', {
+      method: 'POST',
+      body: JSON.stringify({ rows }),
+    });
+  }
+
+  async getPaymentStatistics(params: {
+    restaurantId?: string;
+    startDate?: string;
+    endDate?: string;
+  }) {
+    const query = new URLSearchParams();
+    if (params.restaurantId) query.append('restaurantId', params.restaurantId);
+    if (params.startDate) query.append('startDate', params.startDate);
+    if (params.endDate) query.append('endDate', params.endDate);
+    const qs = query.toString();
+    return this.request<{
+      restaurant: { id: string; name: string };
+      filters: { startDate: string | null; endDate: string | null };
+      totalRevenue: number;
+      transactionCount: number;
+    }>(`/payments/statistics${qs ? `?${qs}` : ''}`);
+  }
+
   async updateBranchAvailability(menuItemId: string, available: boolean, reason?: string) {
     return this.request(`/menu-items/${menuItemId}/branch-availability`, {
       method: 'PATCH',
@@ -345,7 +423,8 @@ class ApiClient {
     });
   }
 
-  // Public endpoints
+  // ─── Public endpoints ─────────────────────────────────────────────────────
+
   async getTableByQR(qrToken: string) {
     return this.request(`/public/tables/${qrToken}`);
   }
@@ -358,7 +437,8 @@ class ApiClient {
     return this.request(`/public/menu-items/${itemId}/customizations`);
   }
 
-  // Customer Order endpoints
+  // ─── Customer Order endpoints ─────────────────────────────────────────────
+
   async createOrderSession(qrToken: string, customerCount: number = 1) {
     return this.request('/customer-orders/sessions', {
       method: 'POST',
@@ -384,7 +464,8 @@ class ApiClient {
     });
   }
 
-  // Table endpoints
+  // ─── Table endpoints ──────────────────────────────────────────────────────
+
   async getTablesByBranch(branchId: string) {
     return this.request(`/branches/${branchId}/tables`);
   }
@@ -396,7 +477,8 @@ class ApiClient {
     });
   }
 
-  // Reservation endpoints
+  // ─── Reservation endpoints ────────────────────────────────────────────────
+
   async getReservations(params?: { branchId?: string; status?: string; date?: string; page?: number; limit?: number }) {
     const query = new URLSearchParams();
     if (params?.branchId) query.append('branchId', params.branchId);
@@ -404,9 +486,8 @@ class ApiClient {
     if (params?.date) query.append('date', params.date);
     if (params?.page) query.append('page', params.page.toString());
     if (params?.limit) query.append('limit', params.limit.toString());
-    
-    const queryString = query.toString();
-    return this.request(`/reservations${queryString ? '?' + queryString : ''}`);
+    const qs = query.toString();
+    return this.request(`/reservations${qs ? `?${qs}` : ''}`);
   }
 
   async getReservationDetails(id: string) {
@@ -414,35 +495,23 @@ class ApiClient {
   }
 
   async createReservation(data: any) {
-    return this.request('/reservations', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
+    return this.request('/reservations', { method: 'POST', body: JSON.stringify(data) });
   }
 
   async updateReservation(id: string, data: any) {
-    return this.request(`/reservations/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    });
+    return this.request(`/reservations/${id}`, { method: 'PUT', body: JSON.stringify(data) });
   }
 
   async cancelReservation(id: string) {
-    return this.request(`/reservations/${id}/cancel`, {
-      method: 'POST',
-    });
+    return this.request(`/reservations/${id}/cancel`, { method: 'POST' });
   }
 
   async confirmReservation(id: string) {
-    return this.request(`/reservations/${id}/confirm`, {
-      method: 'POST',
-    });
+    return this.request(`/reservations/${id}/confirm`, { method: 'POST' });
   }
 
   async completeReservation(id: string) {
-    return this.request(`/reservations/${id}/complete`, {
-      method: 'POST',
-    });
+    return this.request(`/reservations/${id}/complete`, { method: 'POST' });
   }
 
   async assignTableToReservation(id: string, tableId: string) {
@@ -462,63 +531,98 @@ class ApiClient {
     return this.request(`/reservations/check-availability?${query.toString()}`);
   }
 
-  // Organized API methods
+  // ─── Order endpoints (Staff) ──────────────────────────────────────────────
+
+  async getOrderDetails(orderId: string) {
+    return this.request<any>(`/orders/${orderId}`);
+  }
+
+  async getOrdersByBranch(
+    branchId: string,
+    options?: { roundStatus?: string; page?: number; limit?: number }
+  ) {
+    const query = new URLSearchParams();
+    if (options?.roundStatus && options.roundStatus !== 'all')
+      query.append('roundStatus', options.roundStatus.toUpperCase());
+    if (options?.page) query.append('page', options.page.toString());
+    if (options?.limit) query.append('limit', options.limit.toString());
+    const qs = query.toString();
+    return this.request<{
+      orders: any[];
+      pagination: { page: number; limit: number; total: number; total_pages: number };
+      branch: { id: string; name: string };
+    }>(`/orders/branch/${branchId}/active${qs ? `?${qs}` : ''}`);
+  }
+
+  async getCompletedOrdersByBranch(branchId: string, options?: { page?: number; limit?: number }) {
+    const query = new URLSearchParams();
+    if (options?.page) query.append('page', options.page.toString());
+    if (options?.limit) query.append('limit', options.limit.toString());
+    const qs = query.toString();
+    return this.request<{
+      orders: any[];
+      pagination: { page: number; limit: number; total: number; total_pages: number };
+      branch: { id: string; name: string };
+    }>(`/orders/branch/${branchId}/completed${qs ? `?${qs}` : ''}`);
+  }
+
+  async getCheckoutPreview(orderId: string, qrToken: string) {
+    return this.request<any>(`/payments/checkout-preview?orderId=${orderId}&qrToken=${qrToken}`);
+  }
+
+  async processPayment(data: { orderId: string; qrToken: string; method: 'CASH' | 'QR_PAY' }) {
+    return this.request<any>('/payments/process', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async confirmCashPayment(paymentId: string) {
+    return this.request<any>(`/payments/${paymentId}/confirm-cash`, { method: 'POST' });
+  }
+
+  async updateRoundStatus(orderId: string, roundId: string, status: string) {
+    return this.request(`/orders/${orderId}/rounds/${roundId}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    });
+  }
+
+  async markItemServed(orderId: string, roundId: string, itemId: string) {
+    return this.request(`/orders/${orderId}/rounds/${roundId}/items/${itemId}/served`, {
+      method: 'PUT',
+    });
+  }
+
+  async updateOrderStatus(orderId: string, status: string) {
+    return this.request(`/orders/${orderId}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    });
+  }
+
+  // ─── Organised helpers ────────────────────────────────────────────────────
+
   reservations = {
-    list: (branchId: string) => {
-      return this.request(`/reservations?branchId=${branchId}`);
-    },
-    
-    create: (branchId: string, data: any) => {
-      return this.request(`/reservations`, {
-        method: 'POST',
-        body: JSON.stringify({ ...data, branch_id: branchId }),
-      });
-    },
-    
-    updateStatus: (branchId: string, id: string, status: string) => {
-      return this.request(`/reservations/${id}`, {
-        method: 'PUT',
-        body: JSON.stringify({ status }),
-      });
-    },
-    
-    assignTable: (branchId: string, id: string, tableId: string) => {
-      return this.request(`/reservations/${id}/assign-table`, {
-        method: 'PATCH',
-        body: JSON.stringify({ tableId }),
-      });
-    },
-    
-    complete: (branchId: string, id: string) => {
-      return this.request(`/reservations/${id}/complete`, {
-        method: 'POST',
-      });
-    },
-    
-    confirm: (branchId: string, id: string) => {
-      return this.request(`/reservations/${id}/confirm`, {
-        method: 'POST',
-      });
-    },
-    
-    cancel: (branchId: string, id: string) => {
-      return this.request(`/reservations/${id}/cancel`, {
-        method: 'POST',
-      });
-    },
+    list: (branchId: string) => this.request(`/reservations?branchId=${branchId}`),
+    create: (branchId: string, data: any) =>
+      this.request('/reservations', { method: 'POST', body: JSON.stringify({ ...data, branch_id: branchId }) }),
+    updateStatus: (_branchId: string, id: string, status: string) =>
+      this.request(`/reservations/${id}`, { method: 'PUT', body: JSON.stringify({ status }) }),
+    assignTable: (_branchId: string, id: string, tableId: string) =>
+      this.request(`/reservations/${id}/assign-table`, { method: 'PATCH', body: JSON.stringify({ tableId }) }),
+    complete: (_branchId: string, id: string) =>
+      this.request(`/reservations/${id}/complete`, { method: 'POST' }),
+    confirm: (_branchId: string, id: string) =>
+      this.request(`/reservations/${id}/confirm`, { method: 'POST' }),
+    cancel: (_branchId: string, id: string) =>
+      this.request(`/reservations/${id}/cancel`, { method: 'POST' }),
   };
 
   tables = {
-    list: (branchId: string) => {
-      return this.request(`/branches/${branchId}/tables`);
-    },
-    
-    updateStatus: (branchId: string, id: string, status: string) => {
-      return this.request(`/tables/${id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ status }),
-      });
-    },
+    list: (branchId: string) => this.request(`/branches/${branchId}/tables`),
+    updateStatus: (_branchId: string, id: string, status: string) =>
+      this.request(`/tables/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }),
   };
 }
 

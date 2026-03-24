@@ -21,6 +21,13 @@ function createMenuItemRoutes(menuItemController, authMiddleware) {
     (req, res, next) => menuItemController.search(req, res, next)
   );
 
+  // POST /api/v1/menu-items/import - Bulk import from parsed Excel rows (Owner only)
+  router.post(
+    '/import',
+    authMiddleware,
+    (req, res, next) => menuItemController.importItems(req, res, next)
+  );
+
   // POST /api/v1/menu-items - Create menu item
   router.post(
     '/',

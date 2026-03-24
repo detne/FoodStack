@@ -13,6 +13,7 @@ import { toast } from '@/components/ui/use-toast';
 import { apiClient } from '@/lib/api-client';
 import AddMenuItemDialog from '@/components/AddMenuItemDialog';
 import EditMenuItemDialog from '@/components/EditMenuItemDialog';
+import ImportMenuDialog from '@/components/ImportMenuDialog';
 
 interface MenuItem {
   id: string;
@@ -48,6 +49,7 @@ export default function OwnerMenuManagement() {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
+  const [showImportDialog, setShowImportDialog] = useState(false);
   const [uploadingItemId, setUploadingItemId] = useState<string | null>(null);
 
   // Fetch data from backend
@@ -375,10 +377,16 @@ export default function OwnerMenuManagement() {
             Manage your restaurant's menu items and categories
           </p>
         </div>
-        <Button className="bg-orange-600 hover:bg-orange-700 gap-2 shadow-lg hover:shadow-xl transition-all duration-300" onClick={() => setShowAddDialog(true)}>
-          <Plus className="h-5 w-5" />
-          Add Menu Item
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" className="gap-2 border-orange-300 text-orange-700 hover:bg-orange-50 dark:hover:bg-orange-900/20" onClick={() => setShowImportDialog(true)}>
+            <Upload className="h-4 w-4" />
+            Import Excel
+          </Button>
+          <Button className="bg-orange-600 hover:bg-orange-700 gap-2 shadow-lg hover:shadow-xl transition-all duration-300" onClick={() => setShowAddDialog(true)}>
+            <Plus className="h-5 w-5" />
+            Add Menu Item
+          </Button>
+        </div>
       </div>
 
       <div className="flex gap-6">
@@ -656,6 +664,16 @@ export default function OwnerMenuManagement() {
         }}
         categories={categories}
         item={editingItem}
+      />
+
+      {/* Import Menu Dialog */}
+      <ImportMenuDialog
+        isOpen={showImportDialog}
+        onClose={() => setShowImportDialog(false)}
+        onSuccess={() => {
+          setShowImportDialog(false);
+          fetchData();
+        }}
       />
     </div>
   );

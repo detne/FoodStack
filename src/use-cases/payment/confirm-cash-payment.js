@@ -86,6 +86,11 @@ class ConfirmCashPaymentUseCase {
         tx
       );
 
+      // Free up the table
+      if (order.table_id) {
+        await this.orderRepository.updateTableStatus(order.table_id, 'AVAILABLE', tx);
+      }
+
       return paidPayment;
     });
 

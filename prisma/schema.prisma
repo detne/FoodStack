@@ -232,17 +232,34 @@ model order_item_customizations {
   @@map("order_item_customizations")
 }
 
+model order_rounds {
+  id          String        @id @default(auto()) @map("_id") @db.ObjectId
+  order_id    String        @db.ObjectId
+  round_number Int          @default(1)
+  status      String        @default("PENDING")
+  notes       String?
+  created_at  DateTime      @default(now())
+  updated_at  DateTime      @updatedAt
+  orders      orders        @relation(fields: [order_id], references: [id])
+  order_items order_items[]
+
+  @@map("order_rounds")
+}
+
 model order_items {
-  id           String     @id @default(auto()) @map("_id") @db.ObjectId
-  order_id     String     @db.ObjectId
-  menu_item_id String     @db.ObjectId
+  id           String        @id @default(auto()) @map("_id") @db.ObjectId
+  order_id     String        @db.ObjectId
+  round_id     String?       @db.ObjectId
+  menu_item_id String        @db.ObjectId
   quantity     Int
   price        Float
   subtotal     Float
   notes        String?
-  created_at   DateTime   @default(now())
-  menu_items   menu_items @relation(fields: [menu_item_id], references: [id])
-  orders       orders     @relation(fields: [order_id], references: [id])
+  status       String        @default("PENDING")
+  created_at   DateTime      @default(now())
+  menu_items   menu_items    @relation(fields: [menu_item_id], references: [id])
+  orders       orders        @relation(fields: [order_id], references: [id])
+  order_rounds order_rounds? @relation(fields: [round_id], references: [id])
 
   @@map("order_items")
 }
@@ -268,7 +285,7 @@ model orders {
   table_id            String        @db.ObjectId
   session_id          String?       @db.ObjectId
   order_number        String        @unique
-  status              String        @default("PENDING")
+  status              String        @default("ACTIVE")
   subtotal            Float
   tax                 Float
   service_charge      Float         @default(0)
@@ -280,6 +297,7 @@ model orders {
   created_at          DateTime      @default(now())
   updated_at          DateTime      @updatedAt
   order_items         order_items[]
+  order_rounds        order_rounds[]
   branches            branches      @relation(fields: [branch_id], references: [id])
   tables              tables        @relation(fields: [table_id], references: [id])
   payments            payments?
@@ -293,9 +311,9 @@ model payments {
   amount          Float
   method          String
   status          String     @default("PENDING")
-  transaction_ref String?    @unique
+  transaction_ref String?
   payos_data      Json?
-  idempotency_key String     @unique
+  idempotency_key String?
   created_at      DateTime   @default(now())
   updated_at      DateTime
   invoices        invoices[]

@@ -1,9 +1,11 @@
 /**
  * Authentication Context
- * Manages user authentication state and provides auth methods
+ * Manages user authentication state and provides auth methods.
+ * Wires up apiClient's force-logout callback so token refresh failures
+ * automatically clear the session and redirect to login.
  */
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { apiClient } from '@/lib/api-client';
 import { useNavigate } from 'react-router-dom';
 
@@ -11,10 +13,10 @@ interface User {
   id: string;
   email: string;
   fullName: string;
-  full_name?: string; // For backward compatibility
+  full_name?: string;
   role: string;
   restaurantId?: string;
-  branchId?: string; // Add branchId
+  branchId?: string;
   restaurant?: {
     id: string;
     name: string;
@@ -36,18 +38,38 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const navigate = useNavigate();
 
+  // ── Shared logout logic (also called by apiClient on refresh failure) ──
+  const clearSession = useCallback(async (callApi = false) => {
+    if (callApi) {
+      try { await apiClient.logout(); } catch { /* ignore */ }
+    }
+    apiClient.setToken(null);
+    localStorage.removeItem('refresh_token');
+    localStorage.removeItem('user');
+    setUser(null);
+  }, []);
+
+  // Wire up the force-logout callback once on mount
   useEffect(() => {
-    // Check if user is already logged in
+    apiClient.setForceLogoutCallback(() => {
+      clearSession(false);
+      navigate('/login', { replace: true });
+    });
+  }, [clearSession, navigate]);
+
+  // Restore session from localStorage on mount
+  useEffect(() => {
     const token = apiClient.getToken();
     if (token) {
-      // Try to restore user from localStorage
       const savedUser = localStorage.getItem('user');
       if (savedUser) {
         try {
           setUser(JSON.parse(savedUser));
-        } catch (error) {
-          console.error('Error parsing saved user:', error);
+        } catch {
+          // corrupted — clear it
+          localStorage.removeItem('user');
         }
       }
     }
@@ -55,79 +77,52 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = async (email: string, password: string) => {
-    try {
-      const response = await apiClient.login(email, password);
-      
-      if (response.success && response.data) {
-        const { accessToken, access_token, refreshToken, refresh_token, user: userData } = response.data;
-        
-        // Handle both accessToken and access_token formats
-        const token = accessToken || access_token;
-        const refreshTokenValue = refreshToken || refresh_token;
-        
-        if (!token) {
-          throw new Error('No access token received from server');
-        }
-        
-        // Normalize user data
-        const normalizedUser: User = {
-          id: userData.id,
-          email: userData.email,
-          fullName: userData.fullName,
-          full_name: userData.fullName, // For backward compatibility
-          role: userData.role,
-          restaurantId: userData.restaurantId,
-          branchId: userData.branchId, // Add branchId
-          restaurant: userData.restaurant,
-        };
-        
-        apiClient.setToken(token);
-        console.log('Token set in apiClient:', token ? 'Success' : 'Failed');
-        
-        if (refreshTokenValue) {
-          localStorage.setItem('refresh_token', refreshTokenValue);
-        }
-        localStorage.setItem('user', JSON.stringify(normalizedUser));
-        console.log('User saved to localStorage:', normalizedUser);
-        
-        // Save branch_id for staff/manager
-        if (userData.branchId) {
-          localStorage.setItem('selected_branch_id', userData.branchId);
-          console.log('Branch ID saved to localStorage:', userData.branchId);
-        }
-        
-        setUser(normalizedUser);
-        
-        return normalizedUser;
+    const response = await apiClient.login(email, password);
+
+    if (response.success && response.data) {
+      const { accessToken, access_token, refreshToken, refresh_token, user: userData } = response.data;
+
+      const token = accessToken || access_token;
+      const refreshTokenValue = refreshToken || refresh_token;
+
+      if (!token) throw new Error('No access token received from server');
+
+      const normalizedUser: User = {
+        id: userData.id,
+        email: userData.email,
+        fullName: userData.fullName,
+        full_name: userData.fullName,
+        role: userData.role,
+        restaurantId: userData.restaurantId,
+        branchId: userData.branchId,
+        restaurant: userData.restaurant,
+      };
+
+      apiClient.setToken(token);
+
+      if (refreshTokenValue) {
+        localStorage.setItem('refresh_token', refreshTokenValue);
       }
-    } catch (error: any) {
-      console.error('Login error:', error);
-      throw new Error(error.message || 'Login failed');
+      localStorage.setItem('user', JSON.stringify(normalizedUser));
+
+      if (userData.branchId) {
+        localStorage.setItem('selected_branch_id', userData.branchId);
+      }
+
+      setUser(normalizedUser);
+      return normalizedUser;
     }
   };
 
   const logout = async () => {
-    try {
-      await apiClient.logout();
-    } catch (error) {
-      console.error('Logout error:', error);
-    } finally {
-      apiClient.setToken(null);
-      localStorage.removeItem('refresh_token');
-      localStorage.removeItem('user');
-      setUser(null);
-    }
+    await clearSession(true);
+    navigate('/login', { replace: true });
   };
 
   const register = async (data: any) => {
-    try {
-      const response = await apiClient.register(data);
-      if (response.success && response.data) {
-        // Auto login after registration
-        setUser(response.data.user);
-      }
-    } catch (error: any) {
-      throw new Error(error.message || 'Registration failed');
+    const response = await apiClient.register(data);
+    if (response.success && response.data) {
+      setUser(response.data.user);
     }
   };
 

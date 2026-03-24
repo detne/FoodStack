@@ -9,6 +9,30 @@ class PaymentRepository {
     return tx || this.prisma;
   }
 
+  // Creates or updates the single payment record for an order (1 row per order)
+  async upsertByOrderId(data, tx) {
+    const client = this.getClient(tx);
+    const payload = {
+      amount: new Prisma.Decimal(data.amount),
+      method: data.method || 'QR_PAY',
+      status: data.status || 'PENDING',
+      transaction_ref: data.transactionRef || null,
+      payos_data: data.payosData || {},
+      idempotency_key: data.idempotencyKey || null,
+      updated_at: new Date(),
+    };
+
+    return client.payments.upsert({
+      where: { order_id: data.orderId },
+      update: payload,
+      create: {
+        order_id: data.orderId,
+        ...payload,
+        created_at: new Date(),
+      },
+    });
+  }
+
   async create(data, tx) {
     const client = this.getClient(tx);
 
@@ -27,6 +51,26 @@ class PaymentRepository {
     });
   }
 
+  // Creates a new payment or resets an existing FAILED one (avoids unique constraint on order_id)
+  async createOrReset(data, existingId, tx) {
+    const client = this.getClient(tx);
+    const payload = {
+      order_id: data.orderId,
+      amount: new Prisma.Decimal(data.amount),
+      method: data.method || 'QR_PAY',
+      status: data.status || 'PENDING',
+      transaction_ref: data.transactionRef || null,
+      payos_data: data.payosData || {},
+      idempotency_key: data.idempotencyKey || null,
+      updated_at: new Date(),
+    };
+
+    if (existingId) {
+      return client.payments.update({ where: { id: existingId }, data: payload });
+    }
+    return client.payments.create({ data: { ...payload, created_at: new Date() } });
+  }
+
   async findByTransactionRef(transactionRef, tx) {
     const client = this.getClient(tx);
 
@@ -39,7 +83,7 @@ class PaymentRepository {
     const client = this.getClient(tx);
 
     return client.payments.findFirst({
-      where: { order_id: orderId },
+      where: { order_id: orderId, status: { not: 'CANCELLED' } },
       orderBy: { created_at: 'desc' },
     });
   }
@@ -153,15 +197,21 @@ class PaymentRepository {
   async findByPayOSOrderCode(orderCode, tx) {
     const client = this.getClient(tx);
 
-    const rows = await client.$queryRaw`
-      SELECT *
-      FROM payments
-      WHERE payos_data ->> 'orderCode' = ${String(orderCode)}
-      ORDER BY created_at DESC
-      LIMIT 1
-    `;
+    // MongoDB + Prisma doesn't support JSON path queries.
+    // Filter by method=QR_PAY and recent records, then match in JS.
+    // For scale: consider adding payos_order_code as a dedicated field.
+    const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000); // last 7 days
+    const payments = await client.payments.findMany({
+      where: {
+        method: 'QR_PAY',
+        created_at: { gte: since },
+      },
+      orderBy: { created_at: 'desc' },
+    });
 
-    return rows[0] || null;
+    return payments.find(
+      (p) => String(p.payos_data?.orderCode) === String(orderCode)
+    ) || null;
   }
 
   async findByIdempotencyKey(idempotencyKey, tx) {
