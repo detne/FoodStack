@@ -174,6 +174,29 @@ class ApiClient {
     throw errorBody;
   }
 
+  // Convenience methods for cleaner API calls
+  async get<T>(endpoint: string): Promise<ApiResponse<T>> {
+    return this.request<T>(endpoint, { method: 'GET' });
+  }
+
+  async post<T>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
+    return this.request<T>(endpoint, {
+      method: 'POST',
+      body: data ? JSON.stringify(data) : undefined,
+    });
+  }
+
+  async put<T>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
+    return this.request<T>(endpoint, {
+      method: 'PUT',
+      body: data ? JSON.stringify(data) : undefined,
+    });
+  }
+
+  async delete<T>(endpoint: string): Promise<ApiResponse<T>> {
+    return this.request<T>(endpoint, { method: 'DELETE' });
+  }
+
   // ─── Auth endpoints ───────────────────────────────────────────────────────
 
   async login(email: string, password: string) {
@@ -204,34 +227,6 @@ class ApiClient {
 
   async logout() {
     return this.request('/auth/logout', { method: 'POST' });
-  }
-
-  async forgotPassword(email: string) {
-    return this.request('/auth/forgot-password', {
-      method: 'POST',
-      body: JSON.stringify({ email }),
-    });
-  }
-
-  async resetPassword(token: string, password: string) {
-    return this.request('/auth/reset-password', {
-      method: 'POST',
-      body: JSON.stringify({ token, password }),
-    });
-  }
-
-  async changePassword(currentPassword: string, newPassword: string) {
-    return this.request('/auth/change-password', {
-      method: 'POST',
-      body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
-    });
-  }
-
-  async verifyEmailOtp(email: string, otp: string) {
-    return this.request('/auth/verify-email-otp', {
-      method: 'POST',
-      body: JSON.stringify({ email, otp }),
-    });
   }
 
   // ─── Restaurant endpoints ─────────────────────────────────────────────────

@@ -43,7 +43,7 @@ interface Category {
 interface EditMenuItemDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (updatedItem?: MenuItem) => void;
   categories: Category[];
   item: MenuItem | null;
 }
@@ -149,11 +149,21 @@ export default function EditMenuItemDialog({
       const response = await apiClient.updateMenuItem(item.id, updateData);
       
       if (response.success) {
+        let finalData = response.data;
+        
         // If new image selected, upload it
         if (imageFile) {
           try {
             const uploadResponse = await apiClient.uploadMenuItemImage(item.id, imageFile);
-            if (!uploadResponse.success) {
+            if (uploadResponse.success && uploadResponse.data?.imageUrl) {
+              // Update response data with new image URL
+              finalData = {
+                ...response.data,
+                imageUrl: uploadResponse.data.imageUrl,
+                image_url: uploadResponse.data.imageUrl, // Also set snake_case for compatibility
+              };
+              console.log('Image uploaded successfully:', uploadResponse.data.imageUrl);
+            } else {
               toast({
                 title: "Warning",
                 description: "Menu item updated but image upload failed",
@@ -162,6 +172,11 @@ export default function EditMenuItemDialog({
             }
           } catch (uploadError) {
             console.error('Image upload error:', uploadError);
+            toast({
+              title: "Warning",
+              description: "Menu item updated but image upload failed",
+              variant: "destructive",
+            });
           }
         }
         
@@ -170,7 +185,8 @@ export default function EditMenuItemDialog({
           description: "Menu item updated successfully!",
         });
         
-        onSuccess();
+        // Pass updated item data to parent
+        onSuccess(finalData);
         onClose();
       } else {
         throw new Error(response.message || 'Failed to update menu item');

@@ -50,6 +50,7 @@ export default function CustomerMenu() {
   const tableId = searchParams.get('table');
   const branchId = searchParams.get('branch');
   const qrToken = searchParams.get('qr_token');
+  const isPreview = searchParams.get('preview') === 'true';
 
   const [loading, setLoading] = useState(true);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -59,14 +60,24 @@ export default function CustomerMenu() {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
   useEffect(() => {
-    if (!tableId || !branchId || !qrToken) {
-      setError('Invalid access. Please scan the QR code again.');
-      setLoading(false);
-      return;
+    // In preview mode, only branchId is required
+    if (isPreview) {
+      if (!branchId) {
+        setError('Branch ID is required for preview');
+        setLoading(false);
+        return;
+      }
+    } else {
+      // Normal mode requires all parameters
+      if (!tableId || !branchId || !qrToken) {
+        setError('Invalid access. Please scan the QR code again.');
+        setLoading(false);
+        return;
+      }
     }
 
     loadMenu();
-  }, [tableId, branchId, qrToken]);
+  }, [tableId, branchId, qrToken, isPreview]);
 
   const loadMenu = async () => {
     try {
@@ -143,13 +154,26 @@ export default function CustomerMenu() {
       return;
     }
 
+    // In preview mode, show a message instead of navigating
+    if (isPreview) {
+      toast({
+        title: 'Preview Mode',
+        description: 'This is a preview. Ordering is disabled.',
+      });
+      return;
+    }
+
     navigate(`/customer/order?table=${tableId}&branch=${branchId}&qr_token=${qrToken}`, {
       state: { cart }
     });
   };
 
   const handleGoBack = () => {
-    navigate(`/t/${qrToken}`);
+    if (isPreview) {
+      navigate(-1); // Go back to preview page
+    } else {
+      navigate(`/t/${qrToken}`);
+    }
   };
 
   const filteredCategories = categories
@@ -205,7 +229,14 @@ export default function CustomerMenu() {
             <Button onClick={handleGoBack} variant="ghost" size="sm" className="p-2">
               <ArrowLeft className="h-5 w-5" />
             </Button>
-            <h1 className="text-lg md:text-xl font-bold">Menu</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-lg md:text-xl font-bold">Menu</h1>
+              {isPreview && (
+                <Badge variant="secondary" className="bg-purple-100 text-purple-700">
+                  Preview
+                </Badge>
+              )}
+            </div>
             <Button variant="ghost" size="sm" className="p-2">
               <Search className="h-5 w-5" />
             </Button>

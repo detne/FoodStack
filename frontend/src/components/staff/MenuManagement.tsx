@@ -292,9 +292,9 @@ export default function StaffMenuManagement() {
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 relative">
         {/* Menu Items */}
-        <div className="lg:col-span-3 space-y-6">
+        <div className="lg:col-span-3 space-y-6 lg:pr-6">
           {categorizedItems.map((category, categoryIndex) => (
             <div key={category.id} className="animate-in slide-in-from-left" style={{ animationDelay: `${categoryIndex * 100}ms` }}>
               {/* Category Header */}
@@ -360,7 +360,7 @@ export default function StaffMenuManagement() {
         </div>
 
         {/* Categories Sidebar */}
-        <div className="space-y-4 animate-in slide-in-from-right duration-700">
+        <div className="lg:sticky lg:top-6 lg:self-start space-y-4 animate-in slide-in-from-right duration-700 lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto">
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">Categories</CardTitle>

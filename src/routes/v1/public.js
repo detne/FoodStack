@@ -47,6 +47,28 @@ async function getTableByQR(req, res) {
       });
     }
 
+    // Get restaurant branding using brandingRepository
+    let branding = null;
+    try {
+      const restaurantId = table.areas.branches.restaurant_id;
+      
+      // Use brandingRepository if available
+      if (req.brandingRepository) {
+        const brandingDoc = await req.brandingRepository.getRestaurantBranding(restaurantId);
+        if (brandingDoc) {
+          branding = {
+            brandName: brandingDoc.brandName,
+            tagline: brandingDoc.tagline,
+            logoUrl: brandingDoc.logoUrl,
+            bannerUrl: brandingDoc.bannerUrl
+          };
+        }
+      }
+    } catch (brandingError) {
+      console.error('Error fetching branding:', brandingError);
+      // Continue without branding data
+    }
+
     res.json({
       success: true,
       data: {
@@ -63,13 +85,16 @@ async function getTableByQR(req, res) {
         branch: {
           id: table.areas.branches.id,
           name: table.areas.branches.name,
-          restaurant_id: table.areas.branches.restaurant_id
+          restaurant_id: table.areas.branches.restaurant_id,
+          address: table.areas.branches.address,
+          phone: table.areas.branches.phone
         },
         restaurant: {
           id: table.areas.branches.restaurants.id,
           name: table.areas.branches.restaurants.name,
           logo_url: table.areas.branches.restaurants.logo_url
-        }
+        },
+        branding: branding
       }
     });
 
@@ -201,16 +226,17 @@ async function getItemCustomizations(req, res) {
   }
 }
 
-// Middleware to inject Prisma
-function injectPrisma(prisma) {
+// Middleware to inject dependencies
+function injectDependencies(prisma, brandingRepository) {
   return (req, res, next) => {
     req.prisma = prisma;
+    req.brandingRepository = brandingRepository;
     next();
   };
 }
 
-function createPublicRoutes(prisma) {
-  router.use(injectPrisma(prisma));
+function createPublicRoutes(prisma, brandingRepository = null) {
+  router.use(injectDependencies(prisma, brandingRepository));
   
   router.get('/tables/:qr_token', getTableByQR);
   router.get('/branches/:branch_id/menu', getPublicMenu);
