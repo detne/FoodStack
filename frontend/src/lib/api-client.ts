@@ -45,7 +45,7 @@ class ApiClient {
     return this.token;
   }
 
-  private async request<T>(
+  private async _request<T>(
     endpoint: string,
     options: RequestInit = {}
   ): Promise<ApiResponse<T>> {
@@ -69,12 +69,62 @@ class ApiClient {
       const data = await response.json();
 
       if (!response.ok) {
-        // If unauthorized, clear token
+        // If unauthorized, try to refresh token
         if (response.status === 401) {
-          console.error('401 Unauthorized - clearing tokens');
+          console.log('401 Unauthorized - attempting token refresh');
+          
+          const refreshToken = localStorage.getItem('refresh_token');
+          if (refreshToken) {
+            try {
+              // Try to refresh the token
+              const refreshResponse = await fetch(`${this.baseURL}/auth/refresh-token`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ refreshToken }),
+              });
+
+              if (refreshResponse.ok) {
+                const refreshData = await refreshResponse.json();
+                if (refreshData.success && refreshData.data?.accessToken) {
+                  // Update tokens
+                  this.setToken(refreshData.data.accessToken);
+                  if (refreshData.data.refreshToken) {
+                    localStorage.setItem('refresh_token', refreshData.data.refreshToken);
+                  }
+                  
+                  console.log('Token refreshed successfully, retrying request');
+                  
+                  // Retry the original request with new token
+                  headers['Authorization'] = `Bearer ${refreshData.data.accessToken}`;
+                  const retryResponse = await fetch(`${this.baseURL}${endpoint}`, {
+                    ...options,
+                    headers,
+                  });
+                  
+                  const retryData = await retryResponse.json();
+                  if (retryResponse.ok) {
+                    return retryData;
+                  }
+                  throw retryData;
+                }
+              }
+            } catch (refreshError) {
+              console.error('Token refresh failed:', refreshError);
+            }
+          }
+          
+          // If refresh failed or no refresh token, clear everything
+          console.error('Token refresh failed - clearing tokens');
           this.setToken(null);
           localStorage.removeItem('user');
           localStorage.removeItem('refresh_token');
+          
+          // Redirect to login if not already there
+          if (!window.location.pathname.includes('/login')) {
+            window.location.href = '/login';
+          }
         }
         throw data;
       }
@@ -90,9 +140,37 @@ class ApiClient {
     }
   }
 
+  // Public request method for external use
+  async request<T>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
+    return this._request<T>(endpoint, options);
+  }
+
+  // Convenience methods
+  async get<T>(endpoint: string): Promise<ApiResponse<T>> {
+    return this._request<T>(endpoint, { method: 'GET' });
+  }
+
+  async post<T>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
+    return this._request<T>(endpoint, {
+      method: 'POST',
+      body: data ? JSON.stringify(data) : undefined,
+    });
+  }
+
+  async put<T>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
+    return this._request<T>(endpoint, {
+      method: 'PUT',
+      body: data ? JSON.stringify(data) : undefined,
+    });
+  }
+
+  async delete<T>(endpoint: string): Promise<ApiResponse<T>> {
+    return this._request<T>(endpoint, { method: 'DELETE' });
+  }
+
   // Auth endpoints
   async login(email: string, password: string) {
-    return this.request<{ 
+    return this._request<{ 
       accessToken?: string; 
       access_token?: string;
       refreshToken?: string;
@@ -114,46 +192,46 @@ class ApiClient {
     restaurant_name: string;
     phone?: string;
   }) {
-    return this.request<{ user: any; restaurant: any }>('/auth/register', {
+    return this._request<{ user: any; restaurant: any }>('/auth/register', {
       method: 'POST',
       body: JSON.stringify(data),
     });
   }
 
   async logout() {
-    return this.request('/auth/logout', { method: 'POST' });
+    return this._request('/auth/logout', { method: 'POST' });
   }
 
   async refreshToken(refreshToken: string) {
-    return this.request<{ access_token: string }>('/auth/refresh-token', {
+    return this._request<{ access_token: string }>('/auth/refresh-token', {
       method: 'POST',
       body: JSON.stringify({ refresh_token: refreshToken }),
     });
   }
 
   async forgotPassword(email: string) {
-    return this.request('/auth/forgot-password', {
+    return this._request('/auth/forgot-password', {
       method: 'POST',
       body: JSON.stringify({ email }),
     });
   }
 
   async resetPassword(token: string, password: string) {
-    return this.request('/auth/reset-password', {
+    return this._request('/auth/reset-password', {
       method: 'POST',
       body: JSON.stringify({ token, password }),
     });
   }
 
   async changePassword(currentPassword: string, newPassword: string) {
-    return this.request('/auth/change-password', {
+    return this._request('/auth/change-password', {
       method: 'POST',
       body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
     });
   }
 
   async verifyEmailOtp(email: string, otp: string) {
-    return this.request('/auth/verify-email-otp', {
+    return this._request('/auth/verify-email-otp', {
       method: 'POST',
       body: JSON.stringify({ email, otp }),
     });

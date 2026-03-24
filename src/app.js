@@ -62,8 +62,7 @@ const { ListBranchesUseCase } = require('./use-cases/branch/list');
 const { DeleteBranchUseCase } = require('./use-cases/branch/delete');
 const { GetBranchDetailsUseCase } = require('./use-cases/branch/get-details');
 
-const { GetBrandingUseCase } = require('./use-cases/branding/get-branding');
-const { UpdateBrandingUseCase } = require('./use-cases/branding/update-branding');
+
 
 const { CreateAreaUseCase } = require('./use-cases/area/create-area');
 const { GetListAreaUseCase } = require('./use-cases/area/list-by-branch');
@@ -208,7 +207,7 @@ function createApp() {
   const paymentRepository = new PaymentRepository(prisma);
   const activityLogRepository = new ActivityLogRepository(prisma);
   const invoiceRepository = new InvoiceRepository(prisma);
-  const brandingRepository = new BrandingRepository(prisma);
+  const brandingRepository = new BrandingRepository(null, branchRepository); // Pass branchRepository for PostgreSQL queries
 
   // Use cases (misc)
   const getRestaurantStatisticsUseCase = new GetRestaurantStatisticsUseCase(prisma);
@@ -236,8 +235,21 @@ function createApp() {
   const getBranchDetailsUseCase = new GetBranchDetailsUseCase(branchRepository);
 
   // Branding use cases
-  const getBrandingUseCase = new GetBrandingUseCase(brandingRepository);
-  const updateBrandingUseCase = new UpdateBrandingUseCase(brandingRepository);
+  const { GetThemesUseCase } = require('./use-cases/branding/get-themes');
+  const { GetRestaurantBrandingUseCase } = require('./use-cases/branding/get-restaurant-branding');
+  const { UpdateRestaurantBrandingUseCase } = require('./use-cases/branding/update-restaurant-branding');
+  const { GetBranchBrandingUseCase } = require('./use-cases/branding/get-branch-branding');
+  const { UpdateBranchBrandingUseCase } = require('./use-cases/branding/update-branch-branding');
+  const { GetLandingPageUseCase } = require('./use-cases/branding/get-landing-page');
+  const { UploadBrandingImageUseCase } = require('./use-cases/branding/upload-branding-image');
+
+  const getThemesUseCase = new GetThemesUseCase({ brandingRepository });
+  const getRestaurantBrandingUseCase = new GetRestaurantBrandingUseCase({ brandingRepository });
+  const updateRestaurantBrandingUseCase = new UpdateRestaurantBrandingUseCase({ brandingRepository });
+  const getBranchBrandingUseCase = new GetBranchBrandingUseCase({ brandingRepository, branchRepository });
+  const updateBranchBrandingUseCase = new UpdateBranchBrandingUseCase({ brandingRepository, branchRepository });
+  const getLandingPageUseCase = new GetLandingPageUseCase({ brandingRepository });
+  const uploadBrandingImageUseCase = new UploadBrandingImageUseCase({ uploadService, brandingRepository });
 
   // Auth middleware
   const authMiddleware = createAuthMiddleware(tokenService);
@@ -663,8 +675,13 @@ function createApp() {
 
   // Branding controller
   const brandingController = new BrandingController({
-    getBrandingUseCase,
-    updateBrandingUseCase,
+    getThemesUseCase,
+    getRestaurantBrandingUseCase,
+    updateRestaurantBrandingUseCase,
+    getBranchBrandingUseCase,
+    updateBranchBrandingUseCase,
+    getLandingPageUseCase,
+    uploadBrandingImageUseCase,
   });
 
   // Routes
@@ -717,7 +734,7 @@ function createApp() {
   app.use('/api/v1/payments', createPaymentRoutes(paymentController, authMiddleware));
   app.use('/api/v1/orders', createOrderRoutes(orderController, authMiddleware));
   app.use('/api/v1/branding', createBrandingRoutes(brandingController, authMiddleware));
-  app.use('/api/v1/public', createPublicRoutes(prisma));
+  app.use('/api/v1/public', createPublicRoutes(prisma, brandingRepository));
   app.use('/api/v1/customer-orders', createCustomerOrderRoutes(prisma));
   
   // Mock payment routes

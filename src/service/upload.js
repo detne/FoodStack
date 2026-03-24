@@ -4,28 +4,45 @@ const { Readable } = require('stream');
 
 class UploadService {
   constructor() {
-    cloudinary.config({
+    const config = {
       cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
       api_key: process.env.CLOUDINARY_API_KEY,
       api_secret: process.env.CLOUDINARY_API_SECRET,
       secure: true,
+    };
+    
+    console.log('Cloudinary config:', {
+      cloud_name: config.cloud_name,
+      api_key: config.api_key ? '***' + config.api_key.slice(-4) : 'missing',
+      api_secret: config.api_secret ? '***' : 'missing',
     });
+    
+    cloudinary.config(config);
   }
 
   async uploadImage(file, options = {}) {
     try {
       const folder = options.folder || 'qr-service-platform';
+      const transformation = options.transformation || {};
       
       // Convert buffer to stream for Cloudinary
       const stream = Readable.from(file.buffer);
 
       return new Promise((resolve, reject) => {
+        const uploadOptions = {
+          folder: folder,
+          resource_type: 'auto',
+          overwrite: true,
+        };
+
+        // Add transformation options if provided
+        if (transformation.width) uploadOptions.width = transformation.width;
+        if (transformation.height) uploadOptions.height = transformation.height;
+        if (transformation.crop) uploadOptions.crop = transformation.crop;
+        if (transformation.quality) uploadOptions.quality = transformation.quality;
+
         const uploadStream = cloudinary.uploader.upload_stream(
-          {
-            folder: folder,
-            resource_type: 'auto',
-            overwrite: true,
-          },
+          uploadOptions,
           (error, result) => {
             if (error) {
               console.error('Cloudinary upload error:', error);

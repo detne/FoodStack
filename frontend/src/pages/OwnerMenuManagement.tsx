@@ -570,7 +570,7 @@ export default function OwnerMenuManagement() {
         </div>
 
         {/* Sidebar - Categories */}
-        <div className="w-80 space-y-4">
+        <div className="w-80 space-y-4 sticky top-6 self-start">
           <Card>
             <CardContent className="p-6">
               <div className="mb-4">
@@ -638,8 +638,9 @@ export default function OwnerMenuManagement() {
       <AddMenuItemDialog
         isOpen={showAddDialog}
         onClose={() => setShowAddDialog(false)}
-        onSuccess={() => {
-          fetchData(); // Refresh data after adding item
+        onSuccess={async () => {
+          // Fetch only the new items instead of reloading everything
+          await fetchMenuItems();
         }}
         categories={categories}
       />
@@ -651,8 +652,34 @@ export default function OwnerMenuManagement() {
           setShowEditDialog(false);
           setEditingItem(null);
         }}
-        onSuccess={() => {
-          fetchData(); // Refresh data after editing item
+        onSuccess={(updatedItem) => {
+          // Update the edited item in state with data from API response
+          console.log('Updated item from API:', updatedItem);
+          if (updatedItem) {
+            // Map API response fields to MenuItem interface
+            const mappedItem: MenuItem = {
+              id: updatedItem.menuItemId || updatedItem.id,
+              name: updatedItem.name,
+              description: updatedItem.description,
+              price: updatedItem.price,
+              image_url: updatedItem.imageUrl || updatedItem.image_url,
+              available: updatedItem.available,
+              category_id: updatedItem.categoryId || updatedItem.category_id,
+              bestSeller: updatedItem.bestSeller,
+              created_at: updatedItem.created_at || '',
+              updated_at: updatedItem.updatedAt || updatedItem.updated_at || new Date().toISOString(),
+            };
+            
+            console.log('Mapped item:', mappedItem);
+            
+            setMenuItems(prevItems => {
+              const newItems = prevItems.map(item =>
+                item.id === mappedItem.id ? mappedItem : item
+              );
+              console.log('Updated menu items:', newItems);
+              return newItems;
+            });
+          }
         }}
         categories={categories}
         item={editingItem}

@@ -49,6 +49,9 @@ import Branding from "./pages/Branding";
 import BranchSetup from "./pages/BranchSetup";
 import BranchEdit from "./pages/BranchEdit";
 import CustomerLanding from "./pages/CustomerLanding";
+import BranchLanding from "./pages/BranchLanding";
+import RestaurantPreview from "./pages/RestaurantPreview";
+import CustomerPreview from "./pages/CustomerPreview";
 import CustomerMenu from "./pages/CustomerMenu";
 import CustomerOrder from "./pages/CustomerOrder";
 import CustomerOrderStatus from "./pages/CustomerOrderStatus";
@@ -78,6 +81,12 @@ const App = () => (
             <Route path="/login" element={<Login />} />
             <Route path="/restaurant-selector" element={<RestaurantSelector />} />
             <Route path="/branch-selector" element={<BranchSelector />} />
+            
+            {/* Public Landing Pages */}
+            <Route path="/branch/:slug" element={<BranchLanding />} />
+            <Route path="/g/:slug" element={<BranchLanding />} />
+            <Route path="/restaurant/:restaurantId/preview" element={<RestaurantPreview />} />
+            <Route path="/restaurant/:restaurantId/customer-preview" element={<CustomerPreview />} />
             {/* Remove old dashboard routes - now handled within Owner Portal */}
             
             {/* Branch Management */}
