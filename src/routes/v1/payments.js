@@ -14,6 +14,7 @@ function createPaymentRoutes(paymentController, authMiddleware) {
   router.post('/webhook/payos', paymentController.webhook);
 
   // ── Param routes AFTER ──────────────────────────────────────────────────
+  router.get('/:paymentId/status', paymentController.getStatus);   // public — customer polling
   router.get('/:paymentId', authMiddleware, paymentController.getDetails);
   router.post('/:paymentId/confirm-cash', authMiddleware, paymentController.confirmCash);
 

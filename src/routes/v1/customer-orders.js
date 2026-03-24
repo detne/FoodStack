@@ -148,6 +148,15 @@ async function createOrder(req, res) {
 
     const branch = table.areas.branches;
 
+    // ── Check if table already has an ACTIVE order → add new round instead ──
+    const ACTIVE_STATUSES = ['ACTIVE', 'PENDING', 'PREPARING', 'READY', 'SERVED'];
+    const existingOrder = await req.prisma.orders.findFirst({
+      where: { table_id: table.id, status: { in: ACTIVE_STATUSES } },
+      include: {
+        order_rounds: { orderBy: { round_number: 'desc' }, take: 1 }
+      }
+    });
+
     // Calculate totals
     let subTotal = 0;
     const orderItems = [];
@@ -191,6 +200,62 @@ async function createOrder(req, res) {
     // Generate order number
     const orderNumber = `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
 
+    // ── Reuse existing order: add a new round ──────────────────────────────
+    if (existingOrder) {
+      const lastRoundNumber = existingOrder.order_rounds?.[0]?.round_number || 0;
+      const newRound = await req.prisma.order_rounds.create({
+        data: {
+          order_id: existingOrder.id,
+          round_number: lastRoundNumber + 1,
+          status: 'PREPARING',
+        }
+      });
+
+      for (const item of orderItems) {
+        await req.prisma.order_items.create({
+          data: {
+            order_id: existingOrder.id,
+            round_id: newRound.id,
+            menu_item_id: item.menu_item_id,
+            quantity: item.quantity,
+            price: item.price,
+            subtotal: item.subtotal,
+            notes: item.notes,
+            status: 'PREPARING',
+          }
+        });
+      }
+
+      // Update order totals
+      await req.prisma.orders.update({
+        where: { id: existingOrder.id },
+        data: {
+          subtotal: Number(existingOrder.subtotal) + subTotal,
+          tax: (Number(existingOrder.subtotal) + subTotal) * 0.1,
+          service_charge: (Number(existingOrder.subtotal) + subTotal) * 0.05,
+          total: (Number(existingOrder.subtotal) + subTotal) * 1.15,
+          status: 'ACTIVE',
+        }
+      });
+
+      return res.json({
+        success: true,
+        data: {
+          order_id: existingOrder.id,
+          order_number: existingOrder.order_number,
+          status: 'ACTIVE',
+          is_new_order: false,
+          round_number: newRound.round_number,
+          created_at: existingOrder.created_at,
+        }
+      });
+    }
+
+    // ── Create brand new order ─────────────────────────────────────────────
+    const tax = subTotal * 0.1;
+    const service_charge = subTotal * 0.05;
+    const total = subTotal + tax + service_charge;
+
     // Create order
     const order = await req.prisma.orders.create({
       data: {
@@ -199,14 +264,19 @@ async function createOrder(req, res) {
         table_id: table.id,
         session_id: session.id,
         order_number: orderNumber,
-        status: 'PENDING',
+        status: 'ACTIVE',
         subtotal: subTotal,
-        tax: 0,
-        service_charge: 0,
-        total: subTotal,
+        tax,
+        service_charge,
+        total,
         payment_status: 'UNPAID',
         notes: notes || null
       }
+    });
+
+    // Create round 1
+    const round = await req.prisma.order_rounds.create({
+      data: { order_id: order.id, round_number: 1, status: 'PREPARING' }
     });
 
     // Create order items
@@ -214,14 +284,19 @@ async function createOrder(req, res) {
       await req.prisma.order_items.create({
         data: {
           order_id: order.id,
+          round_id: round.id,
           menu_item_id: item.menu_item_id,
           quantity: item.quantity,
           price: item.price,
           subtotal: item.subtotal,
-          notes: item.notes
+          notes: item.notes,
+          status: 'PREPARING',
         }
       });
     }
+
+    // Mark table OCCUPIED
+    await req.prisma.tables.update({ where: { id: table.id }, data: { status: 'OCCUPIED' } });
 
     res.json({
       success: true,

@@ -238,7 +238,7 @@ export default function CustomerLanding() {
               
               <Card 
                 className="bg-green-500/90 backdrop-blur-sm border-0 hover:bg-green-600 transition-all cursor-pointer"
-                onClick={() => navigate(`/customer/bill?table=${tableInfo?.table.id}&qr_token=${qr_token}&branch=${tableInfo?.branch.id}`)}
+                onClick={() => navigate(`/customer/my-order?table=${tableInfo?.table.id}&qr_token=${qr_token}&branch=${tableInfo?.branch.id}`)}
               >
                 <CardContent className="p-4 text-center">
                   <Receipt className="h-6 w-6 text-white mx-auto mb-2" />

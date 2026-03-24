@@ -400,6 +400,9 @@ class OrderRepository {
             orderBy: { round_number: 'desc' },
             take: 1, // only latest round for list view
           },
+          payments: {
+            select: { id: true, method: true, status: true },
+          },
           _count: { select: { order_items: true } },
         },
         orderBy: { created_at: 'desc' },
