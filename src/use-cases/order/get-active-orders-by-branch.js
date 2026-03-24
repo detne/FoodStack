@@ -66,6 +66,9 @@ class GetActiveOrdersByBranchUseCase {
             area_name: order.tables.areas?.name,
           },
           items_count: order._count?.order_items || 0,
+          pending_cash_payment: (order.payments?.status === 'PENDING' && order.payments?.method === 'CASH')
+            ? order.payments
+            : null,
           created_at: order.created_at,
           updated_at: order.updated_at,
         };

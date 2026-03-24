@@ -4,7 +4,7 @@
  * "Checkout" flow: preview → CASH or QR_PAY → confirm → invoice.
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -57,6 +57,7 @@ interface Order {
   table: { id: string; table_number: string; area_name?: string; qr_token?: string };
   items_count?: number;
   rounds?: OrderRound[];
+  pending_cash_payment?: { id: string; method: string; status: string } | null;
 }
 
 // ─── Config ───────────────────────────────────────────────────────────────────
@@ -98,6 +99,7 @@ function mapOrderFromApi(o: any): Order {
     table: o.table,
     items_count: o.items_count,
     rounds: o.rounds,
+    pending_cash_payment: o.pending_cash_payment ?? null,
   };
 }
 
@@ -113,12 +115,15 @@ export default function StaffOrders() {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [updatingRound, setUpdatingRound] = useState<string | null>(null);
   const [checkoutOrder, setCheckoutOrder] = useState<Order | null>(null);
+  // Banner nổi cho cash payment
+  const [cashAlerts, setCashAlerts] = useState<{ id: string; tableNumber: string; amount: number }[]>([]);
+  const notifiedCashIds = useRef<Set<string>>(new Set());
 
-  const fetchOrders = useCallback(async (tab: string) => {
+  const fetchOrders = useCallback(async (tab: string, silent = false) => {
     const branchId = localStorage.getItem('selected_branch_id');
     if (!branchId) return;
 
-    setIsLoading(true);
+    if (!silent) setIsLoading(true);
     try {
       let result;
       if (tab === 'completed') {
@@ -131,13 +136,40 @@ export default function StaffOrders() {
       }
 
       if (result.success && result.data) {
-        setOrders(result.data.orders.map(mapOrderFromApi));
+        const mapped = result.data.orders.map(mapOrderFromApi);
+        setOrders(mapped);
+
+        // Phát hiện cash payment mới chưa notify
+        mapped.forEach((o) => {
+          if (o.pending_cash_payment && !notifiedCashIds.current.has(o.id)) {
+            notifiedCashIds.current.add(o.id);
+            // Toast
+            toast({
+              title: '💵 Yêu cầu thu tiền mặt',
+              description: `Bàn ${o.table?.table_number} — ${Number(o.total).toLocaleString('vi-VN')}đ`,
+              duration: 10000,
+            });
+            // Banner nổi
+            setCashAlerts((prev) => [
+              ...prev.filter((a) => a.id !== o.id),
+              { id: o.id, tableNumber: o.table?.table_number || '?', amount: Number(o.total) },
+            ]);
+            // Tự ẩn banner sau 10s
+            setTimeout(() => {
+              setCashAlerts((prev) => prev.filter((a) => a.id !== o.id));
+            }, 10000);
+          }
+          // Nếu order đã PAID thì xóa khỏi notified để không re-alert nếu tạo order mới
+          if (o.payment_status === 'PAID') {
+            notifiedCashIds.current.delete(o.id);
+          }
+        });
       }
     } catch (error) {
       console.error('Error fetching orders:', error);
-      toast({ title: 'Lỗi', description: 'Không thể tải danh sách order', variant: 'destructive' });
+      if (!silent) toast({ title: 'Lỗi', description: 'Không thể tải danh sách order', variant: 'destructive' });
     } finally {
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
     }
   }, [toast]);
 
@@ -145,6 +177,16 @@ export default function StaffOrders() {
     const branchId = localStorage.getItem('selected_branch_id');
     const token = localStorage.getItem('access_token');
     if (token && branchId) fetchOrders(activeTab);
+  }, [activeTab, fetchOrders]);
+
+  // Auto-refresh mỗi 10s để bắt cash payment notification
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const branchId = localStorage.getItem('selected_branch_id');
+      const token = localStorage.getItem('access_token');
+      if (token && branchId) fetchOrders(activeTab, true);
+    }, 10000);
+    return () => clearInterval(interval);
   }, [activeTab, fetchOrders]);
 
   const handleViewDetails = async (order: Order) => {
@@ -210,6 +252,7 @@ export default function StaffOrders() {
     pending: orders.filter((o) => o.active_round_status === 'PENDING').length,
     preparing: orders.filter((o) => o.active_round_status === 'PREPARING').length,
     served: orders.filter((o) => o.active_round_status === 'SERVED').length,
+    cashPending: orders.filter((o) => o.pending_cash_payment).length,
   };
 
   return (
@@ -219,12 +262,13 @@ export default function StaffOrders() {
         <p className="text-muted-foreground mt-1">Quản lý order và rounds</p>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         {[
           { label: 'Active', value: stats.total, color: 'text-foreground', icon: ShoppingBag },
           { label: 'Pending', value: stats.pending, color: 'text-yellow-600', icon: Clock },
           { label: 'Preparing', value: stats.preparing, color: 'text-purple-600', icon: Clock },
           { label: 'Served', value: stats.served, color: 'text-teal-600', icon: CheckCircle },
+          { label: 'Thu tiền mặt', value: stats.cashPending, color: 'text-amber-600', icon: Banknote },
         ].map((s) => (
           <Card key={s.label} className="bg-card border-border">
             <CardContent className="p-6 flex items-center justify-between">
@@ -300,6 +344,12 @@ export default function StaffOrders() {
                               </Badge>
                             )}
                             <Badge className={paymentCfg.color}>{paymentCfg.label}</Badge>
+                            {order.pending_cash_payment && (
+                              <Badge className="bg-amber-100 text-amber-800 border border-amber-300 animate-pulse">
+                                <Banknote className="w-3 h-3 mr-1" />
+                                Thu tiền mặt
+                              </Badge>
+                            )}
                           </div>
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm text-muted-foreground">
                             <div className="flex items-center gap-2">
@@ -364,6 +414,50 @@ export default function StaffOrders() {
             fetchOrders(activeTab);
           }}
         />
+      )}
+
+      {/* ── Cash Payment Alert Banners ── */}
+      {cashAlerts.length > 0 && (
+        <div className="fixed top-4 right-4 z-50 space-y-2 max-w-sm">
+          {cashAlerts.map((alert) => {
+            const order = orders.find(o => o.id === alert.id);
+            return (
+              <div
+                key={alert.id}
+                className="flex items-start gap-3 bg-amber-500 text-white rounded-xl shadow-2xl p-4 animate-in slide-in-from-right-5 duration-300"
+              >
+                <div className="w-10 h-10 bg-amber-400 rounded-full flex items-center justify-center shrink-0">
+                  <Banknote className="w-5 h-5 text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-sm">Thu tiền mặt — Bàn {alert.tableNumber}</p>
+                  <p className="text-amber-100 text-xs mt-0.5">
+                    {alert.amount.toLocaleString('vi-VN')}đ · Khách đang chờ
+                  </p>
+                </div>
+                <div className="flex flex-col gap-1 shrink-0">
+                  {order && (
+                    <button
+                      className="text-xs bg-white text-amber-700 font-semibold px-2 py-1 rounded-lg hover:bg-amber-50 transition-colors"
+                      onClick={() => {
+                        setCashAlerts(prev => prev.filter(a => a.id !== alert.id));
+                        handleOpenCheckout(order);
+                      }}
+                    >
+                      Xác nhận
+                    </button>
+                  )}
+                  <button
+                    className="text-xs text-amber-200 hover:text-white transition-colors text-center"
+                    onClick={() => setCashAlerts(prev => prev.filter(a => a.id !== alert.id))}
+                  >
+                    Bỏ qua
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       )}
     </div>
   );

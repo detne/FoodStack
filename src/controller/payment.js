@@ -22,6 +22,7 @@ class PaymentController {
     this.confirmCashPaymentUseCase = confirmCashPaymentUseCase;
 
     this.getDetails = this.getDetails.bind(this);
+    this.getStatus = this.getStatus.bind(this);
     this.getHistory = this.getHistory.bind(this);
     this.confirmCash = this.confirmCash.bind(this);
     this.getCheckoutPreview = this.getCheckoutPreview.bind(this);
@@ -30,6 +31,22 @@ class PaymentController {
     this.getStatistics = this.getStatistics.bind(this);
     this.handleSuccess = this.handleSuccess.bind(this);
     this.handleCancel = this.handleCancel.bind(this);
+  }
+
+  /** Public endpoint — customer polls this to check if payment is PAID */
+  async getStatus(req, res, next) {
+    try {
+      const { paymentId } = req.params;
+      // Dùng repository trực tiếp để tránh auth check
+      const payment = await this.getPaymentDetailsUseCase.paymentRepository.findById(paymentId);
+      if (!payment) return res.status(404).json({ success: false, message: 'Payment not found' });
+      return res.status(200).json({
+        success: true,
+        data: { id: payment.id, status: payment.status, method: payment.method, amount: payment.amount },
+      });
+    } catch (err) {
+      next(err);
+    }
   }
 
   async getDetails(req, res, next) {
