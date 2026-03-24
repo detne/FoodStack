@@ -10,7 +10,8 @@ class BranchController {
     listBranchesUseCase,
     deleteBranchUseCase,
     getBranchDetailsUseCase,
-    getFullMenuByBranchUseCase
+    getFullMenuByBranchUseCase,
+    getBranchStatisticsUseCase
   }) {
     this.createBranchUseCase = createBranchUseCase;
     this.updateBranchUseCase = updateBranchUseCase;
@@ -18,6 +19,7 @@ class BranchController {
     this.deleteBranchUseCase = deleteBranchUseCase;
     this.getBranchDetailsUseCase = getBranchDetailsUseCase;
     this.getFullMenuByBranchUseCase = getFullMenuByBranchUseCase;
+    this.getBranchStatisticsUseCase = getBranchStatisticsUseCase;
   }
 
   // POST /api/v1/branches
@@ -71,7 +73,7 @@ class BranchController {
         ...req.query,
         restaurantId: req.query.restaurantId || req.user?.restaurantId,
       };
-      
+
       const dto = ListBranchesSchema.parse(queryWithDefaults);
 
       const result = await this.listBranchesUseCase.execute(dto);
@@ -137,6 +139,16 @@ class BranchController {
       });
     } catch (err) {
       next(err);
+    }
+  }
+
+  async getStatistics(req, res, next) {
+    try {
+      const { branchId } = req.params;
+      const result = await this.getBranchStatisticsUseCase.execute(branchId, req.query);
+      return res.status(200).json(result);
+    } catch (error) {
+      next(error);
     }
   }
 }

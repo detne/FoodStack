@@ -78,7 +78,7 @@ class ProcessPaymentUseCase {
 
   async execute(dto, context = {}) {
     const idempotencyKey =
-      context.idempotencyKey || `payment_${dto.orderId}_${dto.method}`;
+      context.idempotencyKey || `payment_${dto.orderId}_${dto.method}_${Date.now()}`;
 
     const order = await this.orderRepository.findById(dto.orderId);
     if (!order) {
@@ -102,21 +102,22 @@ class ProcessPaymentUseCase {
       throw err;
     }
 
-    const existing = await this.paymentRepository.findByIdempotencyKey(
-      idempotencyKey
-    );
+    // Find any existing payment for this order
+    const existingPending = await this.paymentRepository.findByOrderId(dto.orderId);
 
-    if (existing) {
-      if (String(existing.order_id) !== String(order.id)) {
-        const err = new Error('Payment does not belong to this order');
-        err.status = 403;
-        throw err;
-      }
-
-      if (existing.status === 'PENDING' || existing.status === 'PAID') {
-        return this.mapPaymentResponse(existing);
-      }
+    if (existingPending && existingPending.status === 'PAID') {
+      const err = new Error('Order already paid');
+      err.status = 409;
+      throw err;
     }
+
+    // Same method + PENDING → idempotent reuse
+    if (existingPending && existingPending.status === 'PENDING' &&
+        existingPending.method === dto.method) {
+      return this.mapPaymentResponse(existingPending);
+    }
+
+    // Different method or FAILED → update in-place (1 row per order)
 
     // CASH: chỉ tạo yêu cầu thanh toán tiền mặt, chưa mark PAID
     if (dto.method === 'CASH') {
@@ -137,7 +138,7 @@ class ProcessPaymentUseCase {
           throw err;
         }
 
-        return this.paymentRepository.create(
+        return this.paymentRepository.upsertByOrderId(
           {
             orderId: freshOrder.id,
             amount: freshOrder.total,
@@ -190,7 +191,7 @@ class ProcessPaymentUseCase {
         throw err;
       }
 
-      return this.paymentRepository.create(
+      return this.paymentRepository.upsertByOrderId(
         {
           orderId: freshOrder.id,
           amount: freshOrder.total,

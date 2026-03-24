@@ -48,6 +48,7 @@ import RestaurantInformation from "./pages/RestaurantInformation";
 import Branding from "./pages/Branding";
 import BranchSetup from "./pages/BranchSetup";
 import BranchEdit from "./pages/BranchEdit";
+import BranchesManagement from "./pages/BranchesManagement";
 import CustomerLanding from "./pages/CustomerLanding";
 import BranchLanding from "./pages/BranchLanding";
 import RestaurantPreview from "./pages/RestaurantPreview";
@@ -65,11 +66,11 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
+    <BrowserRouter>
+      <AuthProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/ui-showcase" element={<UIShowcase />} />
@@ -140,6 +141,7 @@ const App = () => (
             <Route path="/owner/branding" element={<OwnerDashboard />} />
             <Route path="/owner/analytics" element={<OwnerDashboard />} />
             <Route path="/owner/manager" element={<OwnerDashboard />} />
+            <Route path="/owner/branches" element={<OwnerDashboard />} />
             <Route path="/owner/branch-setup" element={<BranchSetup />} />
             <Route path="/owner/branch-edit/:branchId" element={<BranchEdit />} />
             
@@ -184,9 +186,9 @@ const App = () => (
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
-    </AuthProvider>
+        </TooltipProvider>
+      </AuthProvider>
+    </BrowserRouter>
   </QueryClientProvider>
 );
 

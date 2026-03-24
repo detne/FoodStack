@@ -8,6 +8,10 @@ function createBranchRoutes(branchController, areaController, tableController, a
     branchController.getMenu(req, res, next)
   );
 
+  router.get('/:branchId/statistics', authMiddleware, (req, res, next) =>
+    branchController.getStatistics(req, res, next)
+  );
+
   // Protected branch routes
   router.post('/', authMiddleware, (req, res, next) =>
     branchController.create(req, res, next)

@@ -61,6 +61,7 @@ const { UpdateBranchUseCase } = require('./use-cases/branch/update');
 const { ListBranchesUseCase } = require('./use-cases/branch/list');
 const { DeleteBranchUseCase } = require('./use-cases/branch/delete');
 const { GetBranchDetailsUseCase } = require('./use-cases/branch/get-details');
+const { GetBranchStatisticsUseCase } = require('./use-cases/branch/get-statistics');
 
 
 
@@ -81,6 +82,7 @@ const { UploadMenuItemImageUseCase } = require('./use-cases/menu-item/upload-men
 const { UpdateMenuItemAvailabilityUseCase } = require('./use-cases/menu-item/update-availability');
 const { UpdateBranchAvailabilityUseCase } = require('./use-cases/menu-item/update-branch-availability');
 const { SearchMenuItemsUseCase } = require('./use-cases/menu-item/search-menu-items');
+const { ImportMenuItemsUseCase } = require('./use-cases/menu-item/import-menu-items');
 
 const { CreateCustomizationGroupUseCase } = require('./use-cases/customization/create-customization-group');
 const { AddCustomizationOptionUseCase } = require('./use-cases/customization/add-customization-option');
@@ -119,8 +121,11 @@ const { RemoveItemFromOrderUseCase } = require('./use-cases/order/remove-item-fr
 const { UpdateOrderItemUseCase } = require('./use-cases/order/update-order-item');
 const { CancelOrderUseCase } = require('./use-cases/order/cancel-order');
 const { GetActiveOrdersByBranchUseCase } = require('./use-cases/order/get-active-orders-by-branch');
+const { GetCompletedOrdersByBranchUseCase } = require('./use-cases/order/get-completed-orders-by-branch');
 const { GetOrdersByTableUseCase } = require('./use-cases/order/get-orders-by-table');
 const { GetOrderLifecycleUseCase } = require('./use-cases/order/get-order-lifecycle');
+const { UpdateRoundStatusUseCase } = require('./use-cases/order/update-round-status');
+const { MarkItemServedUseCase } = require('./use-cases/order/mark-item-served');
 
 // Controllers
 const { AuthController } = require('./controller/auth');
@@ -234,6 +239,12 @@ function createApp() {
   const deleteBranchUseCase = new DeleteBranchUseCase(branchRepository);
   const getBranchDetailsUseCase = new GetBranchDetailsUseCase(branchRepository);
 
+  const getBranchStatisticsUseCase = new GetBranchStatisticsUseCase(
+    branchRepository,
+    orderRepository,
+    tableRepository
+  );
+
   // Branding use cases
   const { GetThemesUseCase } = require('./use-cases/branding/get-themes');
   const { GetRestaurantBrandingUseCase } = require('./use-cases/branding/get-restaurant-branding');
@@ -328,6 +339,7 @@ function createApp() {
     deleteBranchUseCase,
     getBranchDetailsUseCase,
     getFullMenuByBranchUseCase,
+    getBranchStatisticsUseCase,
   });
 
   // Area use cases + controller
@@ -396,6 +408,13 @@ function createApp() {
   );
   const searchMenuItemsUseCase = new SearchMenuItemsUseCase(menuItemRepository);
 
+  const importMenuItemsUseCase = new ImportMenuItemsUseCase(
+    menuItemRepository,
+    categoryRepository,
+    userRepository,
+    prisma
+  );
+
   const menuItemController = new MenuItemController({
     createMenuItemUseCase,
     updateMenuItemUseCase,
@@ -404,6 +423,7 @@ function createApp() {
     updateMenuItemAvailabilityUseCase,
     updateBranchAvailabilityUseCase,
     searchMenuItemsUseCase,
+    importMenuItemsUseCase,
   });
 
   // Customization use cases + controller
@@ -599,12 +619,12 @@ function createApp() {
   );
 
   const confirmCashPaymentUseCase = new ConfirmCashPaymentUseCase(
-  paymentRepository,
-  orderRepository,
-  generateInvoiceUseCase,
-  userRepository,
-  prisma
-);
+    paymentRepository,
+    orderRepository,
+    generateInvoiceUseCase,
+    userRepository,
+    prisma
+  );
 
   const paymentController = new PaymentController(
     processPaymentUseCase,
@@ -659,6 +679,15 @@ function createApp() {
     activityLogRepository
   );
 
+  const updateRoundStatusUseCase = new UpdateRoundStatusUseCase(orderRepository);
+
+  const markItemServedUseCase = new MarkItemServedUseCase(orderRepository);
+
+  const getCompletedOrdersByBranchUseCase = new GetCompletedOrdersByBranchUseCase(
+    orderRepository,
+    branchRepository
+  );
+
   // Order controller
   const orderController = new OrderController(
     createOrderUseCase,
@@ -670,7 +699,10 @@ function createApp() {
     cancelOrderUseCase,
     getActiveOrdersByBranchUseCase,
     getOrdersByTableUseCase,
-    getOrderLifecycleUseCase
+    getOrderLifecycleUseCase,
+    updateRoundStatusUseCase,
+    getCompletedOrdersByBranchUseCase,
+    markItemServedUseCase
   );
 
   // Branding controller

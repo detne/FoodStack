@@ -1,146 +1,71 @@
 /**
  * Order Routes
- * API routes for order management
+ * Static/specific routes MUST come before /:orderId to avoid param collision.
  */
 
 const express = require('express');
 
-/**
- * Validation middleware
- * @param {Object} schema - Zod schema
- */
-function validateRequest(schema) {
-  return (req, res, next) => {
-    try {
-      schema.parse(req.body);
-      next();
-    } catch (error) {
-      res.status(400).json({
-        success: false,
-        message: 'Validation error',
-        errors: error.errors,
-      });
-    }
-  };
-}
-
-/**
- * Create order routes
- * @param {Object} orderController - Order controller instance
- * @param {Function} authMiddleware - Auth middleware for protected routes
- * @returns {express.Router} Express router
- */
 function createOrderRoutes(orderController, authMiddleware) {
   const router = express.Router();
 
-  if (!authMiddleware) {
-    throw new Error('authMiddleware is required for protected routes');
-  }
+  if (!authMiddleware) throw new Error('authMiddleware is required');
 
-  /**
-   * @route   POST /api/v1/orders
-   * @desc    Create new order (ORDER-101)
-   * @access  Public (QR-based)
-   */
-  router.post(
-    '/',
-    orderController.createOrder.bind(orderController)
-  );
+  // ── Static routes first ──────────────────────────────────────────────────
 
-  /**
-   * @route   GET /api/v1/orders/:orderId
-   * @desc    Get order details (ORDER-102)
-   * @access  Public/Staff
-   */
-  router.get(
-    '/:orderId',
-    orderController.getOrderDetails.bind(orderController)
-  );
+  // GET /orders/branch/:branchId/active?roundStatus=PENDING|PREPARING|SERVED|ALL
+  router.get('/branch/:branchId/active', authMiddleware,
+    orderController.getActiveOrdersByBranch.bind(orderController));
 
-  /**
-   * @route   PUT /api/v1/orders/:orderId/status
-   * @desc    Update order status (ORDER-103)
-   * @access  Staff only
-   */
-  router.put(
-    '/:orderId/status',
-    authMiddleware,
-    orderController.updateOrderStatus.bind(orderController)
-  );
+  // GET /orders/branch/:branchId/completed
+  router.get('/branch/:branchId/completed', authMiddleware,
+    orderController.getCompletedOrdersByBranch.bind(orderController));
 
-  /**
-   * @route   POST /api/v1/orders/:orderId/items
-   * @desc    Add items to order (ORDER-104)
-   * @access  Public/Staff
-   */
-  router.post(
-    '/:orderId/items',
-    orderController.addItemsToOrder.bind(orderController)
-  );
+  // GET /orders/table/:tableId/history
+  router.get('/table/:tableId/history', authMiddleware,
+    orderController.getOrdersByTable.bind(orderController));
 
-  /**
-   * @route   DELETE /api/v1/orders/:orderId/items/:orderItemId
-   * @desc    Remove item from order (ORDER-105)
-   * @access  Public/Staff
-   */
-  router.delete(
-    '/:orderId/items/:orderItemId',
-    orderController.removeItemFromOrder.bind(orderController)
-  );
+  // ── Order CRUD ───────────────────────────────────────────────────────────
 
-  /**
-   * @route   PUT /api/v1/orders/:orderId/items/:orderItemId
-   * @desc    Update order item quantity (ORDER-106)
-   * @access  Public/Staff
-   */
-  router.put(
-    '/:orderId/items/:orderItemId',
-    orderController.updateOrderItem.bind(orderController)
-  );
+  // POST /orders  (QR-based, public)
+  router.post('/', orderController.createOrder.bind(orderController));
 
-  /**
-   * @route   PUT /api/v1/orders/:orderId/cancel
-   * @desc    Cancel order (ORDER-107)
-   * @access  Staff only
-   */
-  router.put(
-    '/:orderId/cancel',
-    authMiddleware,
-    orderController.cancelOrder.bind(orderController)
-  );
+  // GET /orders/:orderId
+  router.get('/:orderId', orderController.getOrderDetails.bind(orderController));
 
-  /**
-   * @route   GET /api/v1/orders/branch/:branchId/active
-   * @desc    Get active orders by branch (ORDER-108)
-   * @access  Staff only
-   */
-  router.get(
-    '/branch/:branchId/active',
-    authMiddleware,
-    orderController.getActiveOrdersByBranch.bind(orderController)
-  );
+  // PUT /orders/:orderId/status  (ACTIVE → COMPLETED | CANCELLED)
+  router.put('/:orderId/status', authMiddleware,
+    orderController.updateOrderStatus.bind(orderController));
 
-  /**
-   * @route   GET /api/v1/orders/table/:tableId/history
-   * @desc    Get orders by table (ORDER-109)
-   * @access  Staff only
-   */
-  router.get(
-    '/table/:tableId/history',
-    authMiddleware,
-    orderController.getOrdersByTable.bind(orderController)
-  );
+  // PUT /orders/:orderId/cancel
+  router.put('/:orderId/cancel', authMiddleware,
+    orderController.cancelOrder.bind(orderController));
 
-  /**
-   * @route   GET /api/v1/orders/:orderId/lifecycle
-   * @desc    Get order lifecycle/timeline (ORDER-110)
-   * @access  Staff only
-   */
-  router.get(
-    '/:orderId/lifecycle',
-    authMiddleware,
-    orderController.getOrderLifecycle.bind(orderController)
-  );
+  // GET /orders/:orderId/lifecycle
+  router.get('/:orderId/lifecycle', authMiddleware,
+    orderController.getOrderLifecycle.bind(orderController));
+
+  // ── Round status ─────────────────────────────────────────────────────────
+
+  // PUT /orders/:orderId/rounds/:roundId/status  (PENDING→PREPARING→SERVED)
+  router.put('/:orderId/rounds/:roundId/status', authMiddleware,
+    orderController.updateRoundStatus.bind(orderController));
+
+  // PUT /orders/:orderId/rounds/:roundId/items/:itemId/served
+  router.put('/:orderId/rounds/:roundId/items/:itemId/served', authMiddleware,
+    orderController.markItemServed.bind(orderController));
+
+  // ── Order items ──────────────────────────────────────────────────────────
+
+  // POST /orders/:orderId/items
+  router.post('/:orderId/items', orderController.addItemsToOrder.bind(orderController));
+
+  // DELETE /orders/:orderId/items/:orderItemId
+  router.delete('/:orderId/items/:orderItemId',
+    orderController.removeItemFromOrder.bind(orderController));
+
+  // PUT /orders/:orderId/items/:orderItemId
+  router.put('/:orderId/items/:orderItemId',
+    orderController.updateOrderItem.bind(orderController));
 
   return router;
 }

@@ -80,10 +80,16 @@ class ConfirmCashPaymentUseCase {
         order.id,
         {
           payment_status: 'PAID',
+          status: 'COMPLETED',
           updated_at: new Date(),
         },
         tx
       );
+
+      // Free up the table
+      if (order.table_id) {
+        await this.orderRepository.updateTableStatus(order.table_id, 'AVAILABLE', tx);
+      }
 
       return paidPayment;
     });

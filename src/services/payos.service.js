@@ -1,40 +1,56 @@
-const PayOS = require('@payos/node');
+const { PaymentRequests, Webhooks } = require('@payos/node');
 
 class PayOSService {
   constructor() {
-    this.payOS = new PayOS(
+    this.paymentRequests = new PaymentRequests(
       process.env.PAYOS_CLIENT_ID,
       process.env.PAYOS_API_KEY,
       process.env.PAYOS_CHECKSUM_KEY
     );
+    this.webhooks = new Webhooks(process.env.PAYOS_CHECKSUM_KEY);
   }
 
   async createPaymentLink(orderData) {
-    const { orderId, amount, description, items } = orderData;
-    
+    const { orderId, amount, description, orderCode, items } = orderData;
+
     const paymentData = {
-      orderCode: Number(String(Date.now()).slice(-6)),
-      amount: amount,
-      description: description || `Thanh toán đơn hàng #${orderId}`,
-      items: items || [{ name: 'Đơn hàng', quantity: 1, price: amount }],
+      orderCode: orderCode || Number(String(Date.now()).slice(-6)),
+      amount,
+      description: description || `Thanh toan don hang #${orderId}`,
+      items: items || [{ name: 'Don hang', quantity: 1, price: amount }],
       returnUrl: process.env.PAYOS_RETURN_URL,
-      cancelUrl: process.env.PAYOS_CANCEL_URL
+      cancelUrl: process.env.PAYOS_CANCEL_URL,
     };
 
-    const paymentLink = await this.payOS.createPaymentLink(paymentData);
-    return paymentLink;
+    return this.paymentRequests.create(paymentData);
   }
 
   async getPaymentInfo(orderCode) {
-    return await this.payOS.getPaymentLinkInformation(orderCode);
+    return this.paymentRequests.get(orderCode);
   }
 
   async cancelPaymentLink(orderCode) {
-    return await this.payOS.cancelPaymentLink(orderCode);
+    return this.paymentRequests.cancel(orderCode);
   }
 
-  verifyWebhookData(webhookData) {
-    return this.payOS.verifyPaymentWebhookData(webhookData);
+  /**
+   * Verify webhook signature.
+   * Returns parsed webhook data if valid, throws if invalid.
+   */
+  verifyWebhookData(webhookBody) {
+    try {
+      return this.webhooks.verify(webhookBody);
+    } catch (err) {
+      return null;
+    }
+  }
+
+  /**
+   * Confirm webhook URL (PayOS calls this when saving webhook URL in dashboard).
+   * Returns 200 response data.
+   */
+  async confirmWebhookUrl(url) {
+    return this.webhooks.confirm(url);
   }
 }
 

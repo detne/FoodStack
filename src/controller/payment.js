@@ -20,12 +20,20 @@ class PaymentController {
     this.getPaymentHistoryUseCase = getPaymentHistoryUseCase;
     this.getPaymentStatisticsUseCase = getPaymentStatisticsUseCase;
     this.confirmCashPaymentUseCase = confirmCashPaymentUseCase;
+
+    this.getDetails = this.getDetails.bind(this);
+    this.getHistory = this.getHistory.bind(this);
+    this.confirmCash = this.confirmCash.bind(this);
+    this.getCheckoutPreview = this.getCheckoutPreview.bind(this);
+    this.process = this.process.bind(this);
+    this.webhook = this.webhook.bind(this);
+    this.getStatistics = this.getStatistics.bind(this);
+    this.handleSuccess = this.handleSuccess.bind(this);
+    this.handleCancel = this.handleCancel.bind(this);
   }
 
   async getDetails(req, res, next) {
     try {
-      console.log('GET PAYMENT DETAILS req.user =', req.user);
-
       const { paymentId } = req.params;
 
       const result = await this.getPaymentDetailsUseCase.execute(
@@ -70,7 +78,7 @@ class PaymentController {
 
       return res.status(200).json({
         success: true,
-        message: result.message,
+        message: result.message || 'Cash payment confirmed successfully',
         data: result,
       });
     } catch (err) {
@@ -122,16 +130,13 @@ class PaymentController {
 
   async webhook(req, res, next) {
     try {
-      console.log('PAYOS WEBHOOK BODY:', JSON.stringify(req.body, null, 2));
-
       const result = await this.verifyPaymentWebhookUseCase.execute(req.body);
 
       return res.status(200).json({
         success: true,
-        message: result.message,
+        message: result?.message || 'Webhook processed successfully',
       });
     } catch (err) {
-      console.error('PAYOS WEBHOOK ERROR:', err);
       next(err);
     }
   }
@@ -140,12 +145,37 @@ class PaymentController {
     try {
       const dto = GetPaymentStatisticsQuerySchema.parse(req.query);
 
-      const result = await this.getPaymentStatisticsUseCase.execute(dto, req.user);
+      const result = await this.getPaymentStatisticsUseCase.execute(
+        dto,
+        req.user
+      );
 
       return res.status(200).json({
         success: true,
         message: 'Payment statistics fetched successfully',
         data: result,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async handleSuccess(req, res, next) {
+    try {
+      return res.status(200).json({
+        success: true,
+        message: 'Thanh toán thành công!',
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async handleCancel(req, res, next) {
+    try {
+      return res.status(200).json({
+        success: false,
+        message: 'Thanh toán đã bị hủy!',
       });
     } catch (err) {
       next(err);

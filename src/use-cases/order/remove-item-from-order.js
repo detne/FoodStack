@@ -17,9 +17,9 @@ class RemoveItemFromOrderUseCase {
       throw err;
     }
 
-    // ✅ Acceptance 2: Order chưa PREPARING
-    if (['PREPARING', 'SERVED', 'COMPLETED', 'CANCELLED'].includes(order.status)) {
-      const err = new Error('Cannot remove items from order that is being prepared or completed');
+    // Only allow removal from ACTIVE orders; item must be in a PENDING round
+    if (['COMPLETED', 'CANCELLED'].includes(order.status)) {
+      const err = new Error('Cannot remove items from a completed or cancelled order');
       err.status = 400;
       throw err;
     }
@@ -36,6 +36,13 @@ class RemoveItemFromOrderUseCase {
     if (!orderItem || orderItem.order_id !== orderId) {
       const err = new Error('Order item not found');
       err.status = 404;
+      throw err;
+    }
+
+    // Only allow removal if item is still PENDING
+    if (orderItem.status !== 'PENDING') {
+      const err = new Error('Cannot remove an item that is already being prepared or served');
+      err.status = 400;
       throw err;
     }
 

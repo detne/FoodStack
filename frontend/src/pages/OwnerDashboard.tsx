@@ -19,6 +19,7 @@ import {
   FolderTree,
   Grid3x3,
   Users,
+  GitBranch,
   Palette,
   BarChart3,
   Settings as SettingsIcon,
@@ -33,6 +34,7 @@ import OwnerCategories from './OwnerCategories';
 import Tables from './Tables';
 import Staff from './Staff';
 import Branding from './Branding';
+import BranchesManagement from './BranchesManagement';
 import OwnerAnalytics from './OwnerAnalytics';
 import OwnerManagerDashboard from './OwnerManagerDashboard';
 
@@ -63,7 +65,7 @@ const navItems: NavItem[] = [
     icon: UtensilsCrossed,
   },
   {
-    title: 'Manage Categories',
+    title: 'Categories Management',
     subtitle: 'Manage categories, toppings',
     href: '/owner/categories',
     icon: FolderTree,
@@ -73,6 +75,12 @@ const navItems: NavItem[] = [
     subtitle: 'Manage tables and QR codes',
     href: '/owner/tables',
     icon: Grid3x3,
+  },
+  {
+    title: 'Branches Management',
+    subtitle: 'Manage restaurant branches',
+    href: '/owner/branches',
+    icon: GitBranch,
   },
   {
     title: 'Staff Management',
@@ -93,7 +101,7 @@ const navItems: NavItem[] = [
     icon: BarChart3,
   },
   {
-    title: 'Manager Dashboard',
+    title: 'Dashboard Management',
     subtitle: 'Access manager dashboard',
     href: '/owner/manager',
     icon: LayoutDashboard,
@@ -283,6 +291,8 @@ export default function OwnerDashboard() {
               <OwnerCategories />
             ) : location.pathname === '/owner/tables' ? (
               <Tables />
+            ) : location.pathname === '/owner/branches' ? (
+              <BranchesManagement />
             ) : location.pathname === '/owner/staff' ? (
               <Staff />
             ) : location.pathname === '/owner/branding' ? (

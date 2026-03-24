@@ -24,9 +24,9 @@ class UpdateOrderItemUseCase {
       throw err;
     }
 
-    // Only allow updates for pending orders
-    if (['PREPARING', 'SERVED', 'COMPLETED', 'CANCELLED'].includes(order.status)) {
-      const err = new Error('Cannot update items in order that is being prepared or completed');
+    // Only allow updates on ACTIVE orders; item must be PENDING
+    if (['COMPLETED', 'CANCELLED'].includes(order.status)) {
+      const err = new Error('Cannot update items in a completed or cancelled order');
       err.status = 400;
       throw err;
     }
