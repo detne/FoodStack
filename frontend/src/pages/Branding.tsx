@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import ThemeSelector from '../components/branding/ThemeSelector';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -29,36 +30,43 @@ import {
   Loader2
 } from 'lucide-react';
 
-// Theme configurations
-const THEMES = {
-  dark: [
-    { name: 'Dark Purple', primary: '#8B5CF6', secondary: '#A78BFA', background: '#1F2937', card: '#374151' },
-    { name: 'Dark Blue', primary: '#3B82F6', secondary: '#60A5FA', background: '#1E293B', card: '#334155' },
-    { name: 'Dark Green', primary: '#10B981', secondary: '#34D399', background: '#064E3B', card: '#065F46' },
-    { name: 'Dark Red', primary: '#EF4444', secondary: '#F87171', background: '#7F1D1D', card: '#991B1B' },
-  ],
-  light: [
-    { name: 'Light Purple', primary: '#8B5CF6', secondary: '#A78BFA', background: '#F9FAFB', card: '#FFFFFF' },
-    { name: 'Light Blue', primary: '#3B82F6', secondary: '#60A5FA', background: '#F8FAFC', card: '#FFFFFF' },
-    { name: 'Light Green', primary: '#10B981', secondary: '#34D399', background: '#F0FDF4', card: '#FFFFFF' },
-    { name: 'Light Orange', primary: '#F59E0B', secondary: '#FBBF24', background: '#FFFBEB', card: '#FFFFFF' },
-  ]
+// Layout configurations with tier requirements
+const LAYOUTS = {
+  free: ['DEFAULT', 'MINIMAL'],
+  pro: ['DEFAULT', 'MINIMAL', 'CENTERED', 'GRADIENT', 'MODERN', 'OCEAN', 'SUNSET', 'FOREST'],
+  vip: ['DEFAULT', 'MINIMAL', 'CENTERED', 'GRADIENT', 'MODERN', 'ELEGANT', 'OCEAN', 'SUNSET', 'FOREST', 'ROSE', 'MIDNIGHT', 'COFFEE']
 };
 
-const LAYOUTS = {
-  free: ['gradient-about'],
-  pro: ['gradient-about', 'centered', 'sidebar', 'masonry'],
-  enterprise: ['gradient-about', 'centered', 'sidebar', 'masonry', 'slider']
+// All available layouts for display
+const ALL_LAYOUTS = ['DEFAULT', 'MINIMAL', 'CENTERED', 'GRADIENT', 'MODERN', 'ELEGANT', 'OCEAN', 'SUNSET', 'FOREST', 'ROSE', 'MIDNIGHT', 'COFFEE'];
+
+// Layout tier mapping
+const LAYOUT_TIERS = {
+  DEFAULT: 'free',
+  MINIMAL: 'free',
+  CENTERED: 'pro',
+  GRADIENT: 'pro',
+  MODERN: 'pro',
+  OCEAN: 'pro',
+  SUNSET: 'pro',
+  FOREST: 'pro',
+  ELEGANT: 'vip',
+  ROSE: 'vip',
+  MIDNIGHT: 'vip',
+  COFFEE: 'vip'
 };
 
 export default function Branding() {
   const [activeTab, setActiveTab] = useState('images');
   const [selectedTheme, setSelectedTheme] = useState(null);
-  const [selectedLayout, setSelectedLayout] = useState('gradient-about');
-  const [userPackage, setUserPackage] = useState('free'); // This should come from user context
+  const [selectedLayout, setSelectedLayout] = useState('DEFAULT');
+  const [userPackage, setUserPackage] = useState('free'); // Change this to test different tiers: 'free', 'pro', 'vip'
   const [previewMode, setPreviewMode] = useState('desktop');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [branchSlug, setBranchSlug] = useState(null);
+  const [themes, setThemes] = useState([]);
+  const [loadingThemes, setLoadingThemes] = useState(false);
   const [currentBranchId, setCurrentBranchId] = useState(null);
   
   // Image states
@@ -88,44 +96,82 @@ export default function Branding() {
     about2: useRef(null)
   };
 
-  // Load branding data from API
+  // Load themes from API
+  useEffect(() => {
+    const loadThemes = async () => {
+      try {
+        setLoadingThemes(true);
+        const response = await apiClient.get('/branding/themes');
+        setThemes(response.data || []);
+      } catch (error) {
+        console.error('Error loading themes:', error);
+        toast.error('Không thể tải danh sách theme');
+      } finally {
+        setLoadingThemes(false);
+      }
+    };
+
+    loadThemes();
+  }, []);
+
+  // Load branding data from API (Restaurant level for Owner)
   useEffect(() => {
     const loadBranding = async () => {
       try {
         setLoading(true);
         
-        // Get current branch from localStorage or context
-        const branchId = localStorage.getItem('selectedBranchId');
-        if (!branchId) {
-          toast.error('Vui lòng chọn chi nhánh');
+        // Get restaurant ID from user context
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        const restaurantId = user.restaurantId;
+        
+        if (!restaurantId) {
+          toast.error('Không tìm thấy nhà hàng');
           return;
         }
         
-        setCurrentBranchId(branchId);
+        console.log('Loading branding for restaurant:', restaurantId);
         
-        const response = await apiClient.get(`/branding/${branchId}`);
+        // Load restaurant-level branding (applies to all branches)
+        const response = await apiClient.get(`/branding/restaurant/${restaurantId}`);
+        console.log('Branding response:', response);
         const data = response.data;
+        console.log('Branding data:', data);
         
         // Map API data to state
-        if (data.theme_colors) {
-          setSelectedTheme(data.theme_colors);
+        if (data.selectedThemeId || data.selected_theme_id) {
+          const themeId = data.selectedThemeId || data.selected_theme_id;
+          const theme = themes.find(t => t._id === themeId);
+          setSelectedTheme(theme);
         }
-        setSelectedLayout(data.layout_type || 'gradient-about');
-        setLogo(data.logo_url ? { file: data.logo_url, name: 'logo' } : null);
-        setBanner(data.banner_url ? { file: data.banner_url, name: 'banner' } : null);
-        setGalleryImages(data.gallery_images || []);
-        setSliderImages(data.slider_images || []);
+        setSelectedLayout(data.layoutType || data.layout_type || 'DEFAULT');
+        
+        // Handle both camelCase and snake_case from API
+        const logoUrl = data.logoUrl || data.logo_url;
+        const bannerUrl = data.bannerUrl || data.banner_url;
+        
+        setLogo(logoUrl ? { file: logoUrl, name: 'logo' } : null);
+        setBanner(bannerUrl ? { file: bannerUrl, name: 'banner' } : null);
+        
+        // Handle gallery and slider images
+        const galleryImgs = data.galleryImages || data.gallery_images || [];
+        const sliderImgs = data.sliderImages || data.slider_images || [];
+        
+        setGalleryImages(galleryImgs.map((url: string) => ({ file: url, name: 'gallery' })));
+        setSliderImages(sliderImgs.map((url: string) => ({ file: url, name: 'slider' })));
         
         setBrandInfo({
-          name: data.name || '',
+          name: data.brandName || data.brand_name || '',
           tagline: data.tagline || '',
-          description: data.address || '',
-          phone: data.phone || '',
-          email: '',
+          description: data.description || '',
+          phone: data.publicPhone || data.public_phone || '',
+          email: data.publicEmail || data.public_email || '',
           address: data.address || '',
-          aboutSection1: { title: '', text: '', image: null },
-          aboutSection2: { title: '', text: '', image: null }
+          aboutSection1: data.aboutSection1 || data.about_section_1 || { title: '', text: '', image: null },
+          aboutSection2: data.aboutSection2 || data.about_section_2 || { title: '', text: '', image: null }
         });
+
+        // Set branch slug for preview
+        setBranchSlug(data.slug);
         
       } catch (error) {
         console.error('Error loading branding:', error);
@@ -135,8 +181,10 @@ export default function Branding() {
       }
     };
 
-    loadBranding();
-  }, []);
+    if (themes.length > 0) {
+      loadBranding();
+    }
+  }, [themes]);
 
   // File upload handler with API integration
   const handleFileUpload = async (file, type, index = null) => {
@@ -154,17 +202,40 @@ export default function Branding() {
     }
 
     try {
-      // Upload to server first
+      // Get API base URL from environment
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1';
+      
+      // Upload to branding endpoint
       const formData = new FormData();
       formData.append('image', file);
+      formData.append('imageType', type);
       
-      const uploadResponse = await apiClient.post('/restaurants/upload-logo', formData, {
+      const uploadResponse = await fetch(`${API_BASE_URL}/branding/upload`, {
+        method: 'POST',
         headers: {
-          'Content-Type': 'multipart/form-data',
+          'Authorization': `Bearer ${apiClient.getToken()}`,
         },
+        body: formData,
       });
       
-      const imageUrl = uploadResponse.data.logoUrl;
+      if (!uploadResponse.ok) {
+        let errorMessage = 'Upload failed';
+        try {
+          const errorData = await uploadResponse.json();
+          errorMessage = errorData.message || errorMessage;
+        } catch (e) {
+          errorMessage = `Server error: ${uploadResponse.status} ${uploadResponse.statusText}`;
+        }
+        throw new Error(errorMessage);
+      }
+      
+      const uploadData = await uploadResponse.json();
+      const imageUrl = uploadData.data?.imageUrl;
+      
+      if (!imageUrl) {
+        throw new Error('No image URL returned from server');
+      }
+      
       const imageData = {
         file: imageUrl,
         name: file.name,
@@ -182,7 +253,7 @@ export default function Branding() {
           setGalleryImages(prev => [...prev, imageData]);
           break;
         case 'slider':
-          if (userPackage === 'enterprise') {
+          if (userPackage === 'vip') {
             setSliderImages(prev => [...prev, imageData]);
           }
           break;
@@ -202,14 +273,20 @@ export default function Branding() {
       toast.success('Tải ảnh thành công');
     } catch (error) {
       console.error('Error uploading image:', error);
-      toast.error('Không thể tải ảnh lên');
+      toast.error(`Không thể tải ảnh lên: ${error.message}`);
     }
   };
 
-  // Save all changes to API
+  // Save all changes to API (Restaurant level for Owner)
   const handleSaveAll = async () => {
-    if (!currentBranchId) {
-      toast.error('Không tìm thấy chi nhánh');
+    console.log('handleSaveAll - currentBranchId:', currentBranchId);
+    
+    // For Owner, save at restaurant level instead of branch level
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const restaurantId = user.restaurantId;
+    
+    if (!restaurantId) {
+      toast.error('Không tìm thấy nhà hàng');
       return;
     }
 
@@ -217,28 +294,43 @@ export default function Branding() {
       setSaving(true);
       
       const data = {
+        brandName: brandInfo.name,
+        tagline: brandInfo.tagline,
+        description: brandInfo.description,
         logoUrl: logo?.file || null,
         bannerUrl: banner?.file || null,
-        tagline: brandInfo.tagline,
-        selectedThemeId: selectedTheme?.name || null,
-        themeColors: selectedTheme,
+        selectedThemeId: selectedTheme?._id || null,
+        customThemeColors: selectedTheme ? {
+          primaryColor: selectedTheme.primary_color,
+          secondaryColor: selectedTheme.secondary_color,
+          accentColor: selectedTheme.accent_color,
+          backgroundColor: selectedTheme.background_color,
+          textColor: selectedTheme.text_color,
+          textSecondary: selectedTheme.text_secondary,
+        } : null,
         layoutType: selectedLayout,
-        galleryImages: galleryImages,
-        sliderImages: sliderImages,
-        operatingHours: null,
-        socialLinks: null,
+        galleryImages: galleryImages.map(img => img.file),
+        sliderImages: sliderImages.map(img => img.file),
+        aboutSection1: brandInfo.aboutSection1,
+        aboutSection2: brandInfo.aboutSection2,
         isPublished: true,
-        seoTitle: brandInfo.name,
-        seoDescription: brandInfo.description,
-        seoKeywords: null,
       };
       
-      const result = await apiClient.put(`/branding/${currentBranchId}`, data);
+      console.log('handleSaveAll - Saving for restaurant:', restaurantId);
+      console.log('handleSaveAll - Data:', data);
+      
+      // Save at restaurant level (applies to all branches)
+      const result = await apiClient.put(`/branding/restaurant/${restaurantId}`, data);
+      
       // Update slug if returned
       if (result.data?.slug) {
         setBranchSlug(result.data.slug);
       }
-      toast.success('Đã lưu tất cả thay đổi');
+      
+      toast.success('Đã lưu branding cho tất cả chi nhánh');
+      
+      // Notify preview page to reload
+      localStorage.setItem('branding_updated', Date.now().toString());
     } catch (error) {
       console.error('Error saving branding:', error);
       toast.error('Không thể lưu thay đổi');
@@ -247,24 +339,41 @@ export default function Branding() {
     }
   };
 
-  // Preview landing page
+  // Preview landing page (use first branch for preview)
   const handlePreview = () => {
-    if (branchSlug) {
-      window.open(`/g/${branchSlug}`, '_blank');
-    } else {
-      toast.error('Chi nhánh chưa có slug');
-    }
-  };
-
-  // Copy URL
-  const handleCopyURL = () => {
-    if (!branchSlug) {
-      toast.error('Chi nhánh chưa có slug');
+    // Get restaurant ID from user context
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const restaurantId = user.restaurantId;
+    
+    if (!restaurantId) {
+      toast.error('Không tìm thấy nhà hàng');
       return;
     }
-    const url = `${window.location.origin}/g/${branchSlug}`;
-    navigator.clipboard.writeText(url);
-    toast.success('Đã sao chép URL');
+    
+    // Navigate to customer preview page in same tab (don't open new tab to avoid auth issues)
+    window.location.href = `/restaurant/${restaurantId}/customer-preview`;
+  };
+
+  // Copy URL (use first branch URL)
+  const handleCopyURL = async () => {
+    try {
+      const branchesResponse = await apiClient.getBranches();
+      if (branchesResponse.data && branchesResponse.data.length > 0) {
+        const firstBranch = branchesResponse.data[0];
+        if (firstBranch.slug) {
+          const url = `${window.location.origin}/branch/${firstBranch.slug}`;
+          navigator.clipboard.writeText(url);
+          toast.success('Đã sao chép URL');
+        } else {
+          toast.error('Chi nhánh chưa có slug');
+        }
+      } else {
+        toast.error('Không tìm thấy chi nhánh');
+      }
+    } catch (error) {
+      console.error('Error copying URL:', error);
+      toast.error('Không thể sao chép URL');
+    }
   };
 
   return (
@@ -282,10 +391,21 @@ export default function Branding() {
         </div>
         
         <div className="flex items-center gap-2">
-          <Badge variant={userPackage === 'enterprise' ? 'default' : userPackage === 'pro' ? 'secondary' : 'outline'}>
-            {userPackage === 'enterprise' && <Crown className="w-3 h-3 mr-1" />}
+          <Badge variant={userPackage === 'vip' ? 'default' : userPackage === 'pro' ? 'secondary' : 'outline'} className="text-sm">
+            {userPackage === 'vip' && <Crown className="w-3 h-3 mr-1" />}
             {userPackage.toUpperCase()}
           </Badge>
+          {userPackage !== 'vip' && (
+            <Button 
+              onClick={() => toast.info('Tính năng nâng cấp đang được phát triển')} 
+              variant="default"
+              size="sm"
+              className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+            >
+              <Crown className="w-4 h-4 mr-2" />
+              Nâng cấp {userPackage === 'free' ? 'PRO' : 'VIP'}
+            </Button>
+          )}
           <Button onClick={handlePreview} variant="outline">
             <Eye className="w-4 h-4 mr-2" />
             Preview
@@ -294,9 +414,13 @@ export default function Branding() {
             <Copy className="w-4 h-4 mr-2" />
             Copy URL
           </Button>
-          <Button onClick={handleSaveAll}>
-            <Save className="w-4 h-4 mr-2" />
-            Lưu tất cả
+          <Button onClick={handleSaveAll} disabled={saving}>
+            {saving ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Save className="w-4 h-4 mr-2" />
+            )}
+            {saving ? 'Đang lưu...' : 'Lưu tất cả'}
           </Button>
         </div>
       </div>
@@ -324,18 +448,26 @@ export default function Branding() {
               <CardContent>
                 <div className="space-y-4">
                   <div 
-                    className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-gray-400 transition-colors"
+                    className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-gray-400 transition-colors min-h-[200px] flex items-center justify-center"
                     onClick={() => fileInputRefs.logo.current?.click()}
                   >
                     {logo ? (
-                      <div className="space-y-2">
-                        <img src={logo.file} alt="Logo" className="max-h-32 mx-auto" />
-                        <p className="text-sm text-muted-foreground">{logo.name}</p>
+                      <div className="space-y-2 w-full">
+                        <div className="relative w-full h-40 flex items-center justify-center bg-gray-50 rounded-lg">
+                          <img 
+                            src={logo.file} 
+                            alt="Logo" 
+                            className="max-h-36 max-w-full object-contain"
+                          />
+                        </div>
+                        <p className="text-sm text-muted-foreground truncate">{logo.name}</p>
+                        <p className="text-xs text-green-600 font-medium">✓ Logo đã được tải lên</p>
                       </div>
                     ) : (
                       <div className="space-y-2">
                         <Upload className="w-8 h-8 mx-auto text-muted-foreground" />
                         <p className="text-sm text-muted-foreground">Click để tải logo</p>
+                        <p className="text-xs text-gray-400">PNG, JPG tối đa 5MB</p>
                       </div>
                     )}
                   </div>
@@ -347,9 +479,9 @@ export default function Branding() {
                     onChange={(e) => handleFileUpload(e.target.files[0], 'logo')}
                   />
                   {logo && (
-                    <Button variant="outline" size="sm" onClick={() => setLogo(null)}>
+                    <Button variant="outline" size="sm" onClick={() => setLogo(null)} className="w-full">
                       <Trash2 className="w-4 h-4 mr-2" />
-                      Xóa
+                      Xóa logo
                     </Button>
                   )}
                 </div>
@@ -367,18 +499,26 @@ export default function Branding() {
               <CardContent>
                 <div className="space-y-4">
                   <div 
-                    className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-gray-400 transition-colors"
+                    className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-gray-400 transition-colors min-h-[200px] flex items-center justify-center"
                     onClick={() => fileInputRefs.banner.current?.click()}
                   >
                     {banner ? (
-                      <div className="space-y-2">
-                        <img src={banner.file} alt="Banner" className="max-h-32 mx-auto" />
-                        <p className="text-sm text-muted-foreground">{banner.name}</p>
+                      <div className="space-y-2 w-full">
+                        <div className="relative w-full h-40 flex items-center justify-center bg-gray-50 rounded-lg overflow-hidden">
+                          <img 
+                            src={banner.file} 
+                            alt="Banner" 
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <p className="text-sm text-muted-foreground truncate">{banner.name}</p>
+                        <p className="text-xs text-green-600 font-medium">✓ Banner đã được tải lên</p>
                       </div>
                     ) : (
                       <div className="space-y-2">
                         <Upload className="w-8 h-8 mx-auto text-muted-foreground" />
                         <p className="text-sm text-muted-foreground">Click để tải banner</p>
+                        <p className="text-xs text-gray-400">PNG, JPG tối đa 5MB (1200x400 khuyến nghị)</p>
                       </div>
                     )}
                   </div>
@@ -390,9 +530,9 @@ export default function Branding() {
                     onChange={(e) => handleFileUpload(e.target.files[0], 'banner')}
                   />
                   {banner && (
-                    <Button variant="outline" size="sm" onClick={() => setBanner(null)}>
+                    <Button variant="outline" size="sm" onClick={() => setBanner(null)} className="w-full">
                       <Trash2 className="w-4 h-4 mr-2" />
-                      Xóa
+                      Xóa banner
                     </Button>
                   )}
                 </div>
@@ -401,7 +541,7 @@ export default function Branding() {
           </div>
 
           {/* Gallery Images */}
-          {(userPackage === 'pro' || userPackage === 'enterprise') && (
+          {(userPackage === 'pro' || userPackage === 'vip') && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -454,8 +594,8 @@ export default function Branding() {
             </Card>
           )}
 
-          {/* Image Slider - Enterprise Only */}
-          {userPackage === 'enterprise' && (
+          {/* Image Slider - VIP Only */}
+          {userPackage === 'vip' && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -463,7 +603,7 @@ export default function Branding() {
                   Image Slider
                   <Badge variant="default">
                     <Crown className="w-3 h-3 mr-1" />
-                    ENTERPRISE
+                    VIP
                   </Badge>
                 </CardTitle>
               </CardHeader>
@@ -511,7 +651,7 @@ export default function Branding() {
             </Card>
           )}
         </TabsContent>  
-      {/* Themes Tab */}
+        {/* Themes Tab */}
         <TabsContent value="themes" className="space-y-6">
           {userPackage === 'free' ? (
             <Card>
@@ -520,7 +660,7 @@ export default function Branding() {
                   <Crown className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                   <h3 className="text-lg font-semibold mb-2">Nâng cấp để sử dụng Theme</h3>
                   <p className="text-muted-foreground mb-4">
-                    Tính năng chọn theme chỉ có trong gói Pro và Enterprise
+                    Tính năng chọn theme chỉ có trong gói Pro và VIP
                   </p>
                   <Button>Nâng cấp ngay</Button>
                 </div>
@@ -528,69 +668,62 @@ export default function Branding() {
             </Card>
           ) : (
             <div className="space-y-6">
-              {/* Dark Themes */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Dark Themes</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {THEMES.dark.map((theme, index) => (
-                      <div
-                        key={index}
-                        className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                          selectedTheme?.name === theme.name ? 'border-primary' : 'border-gray-200'
-                        }`}
-                        onClick={() => setSelectedTheme(theme)}
-                      >
-                        <div className="space-y-2">
-                          <div className="h-16 rounded" style={{ backgroundColor: theme.background }}>
-                            <div className="h-8 rounded-t" style={{ backgroundColor: theme.primary }}></div>
-                            <div className="h-8 rounded-b" style={{ backgroundColor: theme.card }}></div>
+              {loadingThemes ? (
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="text-center py-8">
+                      <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" />
+                      <p>Đang tải themes...</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                <>
+                  {/* Group themes by category */}
+                  {['LIGHT', 'DARK', 'COLORFUL', 'MINIMAL'].map(category => {
+                    const categoryThemes = themes.filter(theme => theme.category === category);
+                    if (categoryThemes.length === 0) return null;
+                    
+                    return (
+                      <Card key={category}>
+                        <CardHeader>
+                          <CardTitle>{category} Themes</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                            {categoryThemes.map((theme) => (
+                              <div
+                                key={theme._id}
+                                className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                                  selectedTheme?._id === theme._id ? 'border-primary' : 'border-gray-200'
+                                }`}
+                                onClick={() => setSelectedTheme(theme)}
+                              >
+                                <div className="space-y-2">
+                                  <div className="h-16 rounded" style={{ backgroundColor: theme.background_color }}>
+                                    <div className="h-8 rounded-t" style={{ backgroundColor: theme.primary_color }}></div>
+                                    <div className="h-8 rounded-b" style={{ backgroundColor: theme.secondary_color }}></div>
+                                  </div>
+                                  <p className="text-sm font-medium">{theme.name}</p>
+                                  <div className="flex gap-1">
+                                    <div className="w-4 h-4 rounded-full" style={{ backgroundColor: theme.primary_color }}></div>
+                                    <div className="w-4 h-4 rounded-full" style={{ backgroundColor: theme.secondary_color }}></div>
+                                    <div className="w-4 h-4 rounded-full" style={{ backgroundColor: theme.accent_color }}></div>
+                                  </div>
+                                  <Badge variant={theme.required_package === 'FREE' ? 'outline' : theme.required_package === 'PRO' ? 'secondary' : 'default'}>
+                                    {theme.required_package === 'VIP' && <Crown className="w-3 h-3 mr-1" />}
+                                    {theme.required_package}
+                                  </Badge>
+                                </div>
+                              </div>
+                            ))}
                           </div>
-                          <p className="text-sm font-medium">{theme.name}</p>
-                          <div className="flex gap-1">
-                            <div className="w-4 h-4 rounded-full" style={{ backgroundColor: theme.primary }}></div>
-                            <div className="w-4 h-4 rounded-full" style={{ backgroundColor: theme.secondary }}></div>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Light Themes */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Light Themes</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {THEMES.light.map((theme, index) => (
-                      <div
-                        key={index}
-                        className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                          selectedTheme?.name === theme.name ? 'border-primary' : 'border-gray-200'
-                        }`}
-                        onClick={() => setSelectedTheme(theme)}
-                      >
-                        <div className="space-y-2">
-                          <div className="h-16 rounded" style={{ backgroundColor: theme.background }}>
-                            <div className="h-8 rounded-t" style={{ backgroundColor: theme.primary }}></div>
-                            <div className="h-8 rounded-b" style={{ backgroundColor: theme.card }}></div>
-                          </div>
-                          <p className="text-sm font-medium">{theme.name}</p>
-                          <div className="flex gap-1">
-                            <div className="w-4 h-4 rounded-full" style={{ backgroundColor: theme.primary }}></div>
-                            <div className="w-4 h-4 rounded-full" style={{ backgroundColor: theme.secondary }}></div>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </>
+              )}
             </div>
           )}
         </TabsContent>
@@ -606,42 +739,385 @@ export default function Branding() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {LAYOUTS[userPackage].map((layout) => (
-                  <div
-                    key={layout}
-                    className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                      selectedLayout === layout ? 'border-primary' : 'border-gray-200'
-                    }`}
-                    onClick={() => setSelectedLayout(layout)}
-                  >
-                    <div className="space-y-2">
-                      <div className="h-24 bg-gray-100 rounded flex items-center justify-center">
-                        <div className="text-xs text-gray-500">
-                          {layout === 'gradient-about' && 'Gradient + About'}
-                          {layout === 'centered' && 'Centered Layout'}
-                          {layout === 'sidebar' && 'Sidebar Layout'}
-                          {layout === 'masonry' && 'Masonry Layout'}
-                          {layout === 'slider' && 'Image Slider'}
+                {ALL_LAYOUTS.map((layout) => {
+                  // Check if layout is available for current user package
+                  const layoutTier = LAYOUT_TIERS[layout];
+                  const isLocked = 
+                    (userPackage === 'free' && (layoutTier === 'pro' || layoutTier === 'vip')) ||
+                    (userPackage === 'pro' && layoutTier === 'vip');
+                  
+                  // Define colors and styles for each layout
+                  const layoutStyles = {
+                    DEFAULT: {
+                      bg: 'bg-gradient-to-b from-indigo-500 to-indigo-600',
+                      preview: (
+                        <div className="h-32 rounded overflow-hidden">
+                          <div className="h-20 bg-gradient-to-b from-indigo-500 to-indigo-600 flex items-center justify-center">
+                            <div className="w-8 h-8 bg-white rounded-full"></div>
+                          </div>
+                          <div className="h-12 bg-white -mt-4 rounded-t-2xl"></div>
+                        </div>
+                      )
+                    },
+                    MINIMAL: {
+                      bg: 'bg-white border-2 border-gray-200',
+                      preview: (
+                        <div className="h-32 bg-white rounded p-4 flex flex-col items-center justify-center space-y-2">
+                          <div className="w-8 h-8 bg-gray-200 rounded-full"></div>
+                          <div className="w-16 h-2 bg-gray-300 rounded"></div>
+                          <div className="w-12 h-1 bg-gray-200 rounded"></div>
+                        </div>
+                      )
+                    },
+                    CENTERED: {
+                      bg: 'bg-gradient-to-br from-indigo-100 to-purple-100',
+                      preview: (
+                        <div className="h-32 bg-gradient-to-br from-indigo-100 to-purple-100 rounded p-4 flex flex-col items-center justify-center space-y-2">
+                          <div className="w-10 h-10 bg-white rounded-full shadow-lg"></div>
+                          <div className="w-20 h-2 bg-indigo-600 rounded"></div>
+                          <div className="w-16 h-6 bg-indigo-600 rounded-full"></div>
+                        </div>
+                      )
+                    },
+                    GRADIENT: {
+                      bg: 'bg-gradient-to-br from-purple-600 via-indigo-600 to-blue-600',
+                      preview: (
+                        <div className="h-32 bg-gradient-to-br from-purple-600 via-indigo-600 to-blue-600 rounded p-4 flex flex-col items-center justify-center space-y-2">
+                          <div className="w-10 h-10 bg-white rounded-full"></div>
+                          <div className="w-20 h-2 bg-yellow-300 rounded"></div>
+                          <div className="w-16 h-6 bg-white rounded-lg"></div>
+                        </div>
+                      )
+                    },
+                    MODERN: {
+                      bg: 'bg-gray-900',
+                      preview: (
+                        <div className="h-32 bg-gray-900 rounded p-4 flex flex-col items-center justify-center space-y-2">
+                          <div className="w-10 h-10 bg-gray-800 rounded-xl"></div>
+                          <div className="w-20 h-2 bg-gray-300 rounded"></div>
+                          <div className="w-16 h-6 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-lg"></div>
+                        </div>
+                      )
+                    },
+                    ELEGANT: {
+                      bg: 'bg-gradient-to-b from-amber-50 to-amber-100',
+                      preview: (
+                        <div className="h-32 bg-gradient-to-b from-amber-50 to-amber-100 rounded p-4 flex flex-col items-center justify-center space-y-2">
+                          <div className="w-12 h-12 bg-white rounded-full ring-4 ring-amber-200 shadow-xl"></div>
+                          <div className="w-6 h-0.5 bg-amber-500"></div>
+                          <div className="w-20 h-2 bg-gray-600 rounded"></div>
+                          <div className="w-16 h-6 bg-amber-600 rounded-full"></div>
+                        </div>
+                      )
+                    },
+                    OCEAN: {
+                      bg: 'bg-gradient-to-b from-cyan-400 via-blue-500 to-blue-700',
+                      preview: (
+                        <div className="h-32 bg-gradient-to-b from-cyan-400 via-blue-500 to-blue-700 rounded p-4 flex flex-col items-center justify-center space-y-2">
+                          <div className="w-10 h-10 bg-white rounded-full shadow-2xl"></div>
+                          <div className="w-20 h-2 bg-cyan-100 rounded"></div>
+                          <div className="w-16 h-6 bg-white rounded-full"></div>
+                        </div>
+                      )
+                    },
+                    SUNSET: {
+                      bg: 'bg-gradient-to-br from-orange-400 via-red-400 to-pink-500',
+                      preview: (
+                        <div className="h-32 bg-gradient-to-br from-orange-400 via-red-400 to-pink-500 rounded p-4 flex flex-col items-center justify-center space-y-2">
+                          <div className="w-10 h-10 bg-white rounded-full ring-4 ring-orange-200 shadow-2xl"></div>
+                          <div className="w-20 h-2 bg-yellow-100 rounded"></div>
+                          <div className="w-16 h-6 bg-white rounded-full"></div>
+                        </div>
+                      )
+                    },
+                    FOREST: {
+                      bg: 'bg-gradient-to-b from-green-400 via-emerald-500 to-teal-600',
+                      preview: (
+                        <div className="h-32 bg-gradient-to-b from-green-400 via-emerald-500 to-teal-600 rounded p-4 flex flex-col items-center justify-center space-y-2">
+                          <div className="w-10 h-10 bg-white rounded-full shadow-2xl"></div>
+                          <div className="w-20 h-2 bg-green-100 rounded"></div>
+                          <div className="w-16 h-6 bg-white rounded-full"></div>
+                        </div>
+                      )
+                    },
+                    ROSE: {
+                      bg: 'bg-gradient-to-br from-pink-300 via-rose-400 to-pink-500',
+                      preview: (
+                        <div className="h-32 bg-gradient-to-br from-pink-300 via-rose-400 to-pink-500 rounded p-4 flex flex-col items-center justify-center space-y-2">
+                          <div className="w-12 h-12 bg-white rounded-full ring-8 ring-white shadow-2xl"></div>
+                          <div className="w-8 h-0.5 bg-white rounded-full"></div>
+                          <div className="w-20 h-2 bg-pink-50 rounded"></div>
+                          <div className="w-16 h-6 bg-white rounded-full"></div>
+                        </div>
+                      )
+                    },
+                    MIDNIGHT: {
+                      bg: 'bg-gradient-to-b from-indigo-900 via-purple-900 to-violet-900',
+                      preview: (
+                        <div className="h-32 bg-gradient-to-b from-indigo-900 via-purple-900 to-violet-900 rounded p-4 flex flex-col items-center justify-center space-y-2">
+                          <div className="w-10 h-10 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full border-4 border-purple-300 shadow-2xl shadow-purple-500/50"></div>
+                          <div className="w-20 h-2 bg-gradient-to-r from-purple-200 to-pink-200 rounded"></div>
+                          <div className="w-16 h-6 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full"></div>
+                        </div>
+                      )
+                    },
+                    COFFEE: {
+                      bg: 'bg-gradient-to-b from-amber-100 to-orange-50',
+                      preview: (
+                        <div className="h-32 bg-gradient-to-b from-amber-100 to-orange-50 rounded p-4 flex flex-col items-center justify-center space-y-2">
+                          <div className="w-10 h-10 bg-amber-800 rounded-full shadow-xl"></div>
+                          <div className="flex items-center gap-1">
+                            <div className="w-3 h-0.5 bg-amber-600"></div>
+                            <div className="w-1 h-1 bg-amber-600 rounded-full"></div>
+                            <div className="w-3 h-0.5 bg-amber-600"></div>
+                          </div>
+                          <div className="w-20 h-2 bg-amber-700 rounded"></div>
+                          <div className="w-16 h-6 bg-amber-800 rounded-lg"></div>
+                        </div>
+                      )
+                    }
+                  };
+
+                  return (
+                    <div
+                      key={layout}
+                      className={`rounded-lg border-2 transition-all relative ${
+                        isLocked 
+                          ? 'border-gray-200 opacity-75 cursor-not-allowed' 
+                          : selectedLayout === layout 
+                            ? 'border-primary ring-4 ring-primary/20 cursor-pointer hover:scale-105' 
+                            : 'border-gray-200 hover:border-gray-300 cursor-pointer hover:scale-105'
+                      }`}
+                      onClick={() => {
+                        if (isLocked) {
+                          const requiredTier = layoutTier === 'pro' ? 'PRO' : 'VIP';
+                          toast.error(
+                            <div className="flex flex-col gap-1">
+                              <p className="font-semibold">Layout bị khóa</p>
+                              <p className="text-sm">Layout "{layout}" yêu cầu gói {requiredTier}. Vui lòng nâng cấp để sử dụng!</p>
+                            </div>,
+                            {
+                              duration: 3000,
+                            }
+                          );
+                        } else {
+                          setSelectedLayout(layout);
+                        }
+                      }}
+                    >
+                      {/* Lock overlay */}
+                      {isLocked && (
+                        <div className="absolute inset-0 bg-black/40 rounded-lg flex items-center justify-center z-10 backdrop-blur-[2px]">
+                          <div className="text-center">
+                            <Crown className="w-8 h-8 text-yellow-400 mx-auto mb-2" />
+                            <p className="text-white text-xs font-semibold">
+                              {layoutTier === 'pro' ? 'PRO+' : 'VIP'}
+                            </p>
+                            <p className="text-white text-xs mt-1">Nâng cấp để mở khóa</p>
+                          </div>
+                        </div>
+                      )}
+                      
+                      <div className="space-y-3 p-4">
+                        {layoutStyles[layout]?.preview}
+                        <div className="space-y-2">
+                          <p className="text-sm font-semibold capitalize">
+                            {layout.replace('_', ' ').toLowerCase()}
+                          </p>
+                          <div className="flex items-center justify-between">
+                            {['DEFAULT', 'MINIMAL'].includes(layout) && (
+                              <Badge variant="outline" className="text-xs">FREE</Badge>
+                            )}
+                            {['CENTERED', 'GRADIENT', 'MODERN', 'OCEAN', 'SUNSET', 'FOREST'].includes(layout) && (
+                              <Badge variant="secondary" className="text-xs">PRO+</Badge>
+                            )}
+                            {['ELEGANT', 'ROSE', 'MIDNIGHT', 'COFFEE'].includes(layout) && (
+                              <Badge variant="default" className="text-xs">
+                                <Crown className="w-3 h-3 mr-1" />
+                                VIP
+                              </Badge>
+                            )}
+                            {!isLocked && selectedLayout === layout && (
+                              <span className="text-xs text-primary font-medium">✓ Selected</span>
+                            )}
+                          </div>
                         </div>
                       </div>
-                      <p className="text-sm font-medium capitalize">
-                        {layout.replace('-', ' ')}
-                      </p>
-                      {layout === 'gradient-about' && (
-                        <Badge variant="outline">FREE</Badge>
-                      )}
-                      {['centered', 'sidebar', 'masonry'].includes(layout) && (
-                        <Badge variant="secondary">PRO+</Badge>
-                      )}
-                      {layout === 'slider' && (
-                        <Badge variant="default">
-                          <Crown className="w-3 h-3 mr-1" />
-                          ENTERPRISE
-                        </Badge>
-                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Content Tab */}
+                    DEFAULT: {
+                      bg: 'bg-gradient-to-b from-indigo-500 to-indigo-600',
+                      preview: (
+                        <div className="h-32 rounded overflow-hidden">
+                          <div className="h-20 bg-gradient-to-b from-indigo-500 to-indigo-600 flex items-center justify-center">
+                            <div className="w-8 h-8 bg-white rounded-full"></div>
+                          </div>
+                          <div className="h-12 bg-white -mt-4 rounded-t-2xl"></div>
+                        </div>
+                      )
+                    },
+                    MINIMAL: {
+                      bg: 'bg-white border-2 border-gray-200',
+                      preview: (
+                        <div className="h-32 bg-white rounded p-4 flex flex-col items-center justify-center space-y-2">
+                          <div className="w-8 h-8 bg-gray-200 rounded-full"></div>
+                          <div className="w-16 h-2 bg-gray-300 rounded"></div>
+                          <div className="w-12 h-1 bg-gray-200 rounded"></div>
+                        </div>
+                      )
+                    },
+                    CENTERED: {
+                      bg: 'bg-gradient-to-br from-indigo-100 to-purple-100',
+                      preview: (
+                        <div className="h-32 bg-gradient-to-br from-indigo-100 to-purple-100 rounded p-4 flex flex-col items-center justify-center space-y-2">
+                          <div className="w-10 h-10 bg-white rounded-full shadow-lg"></div>
+                          <div className="w-20 h-2 bg-indigo-600 rounded"></div>
+                          <div className="w-16 h-6 bg-indigo-600 rounded-full"></div>
+                        </div>
+                      )
+                    },
+                    GRADIENT: {
+                      bg: 'bg-gradient-to-br from-purple-600 via-indigo-600 to-blue-600',
+                      preview: (
+                        <div className="h-32 bg-gradient-to-br from-purple-600 via-indigo-600 to-blue-600 rounded p-4 flex flex-col items-center justify-center space-y-2">
+                          <div className="w-10 h-10 bg-white rounded-full"></div>
+                          <div className="w-20 h-2 bg-yellow-300 rounded"></div>
+                          <div className="w-16 h-6 bg-white rounded-lg"></div>
+                        </div>
+                      )
+                    },
+                    MODERN: {
+                      bg: 'bg-gray-900',
+                      preview: (
+                        <div className="h-32 bg-gray-900 rounded p-4 flex flex-col items-center justify-center space-y-2">
+                          <div className="w-10 h-10 bg-gray-800 rounded-xl"></div>
+                          <div className="w-20 h-2 bg-gray-300 rounded"></div>
+                          <div className="w-16 h-6 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-lg"></div>
+                        </div>
+                      )
+                    },
+                    ELEGANT: {
+                      bg: 'bg-gradient-to-b from-amber-50 to-amber-100',
+                      preview: (
+                        <div className="h-32 bg-gradient-to-b from-amber-50 to-amber-100 rounded p-4 flex flex-col items-center justify-center space-y-2">
+                          <div className="w-12 h-12 bg-white rounded-full ring-4 ring-amber-200 shadow-xl"></div>
+                          <div className="w-6 h-0.5 bg-amber-500"></div>
+                          <div className="w-20 h-2 bg-gray-600 rounded"></div>
+                          <div className="w-16 h-6 bg-amber-600 rounded-full"></div>
+                        </div>
+                      )
+                    },
+                    OCEAN: {
+                      bg: 'bg-gradient-to-b from-cyan-400 via-blue-500 to-blue-700',
+                      preview: (
+                        <div className="h-32 bg-gradient-to-b from-cyan-400 via-blue-500 to-blue-700 rounded p-4 flex flex-col items-center justify-center space-y-2">
+                          <div className="w-10 h-10 bg-white rounded-full shadow-2xl"></div>
+                          <div className="w-20 h-2 bg-cyan-100 rounded"></div>
+                          <div className="w-16 h-6 bg-white rounded-full"></div>
+                        </div>
+                      )
+                    },
+                    SUNSET: {
+                      bg: 'bg-gradient-to-br from-orange-400 via-red-400 to-pink-500',
+                      preview: (
+                        <div className="h-32 bg-gradient-to-br from-orange-400 via-red-400 to-pink-500 rounded p-4 flex flex-col items-center justify-center space-y-2">
+                          <div className="w-10 h-10 bg-white rounded-full ring-4 ring-orange-200 shadow-2xl"></div>
+                          <div className="w-20 h-2 bg-yellow-100 rounded"></div>
+                          <div className="w-16 h-6 bg-white rounded-full"></div>
+                        </div>
+                      )
+                    },
+                    FOREST: {
+                      bg: 'bg-gradient-to-b from-green-400 via-emerald-500 to-teal-600',
+                      preview: (
+                        <div className="h-32 bg-gradient-to-b from-green-400 via-emerald-500 to-teal-600 rounded p-4 flex flex-col items-center justify-center space-y-2">
+                          <div className="w-10 h-10 bg-white rounded-full shadow-2xl"></div>
+                          <div className="w-20 h-2 bg-green-100 rounded"></div>
+                          <div className="w-16 h-6 bg-white rounded-full"></div>
+                        </div>
+                      )
+                    },
+                    ROSE: {
+                      bg: 'bg-gradient-to-br from-pink-300 via-rose-400 to-pink-500',
+                      preview: (
+                        <div className="h-32 bg-gradient-to-br from-pink-300 via-rose-400 to-pink-500 rounded p-4 flex flex-col items-center justify-center space-y-2">
+                          <div className="w-12 h-12 bg-white rounded-full ring-8 ring-white shadow-2xl"></div>
+                          <div className="w-8 h-0.5 bg-white rounded-full"></div>
+                          <div className="w-20 h-2 bg-pink-50 rounded"></div>
+                          <div className="w-16 h-6 bg-white rounded-full"></div>
+                        </div>
+                      )
+                    },
+                    MIDNIGHT: {
+                      bg: 'bg-gradient-to-b from-indigo-900 via-purple-900 to-violet-900',
+                      preview: (
+                        <div className="h-32 bg-gradient-to-b from-indigo-900 via-purple-900 to-violet-900 rounded p-4 flex flex-col items-center justify-center space-y-2">
+                          <div className="w-10 h-10 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full border-4 border-purple-300 shadow-2xl shadow-purple-500/50"></div>
+                          <div className="w-20 h-2 bg-gradient-to-r from-purple-200 to-pink-200 rounded"></div>
+                          <div className="w-16 h-6 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full"></div>
+                        </div>
+                      )
+                    },
+                    COFFEE: {
+                      bg: 'bg-gradient-to-b from-amber-100 to-orange-50',
+                      preview: (
+                        <div className="h-32 bg-gradient-to-b from-amber-100 to-orange-50 rounded p-4 flex flex-col items-center justify-center space-y-2">
+                          <div className="w-10 h-10 bg-amber-800 rounded-full shadow-xl"></div>
+                          <div className="flex items-center gap-1">
+                            <div className="w-3 h-0.5 bg-amber-600"></div>
+                            <div className="w-1 h-1 bg-amber-600 rounded-full"></div>
+                            <div className="w-3 h-0.5 bg-amber-600"></div>
+                          </div>
+                          <div className="w-20 h-2 bg-amber-700 rounded"></div>
+                          <div className="w-16 h-6 bg-amber-800 rounded-lg"></div>
+                        </div>
+                      )
+                    }
+                  };
+
+                  return (
+                    <div
+                      key={layout}
+                      className={`rounded-lg border-2 cursor-pointer transition-all hover:scale-105 ${
+                        selectedLayout === layout ? 'border-primary ring-4 ring-primary/20' : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                      onClick={() => setSelectedLayout(layout)}
+                    >
+                      <div className="space-y-3 p-4">
+                        {layoutStyles[layout]?.preview}
+                        <div className="space-y-2">
+                          <p className="text-sm font-semibold capitalize">
+                            {layout.replace('_', ' ').toLowerCase()}
+                          </p>
+                          <div className="flex items-center justify-between">
+                            {['DEFAULT', 'MINIMAL'].includes(layout) && (
+                              <Badge variant="outline" className="text-xs">FREE</Badge>
+                            )}
+                            {['CENTERED', 'GRADIENT', 'MODERN', 'OCEAN', 'SUNSET', 'FOREST'].includes(layout) && (
+                              <Badge variant="secondary" className="text-xs">PRO+</Badge>
+                            )}
+                            {['ELEGANT', 'ROSE', 'MIDNIGHT', 'COFFEE'].includes(layout) && (
+                              <Badge variant="default" className="text-xs">
+                                <Crown className="w-3 h-3 mr-1" />
+                                VIP
+                              </Badge>
+                            )}
+                            {selectedLayout === layout && (
+                              <span className="text-xs text-primary font-medium">✓ Selected</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </CardContent>
           </Card>
@@ -869,8 +1345,8 @@ export default function Branding() {
                 <div 
                   className="min-h-96 p-6"
                   style={{ 
-                    backgroundColor: selectedTheme?.background || '#F9FAFB',
-                    color: selectedTheme?.name?.includes('Dark') ? '#FFFFFF' : '#000000'
+                    backgroundColor: selectedTheme?.background_color || '#F9FAFB',
+                    color: selectedTheme?.text_color || '#000000'
                   }}
                 >
                   {/* Preview Header */}
@@ -907,14 +1383,14 @@ export default function Branding() {
 
                   {/* Preview About Sections */}
                   {(brandInfo.aboutSection1.title || brandInfo.aboutSection1.text) && (
-                    <div className="mb-8 p-4 rounded-lg" style={{ backgroundColor: selectedTheme?.card || '#FFFFFF' }}>
+                    <div className="mb-8 p-4 rounded-lg" style={{ backgroundColor: selectedTheme?.secondary_color || '#FFFFFF' }}>
                       <h3 className="text-xl font-semibold mb-2">{brandInfo.aboutSection1.title}</h3>
                       <p>{brandInfo.aboutSection1.text}</p>
                     </div>
                   )}
 
                   {(brandInfo.aboutSection2.title || brandInfo.aboutSection2.text) && (
-                    <div className="mb-8 p-4 rounded-lg" style={{ backgroundColor: selectedTheme?.card || '#FFFFFF' }}>
+                    <div className="mb-8 p-4 rounded-lg" style={{ backgroundColor: selectedTheme?.secondary_color || '#FFFFFF' }}>
                       <h3 className="text-xl font-semibold mb-2">{brandInfo.aboutSection2.title}</h3>
                       <p>{brandInfo.aboutSection2.text}</p>
                     </div>

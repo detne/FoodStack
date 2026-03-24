@@ -9,6 +9,12 @@ class BranchRepository {
     return await client.branches.findUnique({ where: { id } });
   }
 
+  async findBySlug(slug) {
+    return await this.prisma.branches.findUnique({
+      where: { slug },
+    });
+  }
+
   async findByRestaurantId(restaurantId) {
     return await this.prisma.branches.findMany({
       where: {
