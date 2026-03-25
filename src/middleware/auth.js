@@ -42,4 +42,17 @@ function createAuthMiddleware(tokenService) {
   };
 }
 
-module.exports = { createAuthMiddleware };
+// Create a default instance for direct import (lazy initialization)
+let defaultAuthMiddleware = null;
+
+const authenticate = async (req, res, next) => {
+  if (!defaultAuthMiddleware) {
+    // Lazy load to avoid circular dependency
+    const { TokenService } = require('../service/token');
+    const tokenService = new TokenService();
+    defaultAuthMiddleware = createAuthMiddleware(tokenService);
+  }
+  return defaultAuthMiddleware(req, res, next);
+};
+
+module.exports = { createAuthMiddleware, authenticate };

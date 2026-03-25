@@ -764,6 +764,7 @@ function createApp() {
   app.use('/api/v1/staff', createStaffRoutes(staffController, authMiddleware));
   app.use('/api/v1/reservations', createReservationRoutes(reservationController, authMiddleware));
   app.use('/api/v1/payments', createPaymentRoutes(paymentController, authMiddleware));
+  app.use('/api/v1/subscription', require('./routes/v1/subscription-new')); // New lazy-loaded routes
   app.use('/api/v1/orders', createOrderRoutes(orderController, authMiddleware));
   app.use('/api/v1/branding', createBrandingRoutes(brandingController, authMiddleware));
   app.use('/api/v1/public', createPublicRoutes(prisma, brandingRepository));

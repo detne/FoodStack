@@ -55,6 +55,12 @@ export default function StaffOverview() {
       // Fetch tables
       const tablesResult = await apiClient.tables.list(branchId!);
       
+      // Fetch orders
+      const ordersResult = await apiClient.getOrdersByBranch(branchId!, { 
+        roundStatus: 'all',
+        limit: 100 
+      });
+      
       // Process reservations data
       if (reservationsResult.success && reservationsResult.data) {
         const reservationList = Array.isArray(reservationsResult.data) 
@@ -107,12 +113,39 @@ export default function StaffOverview() {
         setActiveTables(active);
       }
       
-      // TODO: Fetch orders when API is ready
-      // For now keep mock data for orders
-      setStats(prev => ({
-        ...prev,
-        orders: { today: 0, pending: 0, preparing: 0 },
-      }));
+      // Process orders data
+      if (ordersResult.success && ordersResult.data) {
+        const ordersList = ordersResult.data.orders || [];
+        
+        // Filter today's orders
+        const today = new Date().toISOString().split('T')[0];
+        const todayOrders = ordersList.filter((order: any) => {
+          const orderDate = new Date(order.created_at).toISOString().split('T')[0];
+          return orderDate === today;
+        });
+        
+        // Count by round status
+        let pendingCount = 0;
+        let preparingCount = 0;
+        
+        todayOrders.forEach((order: any) => {
+          if (order.rounds && Array.isArray(order.rounds)) {
+            order.rounds.forEach((round: any) => {
+              if (round.status === 'PENDING') pendingCount++;
+              if (round.status === 'PREPARING') preparingCount++;
+            });
+          }
+        });
+        
+        setStats(prev => ({
+          ...prev,
+          orders: {
+            today: todayOrders.length,
+            pending: pendingCount,
+            preparing: preparingCount,
+          },
+        }));
+      }
       
     } catch (error) {
       console.error('Error fetching dashboard data:', error);

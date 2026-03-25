@@ -8,6 +8,8 @@ class PayOSService {
     this.checksumKey = process.env.PAYOS_CHECKSUM_KEY;
     this.returnUrl = process.env.PAYOS_RETURN_URL;
     this.cancelUrl = process.env.PAYOS_CANCEL_URL;
+    this.subscriptionReturnUrl = process.env.PAYOS_SUBSCRIPTION_RETURN_URL || process.env.PAYOS_RETURN_URL;
+    this.subscriptionCancelUrl = process.env.PAYOS_SUBSCRIPTION_CANCEL_URL || process.env.PAYOS_CANCEL_URL;
     this.apiBaseUrl =
       process.env.PAYOS_API_BASE_URL || 'https://api-merchant.payos.vn';
   }
@@ -117,8 +119,67 @@ class PayOSService {
     };
   }
 
-  async charge({ orderId, amount, method, orderCode, description, items = [] }) {
+  async createSubscriptionPaymentLink({ orderCode, amount, description, items = [] }) {
+    const payload = {
+      orderCode: Number(orderCode),
+      amount: Number(amount),
+      description: String(description),
+      items,
+      returnUrl: String(this.subscriptionReturnUrl),
+      cancelUrl: String(this.subscriptionCancelUrl),
+    };
+
+    payload.signature = this.createPaymentSignature(payload);
+
+    console.log('PAYOS CREATE SUBSCRIPTION PAYMENT PAYLOAD:', JSON.stringify(payload, null, 2));
+
+    const response = await axios.post(
+      `${this.apiBaseUrl}/v2/payment-requests`,
+      payload,
+      {
+        headers: {
+          'x-client-id': this.clientId,
+          'x-api-key': this.apiKey,
+          'Content-Type': 'application/json',
+        },
+        timeout: 15000,
+      }
+    );
+
+    const body = response.data;
+    console.log('PAYOS CREATE SUBSCRIPTION PAYMENT RESPONSE:', JSON.stringify(body, null, 2));
+
+    if (body.code !== '00') {
+      return {
+        success: false,
+        message: body.desc || 'Create payment link failed',
+        raw: body,
+      };
+    }
+
+    return {
+      success: true,
+      paymentLinkId: body.data?.paymentLinkId || null,
+      checkoutUrl: body.data?.checkoutUrl || null,
+      qrCode: body.data?.qrCode || null,
+      accountNumber: body.data?.accountNumber || null,
+      accountName: body.data?.accountName || null,
+      bin: body.data?.bin || null,
+      raw: body.data || body,
+    };
+  }
+
+  async charge({ orderId, amount, method, orderCode, description, items = [], isSubscription = false }) {
     if (method === 'QR_PAY') {
+      if (isSubscription) {
+        return this.createSubscriptionPaymentLink({
+          orderCode,
+          amount,
+          description: description || `SUB${orderId}`,
+          items,
+        });
+      }
+      
       return this.createPaymentLink({
         orderCode,
         amount,

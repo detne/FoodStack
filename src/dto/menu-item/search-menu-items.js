@@ -6,7 +6,7 @@ const searchMenuItemsSchema = z.object({
   keyword: z.string().optional().default(''),
   category: z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid ID format").optional(),
   page: z.number().int().positive().optional().default(1),
-  limit: z.number().int().positive().optional().default(10),
+  limit: z.number().int().positive().max(10000).optional().default(10), // Allow up to 10000 items
   branchId: z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid ID format").optional(),
   restaurantId: z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid ID format").optional(),
 });

@@ -23,6 +23,9 @@ import StaffReservations from './StaffReservations';
 import StaffTables from './StaffTables';
 import StaffOrders from './StaffOrders';
 import StaffOverview from './StaffOverview';
+import { StaffNotificationProvider, useStaffNotifications } from '@/contexts/StaffNotificationContext';
+import { StaffNotificationBell } from '@/components/StaffNotificationBell';
+import { StaffCallAlertsContainer } from '@/components/StaffCallAlert';
 
 interface NavItem {
   title: string;
@@ -58,12 +61,13 @@ const navItems: NavItem[] = [
   },
 ];
 
-export default function StaffDashboard() {
+function StaffDashboardContent() {
   const { user, logout, isLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [selectedItem, setSelectedItem] = useState('/staff/overview');
   const [branchInfo, setBranchInfo] = useState<any>(null);
+  const { addCall, activeAlerts, dismissAlert } = useStaffNotifications();
 
   useEffect(() => {
     // Load branch info
@@ -79,6 +83,44 @@ export default function StaffDashboard() {
       setSelectedItem(currentItem.href);
     }
   }, [location.pathname]);
+
+  // Check for new staff calls from localStorage
+  useEffect(() => {
+    const checkForCalls = () => {
+      const calls = JSON.parse(localStorage.getItem('staff_calls') || '[]');
+      const processedCalls = JSON.parse(localStorage.getItem('processed_staff_calls') || '[]');
+      
+      // Filter out already processed calls
+      const newCalls = calls.filter((call: any) => 
+        !processedCalls.includes(call.timestamp) &&
+        call.branchId === branchInfo?.id
+      );
+      
+      // Add new calls to notification system
+      newCalls.forEach((call: any) => {
+        addCall({
+          tableNumber: call.tableNumber,
+          areaName: call.areaName,
+          branchName: call.branchName,
+        });
+        processedCalls.push(call.timestamp);
+      });
+      
+      // Update processed calls
+      if (newCalls.length > 0) {
+        localStorage.setItem('processed_staff_calls', JSON.stringify(processedCalls));
+      }
+    };
+
+    // Check immediately
+    if (branchInfo) {
+      checkForCalls();
+    }
+
+    // Check every 3 seconds
+    const interval = setInterval(checkForCalls, 3000);
+    return () => clearInterval(interval);
+  }, [branchInfo, addCall]);
 
   const fetchBranchInfo = async (branchId: string) => {
     try {
@@ -124,6 +166,9 @@ export default function StaffDashboard() {
 
   return (
     <div className="flex h-screen bg-background">
+      {/* Popup Alerts */}
+      <StaffCallAlertsContainer calls={activeAlerts} onDismiss={dismissAlert} />
+      
       {/* Sidebar */}
       <div className="w-72 border-r bg-card flex flex-col">
         {/* Header */}
@@ -136,6 +181,7 @@ export default function StaffDashboard() {
               <h2 className="font-semibold text-lg">FoodStack</h2>
               <p className="text-xs text-muted-foreground">Staff Portal</p>
             </div>
+            <StaffNotificationBell />
           </div>
         </div>
 
@@ -233,5 +279,13 @@ export default function StaffDashboard() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function StaffDashboard() {
+  return (
+    <StaffNotificationProvider>
+      <StaffDashboardContent />
+    </StaffNotificationProvider>
   );
 }

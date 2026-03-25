@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -67,9 +68,24 @@ interface Branch {
   updated_at: string;
 }
 
+interface Subscription {
+  id: string;
+  restaurant_id: string;
+  plan_type: string;
+  status: string;
+  start_date: string;
+  end_date: string;
+  max_branches: number;
+  max_tables: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export default function OwnerOverview() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [branches, setBranches] = useState<Branch[]>([]);
+  const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [loading, setLoading] = useState(true);
   const [editingBranch, setEditingBranch] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'active' | 'inactive'>('active');
@@ -78,12 +94,37 @@ export default function OwnerOverview() {
   useEffect(() => {
     console.log('OwnerOverview - User data:', user);
     if (user?.restaurant?.id) {
-      fetchBranches();
+      fetchData();
     } else {
       console.log('No restaurant ID found in user data');
       setLoading(false);
     }
   }, [user]);
+
+  const fetchData = async () => {
+    await Promise.all([
+      fetchBranches(),
+      fetchSubscription(),
+    ]);
+  };
+
+  const fetchSubscription = async () => {
+    try {
+      console.log('Fetching subscription...');
+      const response = await apiClient.getCurrentSubscription();
+      console.log('Subscription response:', response);
+      
+      if (response.success && response.data) {
+        console.log('Subscription data:', response.data);
+        setSubscription(response.data);
+      } else {
+        console.log('No subscription data in response');
+      }
+    } catch (error: any) {
+      console.error('Error fetching subscription:', error);
+      // Don't show error toast for subscription - it's optional
+    }
+  };
 
   const fetchBranches = async () => {
     try {
@@ -187,31 +228,80 @@ export default function OwnerOverview() {
         </div>
       </div>
 
-      {/* Alert Banner */}
-      <Card className="border-amber-200 bg-amber-50/80 animate-in slide-in-from-top duration-700">
-        <CardContent className="p-4">
-          <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
-              <AlertCircle className="h-5 w-5 text-amber-600" />
+      {/* Alert Banner - Show subscription info */}
+      {subscription && (
+        <Card className={`border-2 animate-in slide-in-from-top duration-700 ${
+          subscription.plan_type.toUpperCase() === 'FREE' 
+            ? 'border-amber-200 bg-amber-50/80' 
+            : subscription.plan_type.toUpperCase() === 'PRO'
+            ? 'border-blue-200 bg-blue-50/80'
+            : 'border-purple-200 bg-purple-50/80'
+        }`}>
+          <CardContent className="p-4">
+            <div className="flex items-start gap-3">
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                subscription.plan_type.toUpperCase() === 'FREE'
+                  ? 'bg-amber-100'
+                  : subscription.plan_type.toUpperCase() === 'PRO'
+                  ? 'bg-blue-100'
+                  : 'bg-purple-100'
+              }`}>
+                {subscription.plan_type.toUpperCase() === 'FREE' ? (
+                  <AlertCircle className="h-5 w-5 text-amber-600" />
+                ) : (
+                  <Star className={`h-5 w-5 ${
+                    subscription.plan_type.toUpperCase() === 'PRO' ? 'text-blue-600' : 'text-purple-600'
+                  }`} />
+                )}
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <h3 className={`font-semibold ${
+                    subscription.plan_type.toUpperCase() === 'FREE'
+                      ? 'text-amber-900'
+                      : subscription.plan_type.toUpperCase() === 'PRO'
+                      ? 'text-blue-900'
+                      : 'text-purple-900'
+                  }`}>
+                    Gói {subscription.plan_type.toUpperCase()}
+                  </h3>
+                  <Badge variant={subscription.status === 'ACTIVE' ? 'default' : 'secondary'}>
+                    {subscription.status}
+                  </Badge>
+                </div>
+                <p className={`text-sm mt-1 ${
+                  subscription.plan_type.toUpperCase() === 'FREE'
+                    ? 'text-amber-700'
+                    : subscription.plan_type.toUpperCase() === 'PRO'
+                    ? 'text-blue-700'
+                    : 'text-purple-700'
+                }`}>
+                  {subscription.plan_type.toUpperCase() === 'FREE' ? (
+                    <>
+                      Giới hạn: {subscription.max_branches} chi nhánh, {subscription.max_tables} bàn/chi nhánh.
+                      {activeBranches.length >= subscription.max_branches && 
+                        ' Bạn đã đạt giới hạn chi nhánh. Nâng cấp để tạo thêm chi nhánh.'}
+                    </>
+                  ) : (
+                    <>
+                      Không giới hạn chi nhánh và bàn. Hết hạn: {new Date(subscription.end_date).toLocaleDateString('vi-VN')}
+                    </>
+                  )}
+                </p>
+              </div>
+              {subscription.plan_type.toUpperCase() === 'FREE' && (
+                <Button 
+                  size="sm" 
+                  className="flex-shrink-0 shadow-sm"
+                  onClick={() => navigate('/pricing')}
+                >
+                  Nâng cấp
+                </Button>
+              )}
             </div>
-            <div className="flex-1">
-              <h3 className="font-semibold text-amber-900">
-                Branch Creation Limit Reached
-              </h3>
-              <p className="text-sm text-amber-700 mt-1">
-                You've reached the maximum number of branches for your current package. 
-                Please upgrade to Premium to create more branches and unlock additional features.
-              </p>
-            </div>
-            <Button 
-              size="sm" 
-              className="flex-shrink-0 shadow-sm"
-            >
-              Upgrade to Premium
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

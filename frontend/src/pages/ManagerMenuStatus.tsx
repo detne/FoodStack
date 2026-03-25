@@ -201,8 +201,17 @@ export default function ManagerMenuStatus() {
       const token = localStorage.getItem('access_token');
       if (!token) return;
 
-      // Fetch ALL menu items (Manager can see all items, but can only toggle for their branch)
-      const response = await fetch('http://localhost:3000/api/v1/menu-items/search', {
+      const userData = localStorage.getItem('user');
+      if (!userData) return;
+
+      const user = JSON.parse(userData);
+      const restaurantId = user.restaurant?.id || user.restaurantId;
+
+      // Fetch ALL menu items for this restaurant (no pagination limit)
+      const url = `http://localhost:3000/api/v1/menu-items/search?limit=1000${restaurantId ? `&restaurantId=${restaurantId}` : ''}`;
+      console.log('Fetching menu items from:', url);
+      
+      const response = await fetch(url, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -215,6 +224,8 @@ export default function ManagerMenuStatus() {
 
       const data = await response.json();
       console.log('Menu items response:', data);
+      console.log('Total items received:', data.data?.length || 0);
+      console.log('Pagination info:', data.pagination);
       
       if (data.success && data.data) {
         setMenuItems(data.data);
@@ -295,6 +306,30 @@ export default function ManagerMenuStatus() {
     ...cat,
     items: menuItems.filter(item => item.category_id === cat.id),
   }));
+
+  // Debug: Log grouping results
+  useEffect(() => {
+    if (categories.length > 0 && menuItems.length > 0) {
+      console.log('=== GROUPING DEBUG ===');
+      console.log('Total categories:', categories.length);
+      console.log('Total menu items:', menuItems.length);
+      console.log('Sample menu item:', menuItems[0]);
+      console.log('Sample category:', categories[0]);
+      
+      groupedItems.forEach(group => {
+        console.log(`Category "${group.name}" (${group.id}): ${group.items.length} items`);
+      });
+      
+      // Check for items without matching category
+      const unmatchedItems = menuItems.filter(item => 
+        !categories.some(cat => cat.id === item.category_id)
+      );
+      if (unmatchedItems.length > 0) {
+        console.log('WARNING: Items without matching category:', unmatchedItems.length);
+        console.log('Sample unmatched item:', unmatchedItems[0]);
+      }
+    }
+  }, [categories, menuItems]);
 
   const scrollToCategory = (categoryId: string) => {
     setActiveCategory(categoryId);

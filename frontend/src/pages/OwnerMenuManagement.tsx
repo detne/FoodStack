@@ -192,9 +192,17 @@ export default function OwnerMenuManagement() {
         return;
       }
 
-      console.log('Fetching menu items');
+      const userData = localStorage.getItem('user');
+      if (!userData) return;
 
-      const response = await fetch('http://localhost:3000/api/v1/menu-items/search?limit=50', {
+      const user = JSON.parse(userData);
+      const restaurantId = user.restaurant?.id || user.restaurantId;
+
+      // Fetch ALL menu items for this restaurant (no pagination limit)
+      const url = `http://localhost:3000/api/v1/menu-items/search?limit=1000${restaurantId ? `&restaurantId=${restaurantId}` : ''}`;
+      console.log('Fetching menu items from:', url);
+
+      const response = await fetch(url, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -215,7 +223,8 @@ export default function OwnerMenuManagement() {
 
       const data = await response.json();
       console.log('Menu items data:', data);
-      console.log('Menu items count:', data.data?.length || 0);
+      console.log('Total items received:', data.data?.length || 0);
+      console.log('Pagination info:', data.pagination);
       
       if (data.success && data.data) {
         setMenuItems(data.data);

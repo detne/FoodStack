@@ -1,4 +1,5 @@
 const { ObjectId } = require('mongodb');
+const { SubscriptionLimitService } = require('../../service/subscription-limit.service');
 
 class CreateTableUseCase {
   constructor(
@@ -17,6 +18,7 @@ class CreateTableUseCase {
     this.userRepository = userRepository;
     this.qrService = qrService;
     this.cloudinaryUploadService = cloudinaryUploadService;
+    this.subscriptionLimitService = new SubscriptionLimitService();
   }
 
   async execute(areaId, dto, context) {
@@ -52,6 +54,20 @@ class CreateTableUseCase {
     if (!branch || branch.deleted_at) {
       const err = new Error('Branch not found');
       err.status = 404;
+      throw err;
+    }
+
+    // 2.5) Kiểm tra giới hạn subscription
+    const limitCheck = await this.subscriptionLimitService.canCreateTable(branch.id);
+    if (!limitCheck.allowed) {
+      const err = new Error(limitCheck.message);
+      err.status = 403;
+      err.code = 'SUBSCRIPTION_LIMIT_EXCEEDED';
+      err.details = {
+        current: limitCheck.current,
+        limit: limitCheck.limit,
+        plan: limitCheck.plan
+      };
       throw err;
     }
 

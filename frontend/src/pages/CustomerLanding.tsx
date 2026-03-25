@@ -9,6 +9,7 @@ import { apiClient } from '@/lib/api-client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { toast } from '@/components/ui/use-toast';
 import { 
   Loader2, 
   UtensilsCrossed, 
@@ -95,6 +96,30 @@ export default function CustomerLanding() {
     }
   };
 
+  const handleCallStaff = () => {
+    if (!tableInfo) return;
+
+    // Store call in localStorage to simulate notification
+    const staffCall = {
+      tableNumber: tableInfo.table.name,
+      areaName: tableInfo.table.area.name,
+      branchName: tableInfo.branch.name,
+      branchId: tableInfo.branch.id,
+      timestamp: new Date().toISOString(),
+    };
+
+    // Get existing calls
+    const existingCalls = JSON.parse(localStorage.getItem('staff_calls') || '[]');
+    existingCalls.push(staffCall);
+    localStorage.setItem('staff_calls', JSON.stringify(existingCalls));
+
+    // Show success message
+    toast({
+      title: '✅ Đã gọi nhân viên',
+      description: 'Nhân viên sẽ đến hỗ trợ bạn trong giây lát.',
+    });
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -159,7 +184,10 @@ export default function CustomerLanding() {
         </div>
       </button>
 
-      <button className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-all border border-gray-200 hover:border-indigo-600">
+      <button 
+        onClick={handleCallStaff}
+        className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-all border border-gray-200 hover:border-orange-600"
+      >
         <div className="flex flex-col items-center text-center">
           <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mb-3">
             <Bell className="w-6 h-6 text-orange-600" />
@@ -307,22 +335,28 @@ export default function CustomerLanding() {
   if (layoutType === 'GRADIENT') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-600 via-indigo-600 to-blue-600">
-        <div className="max-w-4xl mx-auto px-4 py-12">
-          <div className="text-center mb-12">
+        <div 
+          className="relative h-[350px] bg-cover bg-center"
+          style={{ backgroundImage: `url('${displayBanner}')` }}
+        >
+          <div className="absolute inset-0 bg-gradient-to-b from-purple-600/80 via-indigo-600/70 to-blue-600/80"></div>
+          <div className="relative h-full flex flex-col items-center justify-center text-center px-4">
             {displayLogo ? (
-              <img src={displayLogo} alt="Logo" className="w-28 h-28 rounded-full object-cover mx-auto mb-6 border-4 border-white shadow-2xl" />
+              <img src={displayLogo} alt="Logo" className="w-28 h-28 rounded-full object-cover mb-6 border-4 border-white shadow-2xl" />
             ) : (
-              <div className="w-28 h-28 rounded-full bg-white flex items-center justify-center mx-auto mb-6 border-4 border-white shadow-2xl">
+              <div className="w-28 h-28 rounded-full bg-white flex items-center justify-center mb-6 border-4 border-white shadow-2xl">
                 <UtensilsCrossed className="w-14 h-14 text-indigo-600" />
               </div>
             )}
-            <h1 className="text-5xl font-bold mb-3 text-white">{displayName}</h1>
-            <p className="text-2xl text-yellow-300 mb-8">{displayTagline}</p>
+            <h1 className="text-5xl font-bold mb-3 text-white drop-shadow-lg">{displayName}</h1>
+            <p className="text-2xl text-yellow-300 mb-8 drop-shadow-md">{displayTagline}</p>
             <button onClick={handleStartOrder} className="px-10 py-4 bg-white text-indigo-600 rounded-lg font-bold text-lg shadow-xl hover:shadow-2xl transition-all hover:scale-105">
               Xem thực đơn ngay
             </button>
           </div>
+        </div>
 
+        <div className="max-w-4xl mx-auto px-4 -mt-16 relative z-10">
           <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-2xl p-6 mb-8">
             <InfoCard />
           </div>

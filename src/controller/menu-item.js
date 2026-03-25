@@ -212,6 +212,10 @@ class MenuItemController {
   async search(req, res, next) {    try {
       const { SearchMenuItemsDto } = require('../dto/menu-item/search-menu-items');
 
+      // Log the incoming query parameters
+      console.log('Search query params:', req.query);
+      console.log('Parsed limit:', req.query.limit ? parseInt(req.query.limit) : 10);
+
       const dto = new SearchMenuItemsDto({
         keyword: req.query.keyword,
         category: req.query.category,
@@ -221,7 +225,11 @@ class MenuItemController {
         restaurantId: req.user?.restaurantId, // Add restaurant from user
       });
 
+      console.log('DTO limit:', dto.limit);
+
       const result = await this.searchMenuItemsUseCase.execute(dto);
+
+      console.log('Result pagination:', result.pagination);
 
       res.status(200).json({
         success: true,

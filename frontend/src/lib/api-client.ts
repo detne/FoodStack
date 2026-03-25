@@ -561,6 +561,41 @@ class ApiClient {
     }>(`/orders/branch/${branchId}/completed${qs ? `?${qs}` : ''}`);
   }
 
+  // Subscription APIs
+  async getCurrentSubscription() {
+    return this.request<{
+      subscription: {
+        id: string;
+        restaurant_id: string;
+        plan_type: string;
+        status: string;
+        start_date: string;
+        end_date: string;
+        max_branches: number;
+        max_tables: number;
+        created_at: string;
+        updated_at: string;
+      };
+    }>('/subscription/current');
+  }
+
+  async getSubscriptionPlans() {
+    return this.request<{
+      plans: Array<{
+        id: string;
+        name: string;
+        description: string;
+        price: number;
+        billing_cycle: string;
+        max_branches: number;
+        max_tables: number;
+        max_menu_items: number;
+        features: any;
+        is_active: boolean;
+      }>;
+    }>('/subscription/plans');
+  }
+
   async getCheckoutPreview(orderId: string, qrToken: string) {
     return this.request<any>(`/payments/checkout-preview?orderId=${orderId}&qrToken=${qrToken}`);
   }

@@ -3,6 +3,7 @@
 const { ValidationError } = require('../../exception/validation-error');
 const { UnauthorizedError } = require('../../exception/unauthorized-error');
 const { PrismaClient } = require('@prisma/client');
+const { SubscriptionLimitService } = require('../../service/subscription-limit.service');
 
 class CreateMenuItemUseCase {
   constructor(menuItemRepository, categoryRepository, userRepository, prisma) {
@@ -10,6 +11,7 @@ class CreateMenuItemUseCase {
     this.categoryRepository = categoryRepository;
     this.userRepository = userRepository;
     this.prisma = prisma || new PrismaClient();
+    this.subscriptionLimitService = new SubscriptionLimitService(this.prisma);
   }
 
   async execute(dto) {
@@ -27,6 +29,20 @@ class CreateMenuItemUseCase {
     const category = await this.categoryRepository.findById(dto.categoryId);
     if (!category || category.deleted_at) {
       throw new ValidationError('Category not found');
+    }
+
+    // 2.5. Kiểm tra giới hạn subscription
+    const limitCheck = await this.subscriptionLimitService.canCreateMenuItem(category.restaurant_id);
+    if (!limitCheck.allowed) {
+      const err = new Error(limitCheck.message);
+      err.status = 403;
+      err.code = 'SUBSCRIPTION_LIMIT_EXCEEDED';
+      err.details = {
+        current: limitCheck.current,
+        limit: limitCheck.limit,
+        plan: limitCheck.plan
+      };
+      throw err;
     }
 
     // 3. Validate price > 0

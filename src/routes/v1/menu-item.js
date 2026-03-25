@@ -18,6 +18,7 @@ function createMenuItemRoutes(menuItemController, authMiddleware) {
   // GET /api/v1/menu-items/search - Search menu items
   router.get(
     '/search',
+    authMiddleware,
     (req, res, next) => menuItemController.search(req, res, next)
   );
 

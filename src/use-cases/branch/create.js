@@ -1,7 +1,10 @@
+const { SubscriptionLimitService } = require('../../service/subscription-limit.service');
+
 class CreateBranchUseCase {
   constructor(branchRepository, restaurantRepository) {
     this.branchRepository = branchRepository;
     this.restaurantRepository = restaurantRepository;
+    this.subscriptionLimitService = new SubscriptionLimitService();
   }
 
   async execute(dto, auth) {
@@ -25,6 +28,20 @@ class CreateBranchUseCase {
     if (auth.role === 'OWNER' && auth.restaurantId && String(auth.restaurantId) !== String(dto.restaurantId)) {
       const err = new Error('Forbidden: Not your restaurant');
       err.status = 403;
+      throw err;
+    }
+
+    // ✅ Kiểm tra giới hạn subscription
+    const limitCheck = await this.subscriptionLimitService.canCreateBranch(dto.restaurantId);
+    if (!limitCheck.allowed) {
+      const err = new Error(limitCheck.message);
+      err.status = 403;
+      err.code = 'SUBSCRIPTION_LIMIT_EXCEEDED';
+      err.details = {
+        current: limitCheck.current,
+        limit: limitCheck.limit,
+        plan: limitCheck.plan
+      };
       throw err;
     }
 

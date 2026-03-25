@@ -63,6 +63,7 @@ export default function BranchesManagement() {
   const [loading, setLoading] = useState(true);
   const [editBranchId, setEditBranchId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [showInactive, setShowInactive] = useState(false);
 
   // Detail modal
   const [detailOpen, setDetailOpen] = useState(false);
@@ -91,13 +92,37 @@ export default function BranchesManagement() {
 
   useEffect(() => { fetchBranches(); }, []);
 
+  // Filter branches based on active/inactive toggle
+  const filteredBranches = branches.filter(branch => {
+    const isActive = branch.status !== 'INACTIVE' && branch.is_active !== false;
+    return showInactive ? !isActive : isActive;
+  });
+
+  const activeBranchCount = branches.filter(b => b.status !== 'INACTIVE' && b.is_active !== false).length;
+  const inactiveBranchCount = branches.filter(b => b.status === 'INACTIVE' || b.is_active === false).length;
+
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this branch?')) return;
+    // Check if branch is already inactive
+    const branch = branches.find(b => b.id === id);
+    const isInactive = branch?.status === 'INACTIVE' || branch?.is_active === false;
+    
+    const confirmMessage = isInactive
+      ? 'This branch is inactive. Are you sure you want to PERMANENTLY delete it? This action cannot be undone.'
+      : 'Are you sure you want to deactivate this branch? You can permanently delete it later.';
+    
+    if (!confirm(confirmMessage)) return;
+    
     try {
       setDeletingId(id);
       const response = await apiClient.deleteBranch(id);
       if (response.success) {
-        toast({ title: 'Success', description: 'Branch deleted successfully' });
+        const isPermanent = (response as any).permanent;
+        toast({ 
+          title: 'Success', 
+          description: isPermanent 
+            ? 'Branch permanently deleted' 
+            : 'Branch deactivated. Click delete again to permanently remove.'
+        });
         fetchBranches();
       } else throw new Error(response.message || 'Failed to delete branch');
     } catch (error: any) {
@@ -172,82 +197,115 @@ export default function BranchesManagement() {
         </Button>
       </div>
 
+      {/* Active/Inactive Toggle */}
+      <div className="flex gap-2">
+        <Button
+          variant={!showInactive ? 'default' : 'outline'}
+          onClick={() => setShowInactive(false)}
+          className="gap-2"
+        >
+          Active ({activeBranchCount})
+        </Button>
+        <Button
+          variant={showInactive ? 'default' : 'outline'}
+          onClick={() => setShowInactive(true)}
+          className="gap-2"
+        >
+          Inactive ({inactiveBranchCount})
+        </Button>
+      </div>
+
       {/* Branch list */}
       {loading ? (
         <div className="flex items-center justify-center py-16">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
         </div>
-      ) : branches.length === 0 ? (
+      ) : filteredBranches.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <Store className="w-12 h-12 text-muted-foreground mb-4" />
-          <h3 className="text-lg font-medium">No branches yet</h3>
-          <p className="text-sm text-muted-foreground mt-1 mb-4">Create your first branch to get started</p>
-          <Button onClick={() => navigate('/owner/branch-setup')} className="gap-2">
-            <Plus className="w-4 h-4" />
-            Create Branch
-          </Button>
+          <h3 className="text-lg font-medium">
+            {showInactive ? 'No inactive branches' : 'No branches yet'}
+          </h3>
+          <p className="text-sm text-muted-foreground mt-1 mb-4">
+            {showInactive 
+              ? 'All your branches are active' 
+              : 'Create your first branch to get started'}
+          </p>
+          {!showInactive && (
+            <Button onClick={() => navigate('/owner/branch-setup')} className="gap-2">
+              <Plus className="w-4 h-4" />
+              Create Branch
+            </Button>
+          )}
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {branches.map((branch) => (
-            <Card key={branch.id} className="hover:shadow-md transition-shadow">
-              <CardContent className="p-5 space-y-3">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <Store className="w-4 h-4 text-primary flex-shrink-0" />
-                    <h3 className="font-semibold text-base leading-tight">{branch.name}</h3>
+          {filteredBranches.map((branch) => {
+            const isInactive = branch.status === 'INACTIVE' || branch.is_active === false;
+            return (
+              <Card key={branch.id} className={`hover:shadow-md transition-shadow ${isInactive ? 'opacity-60 border-orange-300' : ''}`}>
+                <CardContent className="p-5 space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <Store className="w-4 h-4 text-primary flex-shrink-0" />
+                      <h3 className="font-semibold text-base leading-tight">{branch.name}</h3>
+                    </div>
+                    <Badge variant={!isInactive ? 'default' : 'secondary'} className="text-xs flex-shrink-0">
+                      {branch.status || (isInactive ? 'Inactive' : 'Active')}
+                    </Badge>
                   </div>
-                  <Badge variant={branch.is_active !== false ? 'default' : 'secondary'} className="text-xs flex-shrink-0">
-                    {branch.status || (branch.is_active !== false ? 'Active' : 'Inactive')}
-                  </Badge>
-                </div>
 
-                {branch.address && (
-                  <div className="flex items-start gap-2 text-sm text-muted-foreground">
-                    <MapPin className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
-                    <span className="line-clamp-2">{branch.address}</span>
-                  </div>
-                )}
+                  {branch.address && (
+                    <div className="flex items-start gap-2 text-sm text-muted-foreground">
+                      <MapPin className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                      <span className="line-clamp-2">{branch.address}</span>
+                    </div>
+                  )}
 
-                {branch.phone && (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Phone className="w-3.5 h-3.5 flex-shrink-0" />
-                    <span>{branch.phone}</span>
-                  </div>
-                )}
+                  {branch.phone && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Phone className="w-3.5 h-3.5 flex-shrink-0" />
+                      <span>{branch.phone}</span>
+                    </div>
+                  )}
 
-                {/* Action buttons */}
-                <div className="grid grid-cols-2 gap-2 pt-1">
-                  <Button variant="outline" size="sm" className="gap-1" onClick={() => openDetail(branch.id)}>
-                    <Info className="w-3.5 h-3.5" />
-                    Details
-                  </Button>
-                  <Button variant="outline" size="sm" className="gap-1" onClick={() => openStats(branch.id)}>
-                    <BarChart2 className="w-3.5 h-3.5" />
-                    Statistics
-                  </Button>
-                  <Button variant="outline" size="sm" className="gap-1" onClick={() => setEditBranchId(branch.id)}>
-                    <Pencil className="w-3.5 h-3.5" />
-                    Edit
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-1 text-destructive hover:text-destructive hover:bg-destructive/10"
-                    onClick={() => handleDelete(branch.id)}
-                    disabled={deletingId === branch.id}
-                  >
-                    {deletingId === branch.id ? (
-                      <div className="w-3.5 h-3.5 border-2 border-current/30 border-t-current rounded-full animate-spin" />
-                    ) : (
-                      <Trash2 className="w-3.5 h-3.5" />
+                  {/* Action buttons */}
+                  <div className="grid grid-cols-2 gap-2 pt-1">
+                    {!isInactive && (
+                      <>
+                        <Button variant="outline" size="sm" className="gap-1" onClick={() => openDetail(branch.id)}>
+                          <Info className="w-3.5 h-3.5" />
+                          Details
+                        </Button>
+                        <Button variant="outline" size="sm" className="gap-1" onClick={() => openStats(branch.id)}>
+                          <BarChart2 className="w-3.5 h-3.5" />
+                          Statistics
+                        </Button>
+                        <Button variant="outline" size="sm" className="gap-1" onClick={() => setEditBranchId(branch.id)}>
+                          <Pencil className="w-3.5 h-3.5" />
+                          Edit
+                        </Button>
+                      </>
                     )}
-                    Delete
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className={`gap-1 ${isInactive ? 'col-span-2 bg-red-50' : ''} text-destructive hover:text-destructive hover:bg-destructive/10`}
+                      onClick={() => handleDelete(branch.id)}
+                      disabled={deletingId === branch.id}
+                    >
+                      {deletingId === branch.id ? (
+                        <div className="w-3.5 h-3.5 border-2 border-current/30 border-t-current rounded-full animate-spin" />
+                      ) : (
+                        <Trash2 className="w-3.5 h-3.5" />
+                      )}
+                      {isInactive ? 'Delete Permanently' : 'Delete'}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
 

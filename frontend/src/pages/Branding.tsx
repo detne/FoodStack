@@ -4,11 +4,13 @@
  */
 
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import ThemeSelector from '../components/branding/ThemeSelector';
+import UpgradePrompt from '../components/UpgradePrompt';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -57,10 +59,12 @@ const LAYOUT_TIERS = {
 };
 
 export default function Branding() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('images');
   const [selectedTheme, setSelectedTheme] = useState(null);
   const [selectedLayout, setSelectedLayout] = useState('DEFAULT');
-  const [userPackage, setUserPackage] = useState('free'); // Change this to test different tiers: 'free', 'pro', 'vip'
+  const [userPackage, setUserPackage] = useState('free'); // Will be updated from subscription API
+  const [subscription, setSubscription] = useState<any>(null);
   const [previewMode, setPreviewMode] = useState('desktop');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -112,6 +116,30 @@ export default function Branding() {
     };
 
     loadThemes();
+  }, []);
+
+  // Load subscription to determine user package
+  useEffect(() => {
+    const loadSubscription = async () => {
+      try {
+        console.log('Fetching subscription for branding page...');
+        const response = await apiClient.getCurrentSubscription();
+        console.log('Subscription response:', response);
+        
+        if (response.success && response.data) {
+          setSubscription(response.data);
+          // Set user package based on plan_type
+          const planType = response.data.plan_type?.toLowerCase() || 'free';
+          setUserPackage(planType);
+          console.log('User package set to:', planType);
+        }
+      } catch (error) {
+        console.error('Error loading subscription:', error);
+        // Default to free if error
+        setUserPackage('free');
+      }
+    };
+    loadSubscription();
   }, []);
 
   // Load branding data from API (Restaurant level for Owner)
@@ -397,7 +425,7 @@ export default function Branding() {
           </Badge>
           {userPackage !== 'vip' && (
             <Button 
-              onClick={() => toast.info('Tính năng nâng cấp đang được phát triển')} 
+              onClick={() => navigate('/pricing')} 
               variant="default"
               size="sm"
               className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
@@ -541,7 +569,7 @@ export default function Branding() {
           </div>
 
           {/* Gallery Images */}
-          {(userPackage === 'pro' || userPackage === 'vip') && (
+          {(userPackage === 'pro' || userPackage === 'vip') ? (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -592,10 +620,16 @@ export default function Branding() {
                 </div>
               </CardContent>
             </Card>
+          ) : (
+            <UpgradePrompt 
+              requiredPlan="pro"
+              feature="Gallery Images"
+              description="Thêm nhiều ảnh để khách hàng xem trước không gian nhà hàng của bạn"
+            />
           )}
 
           {/* Image Slider - VIP Only */}
-          {userPackage === 'vip' && (
+          {userPackage === 'vip' ? (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -649,6 +683,12 @@ export default function Branding() {
                 </div>
               </CardContent>
             </Card>
+          ) : (
+            <UpgradePrompt 
+              requiredPlan="vip"
+              feature="Image Slider"
+              description="Tạo slider ảnh động đẹp mắt cho trang landing của bạn"
+            />
           )}
         </TabsContent>  
         {/* Themes Tab */}
@@ -662,7 +702,7 @@ export default function Branding() {
                   <p className="text-muted-foreground mb-4">
                     Tính năng chọn theme chỉ có trong gói Pro và VIP
                   </p>
-                  <Button>Nâng cấp ngay</Button>
+                  <Button onClick={() => navigate('/pricing')}>Nâng cấp ngay</Button>
                 </div>
               </CardContent>
             </Card>
@@ -938,178 +978,6 @@ export default function Branding() {
                               </Badge>
                             )}
                             {!isLocked && selectedLayout === layout && (
-                              <span className="text-xs text-primary font-medium">✓ Selected</span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Content Tab */}
-                    DEFAULT: {
-                      bg: 'bg-gradient-to-b from-indigo-500 to-indigo-600',
-                      preview: (
-                        <div className="h-32 rounded overflow-hidden">
-                          <div className="h-20 bg-gradient-to-b from-indigo-500 to-indigo-600 flex items-center justify-center">
-                            <div className="w-8 h-8 bg-white rounded-full"></div>
-                          </div>
-                          <div className="h-12 bg-white -mt-4 rounded-t-2xl"></div>
-                        </div>
-                      )
-                    },
-                    MINIMAL: {
-                      bg: 'bg-white border-2 border-gray-200',
-                      preview: (
-                        <div className="h-32 bg-white rounded p-4 flex flex-col items-center justify-center space-y-2">
-                          <div className="w-8 h-8 bg-gray-200 rounded-full"></div>
-                          <div className="w-16 h-2 bg-gray-300 rounded"></div>
-                          <div className="w-12 h-1 bg-gray-200 rounded"></div>
-                        </div>
-                      )
-                    },
-                    CENTERED: {
-                      bg: 'bg-gradient-to-br from-indigo-100 to-purple-100',
-                      preview: (
-                        <div className="h-32 bg-gradient-to-br from-indigo-100 to-purple-100 rounded p-4 flex flex-col items-center justify-center space-y-2">
-                          <div className="w-10 h-10 bg-white rounded-full shadow-lg"></div>
-                          <div className="w-20 h-2 bg-indigo-600 rounded"></div>
-                          <div className="w-16 h-6 bg-indigo-600 rounded-full"></div>
-                        </div>
-                      )
-                    },
-                    GRADIENT: {
-                      bg: 'bg-gradient-to-br from-purple-600 via-indigo-600 to-blue-600',
-                      preview: (
-                        <div className="h-32 bg-gradient-to-br from-purple-600 via-indigo-600 to-blue-600 rounded p-4 flex flex-col items-center justify-center space-y-2">
-                          <div className="w-10 h-10 bg-white rounded-full"></div>
-                          <div className="w-20 h-2 bg-yellow-300 rounded"></div>
-                          <div className="w-16 h-6 bg-white rounded-lg"></div>
-                        </div>
-                      )
-                    },
-                    MODERN: {
-                      bg: 'bg-gray-900',
-                      preview: (
-                        <div className="h-32 bg-gray-900 rounded p-4 flex flex-col items-center justify-center space-y-2">
-                          <div className="w-10 h-10 bg-gray-800 rounded-xl"></div>
-                          <div className="w-20 h-2 bg-gray-300 rounded"></div>
-                          <div className="w-16 h-6 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-lg"></div>
-                        </div>
-                      )
-                    },
-                    ELEGANT: {
-                      bg: 'bg-gradient-to-b from-amber-50 to-amber-100',
-                      preview: (
-                        <div className="h-32 bg-gradient-to-b from-amber-50 to-amber-100 rounded p-4 flex flex-col items-center justify-center space-y-2">
-                          <div className="w-12 h-12 bg-white rounded-full ring-4 ring-amber-200 shadow-xl"></div>
-                          <div className="w-6 h-0.5 bg-amber-500"></div>
-                          <div className="w-20 h-2 bg-gray-600 rounded"></div>
-                          <div className="w-16 h-6 bg-amber-600 rounded-full"></div>
-                        </div>
-                      )
-                    },
-                    OCEAN: {
-                      bg: 'bg-gradient-to-b from-cyan-400 via-blue-500 to-blue-700',
-                      preview: (
-                        <div className="h-32 bg-gradient-to-b from-cyan-400 via-blue-500 to-blue-700 rounded p-4 flex flex-col items-center justify-center space-y-2">
-                          <div className="w-10 h-10 bg-white rounded-full shadow-2xl"></div>
-                          <div className="w-20 h-2 bg-cyan-100 rounded"></div>
-                          <div className="w-16 h-6 bg-white rounded-full"></div>
-                        </div>
-                      )
-                    },
-                    SUNSET: {
-                      bg: 'bg-gradient-to-br from-orange-400 via-red-400 to-pink-500',
-                      preview: (
-                        <div className="h-32 bg-gradient-to-br from-orange-400 via-red-400 to-pink-500 rounded p-4 flex flex-col items-center justify-center space-y-2">
-                          <div className="w-10 h-10 bg-white rounded-full ring-4 ring-orange-200 shadow-2xl"></div>
-                          <div className="w-20 h-2 bg-yellow-100 rounded"></div>
-                          <div className="w-16 h-6 bg-white rounded-full"></div>
-                        </div>
-                      )
-                    },
-                    FOREST: {
-                      bg: 'bg-gradient-to-b from-green-400 via-emerald-500 to-teal-600',
-                      preview: (
-                        <div className="h-32 bg-gradient-to-b from-green-400 via-emerald-500 to-teal-600 rounded p-4 flex flex-col items-center justify-center space-y-2">
-                          <div className="w-10 h-10 bg-white rounded-full shadow-2xl"></div>
-                          <div className="w-20 h-2 bg-green-100 rounded"></div>
-                          <div className="w-16 h-6 bg-white rounded-full"></div>
-                        </div>
-                      )
-                    },
-                    ROSE: {
-                      bg: 'bg-gradient-to-br from-pink-300 via-rose-400 to-pink-500',
-                      preview: (
-                        <div className="h-32 bg-gradient-to-br from-pink-300 via-rose-400 to-pink-500 rounded p-4 flex flex-col items-center justify-center space-y-2">
-                          <div className="w-12 h-12 bg-white rounded-full ring-8 ring-white shadow-2xl"></div>
-                          <div className="w-8 h-0.5 bg-white rounded-full"></div>
-                          <div className="w-20 h-2 bg-pink-50 rounded"></div>
-                          <div className="w-16 h-6 bg-white rounded-full"></div>
-                        </div>
-                      )
-                    },
-                    MIDNIGHT: {
-                      bg: 'bg-gradient-to-b from-indigo-900 via-purple-900 to-violet-900',
-                      preview: (
-                        <div className="h-32 bg-gradient-to-b from-indigo-900 via-purple-900 to-violet-900 rounded p-4 flex flex-col items-center justify-center space-y-2">
-                          <div className="w-10 h-10 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full border-4 border-purple-300 shadow-2xl shadow-purple-500/50"></div>
-                          <div className="w-20 h-2 bg-gradient-to-r from-purple-200 to-pink-200 rounded"></div>
-                          <div className="w-16 h-6 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full"></div>
-                        </div>
-                      )
-                    },
-                    COFFEE: {
-                      bg: 'bg-gradient-to-b from-amber-100 to-orange-50',
-                      preview: (
-                        <div className="h-32 bg-gradient-to-b from-amber-100 to-orange-50 rounded p-4 flex flex-col items-center justify-center space-y-2">
-                          <div className="w-10 h-10 bg-amber-800 rounded-full shadow-xl"></div>
-                          <div className="flex items-center gap-1">
-                            <div className="w-3 h-0.5 bg-amber-600"></div>
-                            <div className="w-1 h-1 bg-amber-600 rounded-full"></div>
-                            <div className="w-3 h-0.5 bg-amber-600"></div>
-                          </div>
-                          <div className="w-20 h-2 bg-amber-700 rounded"></div>
-                          <div className="w-16 h-6 bg-amber-800 rounded-lg"></div>
-                        </div>
-                      )
-                    }
-                  };
-
-                  return (
-                    <div
-                      key={layout}
-                      className={`rounded-lg border-2 cursor-pointer transition-all hover:scale-105 ${
-                        selectedLayout === layout ? 'border-primary ring-4 ring-primary/20' : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                      onClick={() => setSelectedLayout(layout)}
-                    >
-                      <div className="space-y-3 p-4">
-                        {layoutStyles[layout]?.preview}
-                        <div className="space-y-2">
-                          <p className="text-sm font-semibold capitalize">
-                            {layout.replace('_', ' ').toLowerCase()}
-                          </p>
-                          <div className="flex items-center justify-between">
-                            {['DEFAULT', 'MINIMAL'].includes(layout) && (
-                              <Badge variant="outline" className="text-xs">FREE</Badge>
-                            )}
-                            {['CENTERED', 'GRADIENT', 'MODERN', 'OCEAN', 'SUNSET', 'FOREST'].includes(layout) && (
-                              <Badge variant="secondary" className="text-xs">PRO+</Badge>
-                            )}
-                            {['ELEGANT', 'ROSE', 'MIDNIGHT', 'COFFEE'].includes(layout) && (
-                              <Badge variant="default" className="text-xs">
-                                <Crown className="w-3 h-3 mr-1" />
-                                VIP
-                              </Badge>
-                            )}
-                            {selectedLayout === layout && (
                               <span className="text-xs text-primary font-medium">✓ Selected</span>
                             )}
                           </div>

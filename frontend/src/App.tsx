@@ -6,6 +6,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import Index from "./pages/Index";
 import Pricing from "./pages/Pricing";
+import Payment from "./pages/Payment";
+import PaymentSubscriptionSuccess from "./pages/PaymentSubscriptionSuccess";
 import Onboarding from "./pages/Onboarding";
 import Login from "./pages/Login";
 import RestaurantSelector from "./pages/RestaurantSelector";
@@ -76,6 +78,8 @@ const App = () => (
             <Route path="/ui-showcase" element={<UIShowcase />} />
             <Route path="/api-test" element={<ApiTest />} />
             <Route path="/pricing" element={<Pricing />} />
+            <Route path="/payment" element={<Payment />} />
+            <Route path="/payment/subscription/success" element={<PaymentSubscriptionSuccess />} />
             <Route path="/onboarding" element={<Onboarding />} />
             <Route path="/register" element={<Register />} />
             <Route path="/verify-email" element={<VerifyEmail />} />

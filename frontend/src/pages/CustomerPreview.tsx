@@ -384,22 +384,28 @@ export default function CustomerPreview() {
   if (layoutType === 'GRADIENT') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-600 via-indigo-600 to-blue-600">
-        <div className="max-w-4xl mx-auto px-4 py-12">
-          <div className="text-center mb-12">
+        <div 
+          className="relative h-[350px] bg-cover bg-center"
+          style={{ backgroundImage: `url('${displayBanner}')` }}
+        >
+          <div className="absolute inset-0 bg-gradient-to-b from-purple-600/80 via-indigo-600/70 to-blue-600/80"></div>
+          <div className="relative h-full flex flex-col items-center justify-center text-center px-4">
             {displayLogo ? (
-              <img src={displayLogo} alt="Logo" className="w-28 h-28 rounded-full object-cover mx-auto mb-6 border-4 border-white shadow-2xl" />
+              <img src={displayLogo} alt="Logo" className="w-28 h-28 rounded-full object-cover mb-6 border-4 border-white shadow-2xl" />
             ) : (
-              <div className="w-28 h-28 rounded-full bg-white flex items-center justify-center mx-auto mb-6 border-4 border-white shadow-2xl">
+              <div className="w-28 h-28 rounded-full bg-white flex items-center justify-center mb-6 border-4 border-white shadow-2xl">
                 <UtensilsCrossed className="w-14 h-14 text-indigo-600" />
               </div>
             )}
-            <h1 className="text-5xl font-bold mb-3 text-white">{displayName}</h1>
-            <p className="text-2xl text-yellow-300 mb-8">{displayTagline}</p>
+            <h1 className="text-5xl font-bold mb-3 text-white drop-shadow-lg">{displayName}</h1>
+            <p className="text-2xl text-yellow-300 mb-8 drop-shadow-md">{displayTagline}</p>
             <button onClick={handleStartOrdering} disabled={!branchId} className="px-10 py-4 bg-white text-indigo-600 rounded-lg font-bold text-lg shadow-xl hover:shadow-2xl transition-all hover:scale-105 disabled:opacity-50">
               Xem thực đơn ngay
             </button>
           </div>
+        </div>
 
+        <div className="max-w-4xl mx-auto px-4 -mt-16 relative z-10">
           <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-2xl p-6 mb-8">
             <InfoCard />
           </div>

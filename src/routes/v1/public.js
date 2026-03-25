@@ -60,7 +60,8 @@ async function getTableByQR(req, res) {
             brandName: brandingDoc.brandName,
             tagline: brandingDoc.tagline,
             logoUrl: brandingDoc.logoUrl,
-            bannerUrl: brandingDoc.bannerUrl
+            bannerUrl: brandingDoc.bannerUrl,
+            layoutType: brandingDoc.layoutType
           };
         }
       }

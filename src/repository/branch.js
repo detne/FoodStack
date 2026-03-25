@@ -115,11 +115,12 @@ class BranchRepository {
   }
 
   async deactivate(id) {
-    // Just set status to INACTIVE, don't delete
+    // Soft delete: set deleted_at timestamp
     return this.prisma.branches.update({
       where: { id },
       data: {
         status: 'INACTIVE',
+        deleted_at: new Date(),
         updated_at: new Date(),
       },
     });
